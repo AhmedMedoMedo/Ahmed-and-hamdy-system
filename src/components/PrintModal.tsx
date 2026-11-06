@@ -170,25 +170,46 @@ ${paymentNewDebt > 0 ? `👉 *الباقي عليك للحساب:* ${formatCurre
 
     setIsCapturing(true);
     try {
-      // Calculate true full height and width of the complete invoice document
-      const fullHeight = Math.max(el.scrollHeight, el.offsetHeight);
-      const fullWidth = Math.max(el.scrollWidth, el.offsetWidth, 560);
+      // Set an ideal standard width for crisp commercial voucher capture (620px)
+      const captureWidth = 620;
 
-      // Use html-to-image with skipFonts: true and explicit unconstrained full dimensions
+      // Temporarily measure the exact rendered height of the clone at captureWidth
+      const clone = el.cloneNode(true) as HTMLElement;
+      clone.style.width = `${captureWidth}px`;
+      clone.style.maxWidth = `${captureWidth}px`;
+      clone.style.minWidth = `${captureWidth}px`;
+      clone.style.position = 'fixed';
+      clone.style.left = '-9999px';
+      clone.style.top = '0';
+      clone.style.visibility = 'hidden';
+      clone.style.margin = '0';
+      clone.style.padding = '24px';
+      clone.style.boxSizing = 'border-box';
+      document.body.appendChild(clone);
+      const measuredHeight = Math.ceil(clone.scrollHeight || clone.offsetHeight);
+      document.body.removeChild(clone);
+
+      // Use html-to-image with perfectly synchronized width & height
+      // This ensures 100% full-width coverage edge-to-edge with ZERO blank white margins on the sides
       const dataUrl = await toPng(el, {
         cacheBust: true,
         backgroundColor: '#ffffff',
         pixelRatio: 2.5,
         skipFonts: true,
         fontEmbedCSS: '',
-        height: fullHeight,
-        width: fullWidth,
+        width: captureWidth,
+        height: measuredHeight,
         style: {
-          height: `${fullHeight}px`,
+          width: `${captureWidth}px`,
+          maxWidth: `${captureWidth}px`,
+          minWidth: `${captureWidth}px`,
+          height: `${measuredHeight}px`,
           maxHeight: 'none',
           overflow: 'visible',
           transform: 'none',
-          margin: '0 auto',
+          margin: '0',
+          padding: '24px',
+          boxSizing: 'border-box',
         }
       });
 
@@ -342,13 +363,13 @@ ${paymentNewDebt > 0 ? `👉 *الباقي عليك للحساب:* ${formatCurre
           {/* Printable Voucher Sheet — Pure White Print Spooler Replica (Unconstrained Full Height) */}
           <div 
             id="printable-voucher" 
-            className="p-4 sm:p-6 bg-white text-black font-sans print:p-0 border border-slate-200 rounded-2xl shadow-xs print:border-none print:shadow-none max-w-xl mx-auto w-full"
+            className="p-4 sm:p-6 bg-white text-black font-sans print:p-0 border border-slate-200 rounded-2xl shadow-xs print:border-none print:shadow-none w-full max-w-2xl mx-auto"
             dir="rtl"
           >
           
           {/* ==================== 1. SALES INVOICE VIEW ==================== */}
           {invoice && (
-            <div className="space-y-3.5 max-w-xl mx-auto">
+            <div className="space-y-3.5 w-full">
               
               {/* Header: Company Title (Right) + Invoice # / Date Box (Left) */}
               <div className="flex items-start justify-between gap-4">
@@ -398,7 +419,7 @@ ${paymentNewDebt > 0 ? `👉 *الباقي عليك للحساب:* ${formatCurre
                 {/* Right Box: Invoice To (Merchant) */}
                 <div className="border border-slate-300 rounded-md p-2 flex flex-col justify-between min-h-[64px]">
                   <span className="text-[10px] text-slate-500">الفاتورة إلى:</span>
-                  <div className="text-sm sm:text-base font-black text-black truncate my-0.5">
+                  <div className="text-sm sm:text-base font-black text-black break-words my-0.5">
                     {invoice.merchantName}
                   </div>
                   <span className="text-[10px] text-slate-500">التاجر / العميل</span>
@@ -407,7 +428,7 @@ ${paymentNewDebt > 0 ? `👉 *الباقي عليك للحساب:* ${formatCurre
                 {/* Left Box: Payment Status (Replaces Warehouse as explicitly requested) */}
                 <div className="border border-slate-300 rounded-md p-2 flex flex-col justify-between min-h-[64px]">
                   <span className="text-[10px] text-slate-500">حالة الدفع:</span>
-                  <div className={`text-xs sm:text-sm font-black truncate my-0.5 ${
+                  <div className={`text-xs sm:text-sm font-black break-words my-0.5 ${
                     invoice.remainingAmount <= 0 
                       ? 'text-emerald-700' 
                       : invoice.paidAmount > 0 
@@ -416,7 +437,7 @@ ${paymentNewDebt > 0 ? `👉 *الباقي عليك للحساب:* ${formatCurre
                   }`}>
                     {invoicePaymentStatusText}
                   </div>
-                  <span className="text-[10px] text-slate-500 truncate">
+                  <span className="text-[10px] text-slate-500 break-words leading-tight">
                     {invoice.remainingAmount <= 0 
                       ? 'مسددة بالكامل كاش فوري' 
                       : invoice.paidAmount > 0 
@@ -581,7 +602,7 @@ ${paymentNewDebt > 0 ? `👉 *الباقي عليك للحساب:* ${formatCurre
 
           {/* ==================== 2. PAYMENT / VOUCHER VIEW ==================== */}
           {payment && (
-            <div className="space-y-4 max-w-xl mx-auto">
+            <div className="space-y-4 w-full">
               
               {/* Header: Company Title (Right) + Movement # / Date Box (Left) */}
               <div className="flex items-start justify-between gap-4">

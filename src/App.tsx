@@ -121,6 +121,7 @@ const MainLayout: React.FC = () => {
           {activeTab === 'orders' && (
             <WorkOrdersView 
               onSelectMerchant={handleSelectMerchant}
+              onPrintInvoice={(inv) => setPrintableInvoice(inv)}
             />
           )}
 

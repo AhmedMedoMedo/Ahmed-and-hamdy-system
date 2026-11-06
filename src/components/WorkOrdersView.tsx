@@ -33,17 +33,20 @@ import { SearchableSelect } from './SearchableSelect';
 
 interface WorkOrdersViewProps {
   onOpenOrderInvoice?: (invoiceId: string) => void;
+  onPrintInvoice?: (invoice: any) => void;
   onSelectMerchant?: (merchantId: string) => void;
 }
 
 export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
   onOpenOrderInvoice,
+  onPrintInvoice,
   onSelectMerchant,
 }) => {
   const { 
     orders, 
     merchants, 
     products, 
+    invoices,
     merchantBalances,
     currency, 
     saveWorkOrder, 
@@ -54,7 +57,7 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
   } = useApp();
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'active' | 'delivered' | 'all'>('active');
+  const [statusFilter, setStatusFilter] = useState<'active' | 'delivered' | 'all'>('all');
 
   // Create / Edit modal state
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -400,30 +403,30 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
           )}
         </div>
 
-        <div className="grid grid-cols-3 gap-1 bg-slate-200/70 p-1 rounded-xl text-xs">
+        <div className="grid grid-cols-3 gap-1 bg-slate-200/80 dark:bg-slate-800 p-1 rounded-xl text-xs">
+          <button
+            onClick={() => setStatusFilter('all')}
+            className={`py-1.5 rounded-lg font-bold transition-all ${
+              statusFilter === 'all' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-2xs' : 'text-slate-600 dark:text-slate-300'
+            }`}
+          >
+            كل طلبات الشغل ({orders.length})
+          </button>
           <button
             onClick={() => setStatusFilter('active')}
             className={`py-1.5 rounded-lg font-bold transition-all ${
-              statusFilter === 'active' ? 'bg-indigo-600 text-white shadow-2xs' : 'text-slate-700'
+              statusFilter === 'active' ? 'bg-indigo-600 text-white shadow-2xs' : 'text-slate-700 dark:text-slate-300'
             }`}
           >
-            للتسليم والتحضير ({orders.filter(o => o.status !== 'delivered').length})
+            قيد التحضير ({orders.filter(o => o.status !== 'delivered').length})
           </button>
           <button
             onClick={() => setStatusFilter('delivered')}
             className={`py-1.5 rounded-lg font-bold transition-all ${
-              statusFilter === 'delivered' ? 'bg-emerald-600 text-white shadow-2xs' : 'text-slate-700'
+              statusFilter === 'delivered' ? 'bg-emerald-600 text-white shadow-2xs' : 'text-slate-700 dark:text-slate-300'
             }`}
           >
             تم تسليمها ({orders.filter(o => o.status === 'delivered').length})
-          </button>
-          <button
-            onClick={() => setStatusFilter('all')}
-            className={`py-1.5 rounded-lg font-bold transition-all ${
-              statusFilter === 'all' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-600'
-            }`}
-          >
-            كل الطلبات ({orders.length})
           </button>
         </div>
       </div>
@@ -557,9 +560,26 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
                     <span>{isPartial ? 'تسليم الباقي أو جزء جديد' : 'تسليم الطلب للتاجر'}</span>
                   </button>
                 ) : (
-                  <div className="flex-1 py-1.5 px-3 rounded-xl bg-emerald-50 text-emerald-800 text-xs font-bold text-center flex items-center justify-center gap-1">
-                    <Check className="w-3.5 h-3.5" />
-                    <span>تم تسليم هذا الطلب بالكامل</span>
+                  <div className="flex-1 py-1.5 px-3 rounded-xl bg-emerald-50 text-emerald-800 text-xs font-bold text-center flex items-center justify-between gap-1 flex-wrap">
+                    <span className="flex items-center gap-1">
+                      <Check className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>تم تسليم هذا الطلب بالكامل</span>
+                    </span>
+                    {onPrintInvoice && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const inv = invoices.find(i => i.orderId === order.id || (i.notes && i.notes.includes(order.orderNumber)));
+                          if (inv) onPrintInvoice(inv);
+                          else showToast('لم يتم العثور على فاتورة مرتبطة بهذا الطلب');
+                        }}
+                        className="px-2 py-0.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold inline-flex items-center gap-1 transition-all active:scale-95 shadow-2xs"
+                        title="معاينة وطباعة أو مشاركة فاتورة التسليم"
+                      >
+                        <Receipt className="w-3 h-3" />
+                        <span>فاتورة التسليم</span>
+                      </button>
+                    )}
                   </div>
                 )}
 
@@ -586,10 +606,28 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
         {filteredOrders.length === 0 && (
           <div className="py-12 text-center bg-white dark:bg-slate-900 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 p-6">
             <Truck className="w-8 h-8 text-slate-300 dark:text-slate-600 mx-auto mb-2" />
-            <h4 className="font-bold text-slate-700 dark:text-slate-200 text-sm">لا توجد طلبات شغل مسجلة</h4>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-              سجل طلبات التجار لتحضيرها مسبقاً وتسليمها بضغطة زر واحدة.
+            <h4 className="font-bold text-slate-700 dark:text-slate-200 text-sm">
+              {orders.length === 0 
+                ? 'لا توجد طلبات شغل مسجلة حالياً'
+                : 'لا توجد طلبات شغل تطابق التصنيف المحدد'}
+            </h4>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 mb-3">
+              {orders.length === 0
+                ? 'سجل طلبات التجار لتحضيرها مسبقاً وتسليمها بضغطة زر واحدة.'
+                : 'يمكنك الانتقال إلى تصنيف "كل طلبات الشغل" لرؤية جميع الطلبات المسجلة والمسلمة.'}
             </p>
+            {orders.length > 0 && statusFilter !== 'all' && (
+              <button
+                type="button"
+                onClick={() => {
+                  setStatusFilter('all');
+                  setSearchTerm('');
+                }}
+                className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-xs transition-all active:scale-95"
+              >
+                عرض كل طلبات الشغل ({orders.length})
+              </button>
+            )}
           </div>
         )}
       </div>
