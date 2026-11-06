@@ -29,7 +29,8 @@ export const CloudAuthModal: React.FC<CloudAuthModalProps> = ({ isOpen, onClose 
     showToast,
     merchants,
     invoices,
-    payments
+    payments,
+    exportDataJSON
   } = useApp();
 
   const [isLoading, setIsLoading] = useState(false);
@@ -248,7 +249,22 @@ export const CloudAuthModal: React.FC<CloudAuthModalProps> = ({ isOpen, onClose 
 
             </div>
           ) : (
-            <div className="space-y-2 pt-1">
+            <div className="space-y-2.5 pt-1">
+              
+              {/* Security & Isolation Guarantee Badge */}
+              <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 rounded-2xl border border-emerald-200 dark:border-emerald-800 space-y-1.5">
+                <div className="flex items-center gap-1.5 font-bold text-xs text-emerald-800 dark:text-emerald-300">
+                  <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                  <span>بياناتك معزولة ومحمية بالكامل 100%:</span>
+                </div>
+                <ul className="text-[11px] text-slate-600 dark:text-slate-300 space-y-1 leading-relaxed list-disc list-inside pr-1">
+                  <li><b>فصل تام عن وصل دليفري:</b> يعمل هذا النظام على قاعدة بيانات سحابية مستقلة ومخصصة بالكامل (<span className="font-mono text-[10px]">ai-studio...</span>)، منفصلة تماماً عن قاعدة وصل دليفري الافتراضية.</li>
+                  <li><b>حماية من التلاعب:</b> قواعد الأمان السحابية تمنع أي شخص أو زائر خارجي من قراءة أو تعديل فواتيرك.</li>
+                  <li><b>عدم الفقدان:</b> كل حركة تُسجل سحابياً ومحلياً على جهازك في نفس اللحظة.</li>
+                </ul>
+              </div>
+
+              {/* Live sync stats */}
               <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-1">
                 <div className="text-[11px] font-bold text-slate-700 dark:text-slate-300">
                   إحصائيات المزامنة السحابية الحالية:
@@ -268,6 +284,30 @@ export const CloudAuthModal: React.FC<CloudAuthModalProps> = ({ isOpen, onClose 
                   </div>
                 </div>
               </div>
+
+              {/* Quick Backup Download */}
+              <button
+                type="button"
+                onClick={() => {
+                  try {
+                    const jsonStr = exportDataJSON();
+                    const blob = new Blob([jsonStr], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `ahmed_hamdy_backup_${new Date().toISOString().slice(0, 10)}.json`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                    showToast('تم حفظ نسخة احتياطية (JSON) على هاتفك بنجاح 💾');
+                  } catch (e) {
+                    console.error("Backup error:", e);
+                    showToast('حدث خطأ أثناء تحميل النسخة الاحتياطية');
+                  }
+                }}
+                className="w-full py-2.5 px-3 rounded-xl bg-teal-50 dark:bg-teal-950/60 hover:bg-teal-100 text-teal-800 dark:text-teal-300 font-bold text-xs flex items-center justify-center gap-1.5 border border-teal-200 dark:border-teal-900 transition-colors"
+              >
+                <span>💾 تحميل نسخة احتياطية على هاتفك (أمان إضافي)</span>
+              </button>
 
               <button
                 onClick={handleLogout}
