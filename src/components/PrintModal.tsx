@@ -163,35 +163,55 @@ ${paymentNewDebt > 0 ? `👉 *الباقي عليك للحساب:* ${formatCurre
     return new Blob([uInt8Array], { type: contentType });
   };
 
-  // 1. Capture screen from invoice element using html-to-image (Complete 100% Full Height without ANY cutoffs)
+  // 1. Capture screen from invoice element using html-to-image (Complete 100% Full Width & Height without ANY cutoffs)
   const handleCaptureAndOpenShare = async () => {
     const el = document.getElementById('printable-voucher');
     if (!el) return;
 
     setIsCapturing(true);
+    let captureContainer: HTMLDivElement | null = null;
     try {
-      // Set an ideal standard width for crisp commercial voucher capture (620px)
-      const captureWidth = 620;
+      // Standard commercial voucher width (560px) - ideal proportion for mobile & WhatsApp receipts
+      const captureWidth = 560;
 
-      // Temporarily measure the exact rendered height of the clone at captureWidth
+      // Create an offscreen staging container in the real DOM so styles & fonts compute at exactly 560px
+      captureContainer = document.createElement('div');
+      captureContainer.style.position = 'fixed';
+      captureContainer.style.left = '-9999px';
+      captureContainer.style.top = '0';
+      captureContainer.style.width = `${captureWidth}px`;
+      captureContainer.style.zIndex = '-9999';
+      captureContainer.style.backgroundColor = '#ffffff';
+      captureContainer.dir = 'rtl';
+
+      // Clone the voucher element and force 100% full width and unconstrained height
       const clone = el.cloneNode(true) as HTMLElement;
+      clone.id = 'printable-voucher-capture-clone';
       clone.style.width = `${captureWidth}px`;
       clone.style.maxWidth = `${captureWidth}px`;
       clone.style.minWidth = `${captureWidth}px`;
-      clone.style.position = 'fixed';
-      clone.style.left = '-9999px';
-      clone.style.top = '0';
-      clone.style.visibility = 'hidden';
+      clone.style.height = 'auto';
+      clone.style.maxHeight = 'none';
+      clone.style.overflow = 'visible';
       clone.style.margin = '0';
-      clone.style.padding = '24px';
+      clone.style.padding = '20px';
       clone.style.boxSizing = 'border-box';
-      document.body.appendChild(clone);
-      const measuredHeight = Math.ceil(clone.scrollHeight || clone.offsetHeight);
-      document.body.removeChild(clone);
+      clone.style.backgroundColor = '#ffffff';
+      clone.style.borderRadius = '0';
+      clone.style.border = 'none';
+      clone.style.boxShadow = 'none';
 
-      // Use html-to-image with perfectly synchronized width & height
-      // This ensures 100% full-width coverage edge-to-edge with ZERO blank white margins on the sides
-      const dataUrl = await toPng(el, {
+      captureContainer.appendChild(clone);
+      document.body.appendChild(captureContainer);
+
+      // Wait a tick for browser layout engine to calculate exact geometry at 560px
+      await new Promise(resolve => setTimeout(resolve, 50));
+
+      // Calculate exact rendered height of the clone at 560px width
+      const measuredHeight = Math.ceil(Math.max(clone.scrollHeight, clone.offsetHeight)) + 6;
+
+      // Capture the 560px clone DIRECTLY — ensures 100% full-width coverage and zero blank margins
+      const dataUrl = await toPng(clone, {
         cacheBust: true,
         backgroundColor: '#ffffff',
         pixelRatio: 2.5,
@@ -199,18 +219,6 @@ ${paymentNewDebt > 0 ? `👉 *الباقي عليك للحساب:* ${formatCurre
         fontEmbedCSS: '',
         width: captureWidth,
         height: measuredHeight,
-        style: {
-          width: `${captureWidth}px`,
-          maxWidth: `${captureWidth}px`,
-          minWidth: `${captureWidth}px`,
-          height: `${measuredHeight}px`,
-          maxHeight: 'none',
-          overflow: 'visible',
-          transform: 'none',
-          margin: '0',
-          padding: '24px',
-          boxSizing: 'border-box',
-        }
       });
 
       setCapturedImageDataUrl(dataUrl);
@@ -228,6 +236,9 @@ ${paymentNewDebt > 0 ? `👉 *الباقي عليك للحساب:* ${formatCurre
       console.error('Failed to capture screenshot', err);
       showToast('تعذر التقاط سكرين الفاتورة، يرجى المحاولة مرة ثانية');
     } finally {
+      if (captureContainer && captureContainer.parentNode) {
+        captureContainer.parentNode.removeChild(captureContainer);
+      }
       setIsCapturing(false);
     }
   };
@@ -821,11 +832,11 @@ ${paymentNewDebt > 0 ? `👉 *الباقي عليك للحساب:* ${formatCurre
                   <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 block">
                     معاينة السكرين المُلتقط للفاتورة:
                   </span>
-                  <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-950 p-2 max-h-48 overflow-y-auto flex justify-center">
+                  <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden bg-slate-100/80 dark:bg-slate-950 p-2 max-h-60 overflow-y-auto flex justify-center">
                     <img 
                       src={capturedImageDataUrl} 
                       alt="معاينة سكرين الفاتورة" 
-                      className="w-full max-w-sm rounded shadow-xs object-contain"
+                      className="w-full max-w-sm rounded-lg shadow-xs object-contain"
                     />
                   </div>
                 </div>
