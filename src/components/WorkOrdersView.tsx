@@ -57,7 +57,7 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
   } = useApp();
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'active' | 'delivered' | 'all'>('all');
+  const [statusFilter, setStatusFilter] = useState<'active' | 'delivered' | 'all'>('active');
 
   // Create / Edit modal state
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -361,14 +361,14 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
       {/* Top Header */}
       <div className="flex items-center justify-between gap-2 pt-1">
         <div>
-          <h2 className="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-1.5">
-            <Truck className="w-5 h-5 text-indigo-600" />
+          <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+            <Truck className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
             <span>تحضير وتسليم طلبات الشغل</span>
-            <span className="text-xs bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded-full font-mono-num font-bold">
+            <span className="text-xs bg-indigo-100 dark:bg-indigo-950/80 text-indigo-800 dark:text-indigo-300 px-2 py-0.5 rounded-full font-mono-num font-bold">
               {filteredOrders.length}
             </span>
           </h2>
-          <p className="text-[11px] text-slate-500">
+          <p className="text-[11px] text-slate-500 dark:text-slate-400">
             سجل طلبات التجار، سلم الطلب كاملاً أو جزئياً، مع إضافة دين أو سداد فوري تلقائياً
           </p>
         </div>
@@ -385,48 +385,81 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
       {/* Search & Status Filter */}
       <div className="space-y-2">
         <div className="relative">
-          <Search className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2" />
+          <Search className="w-4 h-4 text-slate-400 dark:text-slate-500 absolute right-3 top-1/2 -translate-y-1/2" />
           <input
             type="text"
             placeholder="بحث برقم الطلب، اسم التاجر، أو الصنف..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-3 pr-9 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-indigo-500 bg-white"
+            className="w-full pl-3 pr-9 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-indigo-500 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 shadow-2xs"
           />
           {searchTerm && (
             <button
               onClick={() => setSearchTerm('')}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
             >
               <X className="w-4 h-4" />
             </button>
           )}
         </div>
 
-        <div className="grid grid-cols-3 gap-1 bg-slate-200/80 dark:bg-slate-800 p-1 rounded-xl text-xs">
+        {/* Filter Tabs Bar with Full Dark Mode & High Contrast Badges */}
+        <div className="grid grid-cols-3 gap-1 bg-slate-200/90 dark:bg-slate-800/90 border border-slate-300/60 dark:border-slate-700/60 p-1 rounded-xl text-xs shadow-2xs">
           <button
-            onClick={() => setStatusFilter('all')}
-            className={`py-1.5 rounded-lg font-bold transition-all ${
-              statusFilter === 'all' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-2xs' : 'text-slate-600 dark:text-slate-300'
-            }`}
-          >
-            كل طلبات الشغل ({orders.length})
-          </button>
-          <button
+            type="button"
             onClick={() => setStatusFilter('active')}
-            className={`py-1.5 rounded-lg font-bold transition-all ${
-              statusFilter === 'active' ? 'bg-indigo-600 text-white shadow-2xs' : 'text-slate-700 dark:text-slate-300'
+            className={`py-1.5 px-1 rounded-lg font-bold transition-all flex items-center justify-center gap-1 ${
+              statusFilter === 'active'
+                ? 'bg-indigo-600 text-white shadow-xs'
+                : 'text-slate-700 dark:text-slate-300 hover:bg-white/50 dark:hover:bg-slate-700/50'
             }`}
           >
-            قيد التحضير ({orders.filter(o => o.status !== 'delivered').length})
+            <span>قيد التحضير</span>
+            <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono-num font-bold ${
+              statusFilter === 'active'
+                ? 'bg-indigo-700/90 text-indigo-100'
+                : 'bg-slate-300/80 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
+            }`}>
+              {orders.filter(o => o.status !== 'delivered').length}
+            </span>
           </button>
+
           <button
+            type="button"
             onClick={() => setStatusFilter('delivered')}
-            className={`py-1.5 rounded-lg font-bold transition-all ${
-              statusFilter === 'delivered' ? 'bg-emerald-600 text-white shadow-2xs' : 'text-slate-700 dark:text-slate-300'
+            className={`py-1.5 px-1 rounded-lg font-bold transition-all flex items-center justify-center gap-1 ${
+              statusFilter === 'delivered'
+                ? 'bg-emerald-600 text-white shadow-xs'
+                : 'text-slate-700 dark:text-slate-300 hover:bg-white/50 dark:hover:bg-slate-700/50'
             }`}
           >
-            تم تسليمها ({orders.filter(o => o.status === 'delivered').length})
+            <span>تم تسليمها</span>
+            <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono-num font-bold ${
+              statusFilter === 'delivered'
+                ? 'bg-emerald-700/90 text-emerald-100'
+                : 'bg-slate-300/80 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
+            }`}>
+              {orders.filter(o => o.status === 'delivered').length}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setStatusFilter('all')}
+            className={`py-1.5 px-1 rounded-lg font-bold transition-all flex items-center justify-center gap-1 ${
+              statusFilter === 'all'
+                ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
+                : 'text-slate-700 dark:text-slate-300 hover:bg-white/50 dark:hover:bg-slate-700/50'
+            }`}
+          >
+            <span>كل الطلبات</span>
+            <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono-num font-bold ${
+              statusFilter === 'all'
+                ? 'bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-200'
+                : 'bg-slate-300/80 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
+            }`}>
+              {orders.length}
+            </span>
           </button>
         </div>
       </div>
@@ -443,16 +476,16 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
           return (
             <div
               key={order.id}
-              className={`bg-white rounded-2xl border p-3.5 shadow-2xs transition-all ${
+              className={`rounded-2xl border p-3.5 shadow-2xs transition-all ${
                 isDelivered
-                  ? 'border-emerald-200/80 bg-emerald-50/10'
+                  ? 'bg-white dark:bg-slate-800/95 border-emerald-200/80 dark:border-emerald-800/60'
                   : isPartial
-                  ? 'border-indigo-200/80 bg-indigo-50/10'
-                  : 'border-amber-200/80 bg-amber-50/10'
+                  ? 'bg-white dark:bg-slate-800/95 border-indigo-200/80 dark:border-indigo-800/60'
+                  : 'bg-white dark:bg-slate-800/95 border-amber-200/80 dark:border-amber-800/60'
               }`}
             >
               {/* Top Row: Merchant Name + Order # + Status Badge */}
-              <div className="flex items-start justify-between gap-2 mb-2 pb-2 border-b border-slate-100">
+              <div className="flex items-start justify-between gap-2 mb-2 pb-2 border-b border-slate-100 dark:border-slate-700/60">
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5 flex-wrap">
                     <button
@@ -460,16 +493,16 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
                       onClick={() => {
                         if (onSelectMerchant) onSelectMerchant(order.merchantId);
                       }}
-                      className="font-bold text-slate-900 text-sm truncate hover:text-indigo-600 hover:underline cursor-pointer text-right"
+                      className="font-bold text-slate-900 dark:text-white text-sm truncate hover:text-indigo-600 dark:hover:text-indigo-400 hover:underline cursor-pointer text-right"
                       title="فتح صفحة التاجر"
                     >
                       {order.merchantName}
                     </button>
-                    <span className="text-[10px] px-1.5 py-0.2 rounded bg-slate-100 font-mono-num font-bold text-slate-600">
+                    <span className="text-[10px] px-1.5 py-0.2 rounded bg-slate-100 dark:bg-slate-700 font-mono-num font-bold text-slate-600 dark:text-slate-300">
                       #{order.orderNumber}
                     </span>
                   </div>
-                  <div className="flex items-center gap-2 text-[11px] text-slate-400 mt-0.5">
+                  <div className="flex items-center gap-2 text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">
                     <span className="flex items-center gap-0.5">
                       <Calendar className="w-3 h-3" />
                       {formatDateArabic(order.date)}
@@ -481,18 +514,18 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
 
                 <div className="shrink-0 text-left">
                   {isDelivered ? (
-                    <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[11px] font-bold flex items-center gap-1">
-                      <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                    <span className="px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 text-[11px] font-bold flex items-center gap-1 border border-emerald-200 dark:border-emerald-800/60">
+                      <CheckCircle2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
                       <span>تم التسليم كاملاً</span>
                     </span>
                   ) : isPartial ? (
-                    <span className="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800 text-[11px] font-bold flex items-center gap-1">
-                      <Clock className="w-3 h-3 text-indigo-600" />
+                    <span className="px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-950/80 text-indigo-800 dark:text-indigo-300 text-[11px] font-bold flex items-center gap-1 border border-indigo-200 dark:border-indigo-800/60">
+                      <Clock className="w-3 h-3 text-indigo-600 dark:text-indigo-400" />
                       <span>تم تسليم جزء (متبقي)</span>
                     </span>
                   ) : (
-                    <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[11px] font-bold flex items-center gap-1">
-                      <Clock className="w-3 h-3 text-amber-600" />
+                    <span className="px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300 text-[11px] font-bold flex items-center gap-1 border border-amber-200 dark:border-amber-800/60">
+                      <Clock className="w-3 h-3 text-amber-600 dark:text-amber-400" />
                       <span>قيد التحضير</span>
                     </span>
                   )}
@@ -502,24 +535,24 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
               {/* Items Breakdown with Remaining Counters */}
               <div className="space-y-1.5 my-2">
                 {order.items.map((it, idx) => (
-                  <div key={idx} className="p-2 bg-white rounded-xl border border-slate-200/80 flex items-center justify-between text-xs">
+                  <div key={idx} className="p-2 bg-slate-50/70 dark:bg-slate-900/60 rounded-xl border border-slate-200/80 dark:border-slate-700/60 flex items-center justify-between text-xs">
                     <div className="min-w-0 pr-1">
-                      <span className="font-bold text-slate-900 block truncate">{it.productName}</span>
-                      <span className="text-[10px] text-slate-500 font-mono-num">
+                      <span className="font-bold text-slate-900 dark:text-slate-100 block truncate">{it.productName}</span>
+                      <span className="text-[10px] text-slate-500 dark:text-slate-400 font-mono-num">
                         سعر الوحدة: {formatCurrency(it.unitPrice, currency)}
                       </span>
                     </div>
 
                     <div className="text-left font-mono-num text-xs shrink-0">
                       <div className="flex items-center gap-2">
-                        <span className="text-slate-500 text-[10px]">المطلوب: <b>{it.quantityOrdered}</b></span>
-                        <span className="text-teal-700 text-[10px]">المسلّم: <b>{it.quantityDelivered}</b></span>
+                        <span className="text-slate-500 dark:text-slate-400 text-[10px]">المطلوب: <b>{it.quantityOrdered}</b></span>
+                        <span className="text-teal-700 dark:text-teal-400 text-[10px]">المسلّم: <b>{it.quantityDelivered}</b></span>
                         {it.quantityRemaining > 0 ? (
-                          <span className="text-rose-600 font-bold bg-rose-50 px-1.5 py-0.2 rounded border border-rose-200">
+                          <span className="text-rose-600 dark:text-rose-400 font-bold bg-rose-50 dark:bg-rose-950/40 px-1.5 py-0.2 rounded border border-rose-200 dark:border-rose-800">
                             متبقي: {it.quantityRemaining}
                           </span>
                         ) : (
-                          <span className="text-emerald-700 font-bold text-[10px]">خالص</span>
+                          <span className="text-emerald-700 dark:text-emerald-400 font-bold text-[10px]">خالص</span>
                         )}
                       </div>
                     </div>
@@ -528,29 +561,29 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
               </div>
 
               {/* Order Financials & Notes */}
-              <div className="flex items-center justify-between text-xs text-slate-600 pt-1 pb-2 border-t border-slate-100 font-mono-num">
+              <div className="flex items-center justify-between text-xs text-slate-600 dark:text-slate-300 pt-1 pb-2 border-t border-slate-100 dark:border-slate-700/60 font-mono-num">
                 <div>
-                  <span className="text-slate-400 text-[10px] block">قيمة ما تم تسليمه</span>
-                  <span className="font-bold text-emerald-700">
+                  <span className="text-slate-400 dark:text-slate-500 text-[10px] block">قيمة ما تم تسليمه</span>
+                  <span className="font-bold text-emerald-700 dark:text-emerald-400">
                     {formatCurrency(order.deliveredTotalAmount || 0, currency)}
                   </span>
                 </div>
                 <div className="text-left">
-                  <span className="text-slate-400 text-[10px] block">إجمالي قيمة الطلب</span>
-                  <span className="font-bold text-slate-800">
+                  <span className="text-slate-400 dark:text-slate-500 text-[10px] block">إجمالي قيمة الطلب</span>
+                  <span className="font-bold text-slate-800 dark:text-white">
                     {formatCurrency(order.totalEstimatedAmount, currency)}
                   </span>
                 </div>
               </div>
 
               {order.notes && (
-                <div className="text-[10px] text-slate-500 bg-slate-50 p-1.5 rounded-lg mb-2">
+                <div className="text-[10px] text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-900/60 p-1.5 rounded-lg mb-2 border border-slate-100 dark:border-slate-800">
                   ملاحظات: {order.notes}
                 </div>
               )}
 
               {/* Actions: Deliver Button + Edit + Delete */}
-              <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-1.5">
+              <div className="pt-2 border-t border-slate-100 dark:border-slate-700/60 flex items-center justify-between gap-1.5">
                 {!isDelivered ? (
                   <button
                     onClick={() => handleOpenDelivery(order)}
@@ -560,9 +593,9 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
                     <span>{isPartial ? 'تسليم الباقي أو جزء جديد' : 'تسليم الطلب للتاجر'}</span>
                   </button>
                 ) : (
-                  <div className="flex-1 py-1.5 px-3 rounded-xl bg-emerald-50 text-emerald-800 text-xs font-bold text-center flex items-center justify-between gap-1 flex-wrap">
+                  <div className="flex-1 py-1.5 px-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-800 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800/60 text-xs font-bold text-center flex items-center justify-between gap-1 flex-wrap">
                     <span className="flex items-center gap-1">
-                      <Check className="w-3.5 h-3.5 text-emerald-600" />
+                      <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                       <span>تم تسليم هذا الطلب بالكامل</span>
                     </span>
                     {onPrintInvoice && (
@@ -586,7 +619,7 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
                 <button
                   onClick={() => handleOpenForm(order)}
                   title="تعديل تفاصيل الطلب"
-                  className="p-2 rounded-xl hover:bg-slate-100 text-slate-600"
+                  className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300"
                 >
                   <Edit3 className="w-4 h-4" />
                 </button>
@@ -594,7 +627,7 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
                 <button
                   onClick={() => setOrderToDelete(order)}
                   title="حذف طلب الشغل"
-                  className="p-2 rounded-xl hover:bg-rose-50 text-rose-500"
+                  className="p-2 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-950/40 text-rose-500 dark:text-rose-400"
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>
