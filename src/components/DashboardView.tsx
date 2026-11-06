@@ -1,9 +1,10 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
-import type { Invoice, Payment, Expense } from '../types';
+import type { Invoice, Payment, Expense, WorkOrder } from '../types';
 import { 
   formatCurrency, 
   formatDateArabic,
+  formatTimeAgoArabic,
   getTodayDateString,
   isDateToday,
   isDateWithinDays,
@@ -72,11 +73,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     invoices, 
     payments, 
     expenses,
+    orders,
     pendingOrdersCount,
     setActiveTab,
     removeInvoice,
     removePayment,
     removeExpense,
+    removeWorkOrder,
     showToast
   } = useApp();
 
@@ -89,7 +92,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
   // Deletion confirm modal state
   const [itemToDelete, setItemToDelete] = useState<{
-    type: 'invoice' | 'payment' | 'expense';
+    type: 'invoice' | 'payment' | 'expense' | 'order';
     id: string;
     title: string;
     message: string;
@@ -97,11 +100,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
   // Selected operation detail modal state
   const [selectedOperation, setSelectedOperation] = useState<{
-    type: 'invoice' | 'payment' | 'expense';
+    type: 'invoice' | 'payment' | 'expense' | 'order';
     id: string;
     rawInvoice?: Invoice;
     rawPayment?: Payment;
     rawExpense?: Expense;
+    rawOrder?: WorkOrder;
   } | null>(null);
 
   // Top debtors (Merchants with positive debt)
@@ -114,22 +118,29 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     return Object.values(merchantBalances).reduce((sum, b) => sum + Math.max(0, b.currentDebt), 0);
   }, [merchantBalances]);
 
-  // Combined Operations (Invoices + Payments + Expenses/Withdrawals)
+  // Combined Operations (Invoices + Payments + Expenses/Withdrawals + Work Orders)
   const allCombinedOperations = useMemo(() => {
-    const invOps = invoices.map(inv => ({
-      id: inv.id,
-      merchantId: inv.merchantId,
-      type: 'invoice' as const,
-      date: inv.date,
-      createdAt: inv.createdAt,
-      title: inv.merchantName,
-      subTitle: `فاتورة #${inv.invoiceNumber}`,
-      amount: inv.total,
-      remainingAmount: inv.remainingAmount,
-      isPaid: inv.remainingAmount <= 0,
-      notes: inv.notes,
-      raw: inv,
-    }));
+    const invOps = invoices.map(inv => {
+      const isFromOrder = Boolean(inv.orderId);
+      const isCash = (inv.remainingAmount || 0) <= 0;
+      return {
+        id: inv.id,
+        merchantId: inv.merchantId,
+        type: 'invoice' as const,
+        date: inv.date,
+        createdAt: inv.createdAt,
+        title: inv.merchantName,
+        subTitle: isFromOrder 
+          ? `فاتورة تسليم طلب #${inv.invoiceNumber} (${isCash ? 'كاش فوري' : 'دين آجل'})` 
+          : `فاتورة #${inv.invoiceNumber} (${isCash ? 'سداد كاش' : 'على الحساب'})`,
+        amount: inv.total,
+        remainingAmount: inv.remainingAmount,
+        isPaid: inv.remainingAmount <= 0,
+        isFromOrder,
+        notes: inv.notes,
+        raw: inv,
+      };
+    });
 
     const payOps = payments.map(pay => ({
       id: pay.id,
@@ -161,12 +172,32 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       raw: exp,
     }));
 
-    return [...invOps, ...payOps, ...expOps].sort((a, b) => {
+    const orderOps = orders.map(ord => {
+      const isDelivered = ord.status === 'delivered';
+      const isPartial = ord.status === 'partially_delivered';
+      const statusLabel = isDelivered ? 'تم تسليمه' : isPartial ? 'تسليم جزئي' : 'قيد التحضير';
+      return {
+        id: ord.id,
+        merchantId: ord.merchantId,
+        type: 'order' as const,
+        date: ord.date,
+        createdAt: ord.createdAt,
+        title: ord.merchantName,
+        subTitle: `طلب شغل #${ord.orderNumber} • ${statusLabel}`,
+        amount: ord.totalEstimatedAmount,
+        remainingAmount: Math.max(0, (ord.totalEstimatedAmount || 0) - (ord.deliveredTotalAmount || 0)),
+        isPaid: isDelivered,
+        notes: ord.notes,
+        raw: ord,
+      };
+    });
+
+    return [...invOps, ...payOps, ...expOps, ...orderOps].sort((a, b) => {
       const cmp = b.date.localeCompare(a.date);
       if (cmp !== 0) return cmp;
-      return b.createdAt.localeCompare(a.createdAt);
+      return (b.createdAt || '').localeCompare(a.createdAt || '');
     });
-  }, [invoices, payments, expenses]);
+  }, [invoices, payments, expenses, orders]);
 
   // Filtered Operations based on the period selector
   const filteredOperations = useMemo(() => {
@@ -237,6 +268,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       } else if (itemToDelete.type === 'expense') {
         await removeExpense(itemToDelete.id);
         showToast('تم حذف المصروف واسترجاع المبلغ لصافي التحصيل');
+      } else if (itemToDelete.type === 'order') {
+        await removeWorkOrder(itemToDelete.id);
+        showToast('تم حذف طلب الشغل بنجاح');
       }
     } catch {
       showToast('حدث خطأ أثناء الحذف');
@@ -254,9 +288,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     } else if (op.type === 'payment') {
       const pay = payments.find(p => p.id === op.id);
       setSelectedOperation({ type: 'payment', id: op.id, rawPayment: pay });
-    } else {
+    } else if (op.type === 'expense') {
       const exp = expenses.find(e => e.id === op.id);
       setSelectedOperation({ type: 'expense', id: op.id, rawExpense: exp });
+    } else if (op.type === 'order') {
+      const ord = orders.find(o => o.id === op.id);
+      setSelectedOperation({ type: 'order', id: op.id, rawOrder: ord });
     }
   };
 
@@ -612,13 +649,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
         {/* List of operations with Delete & Edit buttons */}
         <div className="space-y-1.5">
-          {filteredOperations.slice(0, 15).map((op) => {
+          {filteredOperations.slice(0, 20).map((op) => {
             const isInv = op.type === 'invoice';
             const isPay = op.type === 'payment';
             const isExp = op.type === 'expense';
+            const isOrd = op.type === 'order';
             const invRaw = isInv ? (op.raw as Invoice) : undefined;
             const payRaw = isPay ? (op.raw as Payment) : undefined;
             const expRaw = isExp ? (op.raw as Expense) : undefined;
+            const ordRaw = isOrd ? (op.raw as WorkOrder) : undefined;
 
             return (
               <div 
@@ -626,38 +665,58 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 onClick={() => handleOpenOperationDetail(op)}
                 className={`flex items-center justify-between p-2.5 rounded-xl text-xs border cursor-pointer hover:shadow-2xs transition-all active:scale-99 ${
                   isInv 
-                    ? 'bg-blue-50/40 dark:bg-blue-950/20 border-blue-200/80 dark:border-blue-900/50 hover:border-blue-300' 
+                    ? (invRaw?.orderId 
+                        ? 'bg-indigo-50/50 dark:bg-indigo-950/25 border-indigo-200/80 dark:border-indigo-900/50 hover:border-indigo-300' 
+                        : 'bg-blue-50/40 dark:bg-blue-950/20 border-blue-200/80 dark:border-blue-900/50 hover:border-blue-300')
                     : isPay
                     ? 'bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-200/80 dark:border-emerald-900/50 hover:border-emerald-300'
-                    : 'bg-amber-50/50 dark:bg-amber-950/20 border-amber-200/80 dark:border-amber-900/50 hover:border-amber-300'
+                    : isExp
+                    ? 'bg-amber-50/50 dark:bg-amber-950/20 border-amber-200/80 dark:border-amber-900/50 hover:border-amber-300'
+                    : 'bg-purple-50/50 dark:bg-purple-950/20 border-purple-200/80 dark:border-purple-900/50 hover:border-purple-300'
                 }`}
               >
                 <div className="flex items-center gap-2.5 min-w-0 flex-1">
                   <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
                     isInv 
-                      ? 'bg-blue-100 dark:bg-blue-900/60 text-blue-600 dark:text-blue-400' 
+                      ? (invRaw?.orderId 
+                          ? 'bg-indigo-100 dark:bg-indigo-900/60 text-indigo-600 dark:text-indigo-400' 
+                          : 'bg-blue-100 dark:bg-blue-900/60 text-blue-600 dark:text-blue-400')
                       : isPay
                       ? 'bg-emerald-100 dark:bg-emerald-900/60 text-emerald-600 dark:text-emerald-400'
-                      : 'bg-amber-100 dark:bg-amber-900/60 text-amber-600 dark:text-amber-400'
+                      : isExp
+                      ? 'bg-amber-100 dark:bg-amber-900/60 text-amber-600 dark:text-amber-400'
+                      : 'bg-purple-100 dark:bg-purple-900/60 text-purple-600 dark:text-purple-400'
                   }`}>
                     {isInv ? (
-                      <Receipt className="w-4 h-4" />
+                      invRaw?.orderId ? <Truck className="w-4 h-4" /> : <Receipt className="w-4 h-4" />
                     ) : isPay ? (
                       <HandCoins className="w-4 h-4" />
-                    ) : (
+                    ) : isExp ? (
                       <ArrowDownCircle className="w-4 h-4" />
+                    ) : (
+                      <Truck className="w-4 h-4" />
                     )}
                   </div>
                   <div className="min-w-0 pr-1">
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded-md ${
                         isInv 
-                          ? 'bg-blue-100 dark:bg-blue-900/60 text-blue-800 dark:text-blue-300' 
+                          ? (invRaw?.orderId 
+                              ? 'bg-indigo-100 dark:bg-indigo-900/60 text-indigo-800 dark:text-indigo-300' 
+                              : 'bg-blue-100 dark:bg-blue-900/60 text-blue-800 dark:text-blue-300')
                           : isPay
                           ? 'bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300'
-                          : 'bg-amber-100 dark:bg-amber-900/60 text-amber-800 dark:text-amber-300'
+                          : isExp
+                          ? 'bg-amber-100 dark:bg-amber-900/60 text-amber-800 dark:text-amber-300'
+                          : 'bg-purple-100 dark:bg-purple-900/60 text-purple-800 dark:text-purple-300'
                       }`}>
-                        {isInv ? 'فاتورة' : isPay ? 'تحصيل دفعة' : 'مسحوبات'}
+                        {isInv 
+                          ? (invRaw?.orderId ? 'تسليم طلب شغل' : 'فاتورة بيع') 
+                          : isPay 
+                          ? 'تحصيل دفعة' 
+                          : isExp 
+                          ? 'مسحوبات' 
+                          : `طلب شغل (${ordRaw?.status === 'delivered' ? 'تم تسليمه' : ordRaw?.status === 'partially_delivered' ? 'تسليم جزئي' : 'قيد التحضير'})`}
                       </span>
                       {op.merchantId ? (
                         <button
@@ -675,9 +734,25 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                         <span className="font-bold text-slate-900 dark:text-white truncate">{op.title}</span>
                       )}
                     </div>
-                    <span className="text-[10px] text-slate-500 dark:text-slate-400 block font-mono-num truncate mt-0.5">
-                      {op.subTitle} • {formatDateArabic(op.date)}
-                    </span>
+                    
+                    {/* Subtitle with Registration Date AND Relative Time (منذ كم من الوقت) */}
+                    <div className="flex items-center gap-1.5 text-[10px] text-slate-500 dark:text-slate-400 mt-0.5 flex-wrap font-mono-num">
+                      <span className="truncate">{op.subTitle}</span>
+                      <span>•</span>
+                      <span className="inline-flex items-center gap-0.5 font-bold text-slate-700 dark:text-slate-300 shrink-0">
+                        <Calendar className="w-2.5 h-2.5 text-slate-400" />
+                        <span>{formatDateArabic(op.date)}</span>
+                      </span>
+                      {op.createdAt && (
+                        <>
+                          <span>•</span>
+                          <span className="inline-flex items-center gap-0.5 text-indigo-700 dark:text-indigo-300 font-bold bg-indigo-50/80 dark:bg-indigo-950/60 px-1.5 py-0.2 rounded-md shrink-0">
+                            <Clock className="w-2.5 h-2.5" />
+                            <span>{formatTimeAgoArabic(op.createdAt, op.date)}</span>
+                          </span>
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
 
@@ -686,21 +761,32 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   <div className="text-left font-mono-num">
                     <span className={`font-black block text-xs sm:text-sm ${
                       isInv 
-                        ? 'text-blue-700 dark:text-blue-300' 
+                        ? (invRaw?.orderId ? 'text-indigo-700 dark:text-indigo-300' : 'text-blue-700 dark:text-blue-300')
                         : isPay
                         ? 'text-emerald-600 dark:text-emerald-400'
-                        : 'text-amber-600 dark:text-amber-400'
+                        : isExp
+                        ? 'text-amber-600 dark:text-amber-400'
+                        : 'text-purple-700 dark:text-purple-300'
                     }`}>
                       {isInv 
                         ? formatCurrency(op.amount, currency) 
                         : isPay
                         ? `+${formatCurrency(op.amount, currency)}`
-                        : `-${formatCurrency(op.amount, currency)}`
+                        : isExp
+                        ? `-${formatCurrency(op.amount, currency)}`
+                        : formatCurrency(op.amount, currency)
                       }
                     </span>
                     {isInv && op.remainingAmount > 0 && (
                       <span className="text-[10px] text-rose-600 dark:text-rose-400 font-bold block">
-                        متبقي: {formatCurrency(op.remainingAmount, currency)}
+                        متبقي دين: {formatCurrency(op.remainingAmount, currency)}
+                      </span>
+                    )}
+                    {isOrd && (
+                      <span className={`text-[10px] font-bold block ${
+                        ordRaw?.status === 'delivered' ? 'text-emerald-600 dark:text-emerald-400' : 'text-purple-600 dark:text-purple-400'
+                      }`}>
+                        {ordRaw?.status === 'delivered' ? 'تم التسليم' : `مسلم: ${formatCurrency(ordRaw?.deliveredTotalAmount || 0, currency)}`}
                       </span>
                     )}
                   </div>
@@ -708,7 +794,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   {/* Direct Action Buttons on Row */}
                   <div className="flex items-center gap-1 border-r border-slate-200 dark:border-slate-700 pr-1 mr-1">
                     {/* Quick Print/Share (for invoices and payments) */}
-                    {!isExp && (
+                    {(isInv || isPay) && (
                       <button
                         type="button"
                         title="عرض وطباعة"
@@ -726,10 +812,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       </button>
                     )}
 
-                    {/* Edit Button */}
+                    {/* Edit / Manage Button */}
                     <button
                       type="button"
-                      title="تعديل العملية"
+                      title={isOrd ? "فتح صفحة الطلبات" : "تعديل العملية"}
                       onClick={(e) => {
                         e.stopPropagation();
                         if (isInv && invRaw && onEditInvoice) {
@@ -739,11 +825,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                         } else if (isExp && expRaw) {
                           setEditingExpense(expRaw);
                           setIsExpenseModalOpen(true);
+                        } else if (isOrd) {
+                          setActiveTab('orders');
                         }
                       }}
                       className="p-1 rounded-lg text-slate-400 hover:text-emerald-700 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950 transition-colors"
                     >
-                      <Edit3 className="w-3.5 h-3.5" />
+                      {isOrd ? <Truck className="w-3.5 h-3.5" /> : <Edit3 className="w-3.5 h-3.5" />}
                     </button>
 
                     {/* Direct Delete Button */}
@@ -772,6 +860,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                             id: op.id,
                             title: 'حذف مصروف / مسحوبات',
                             message: `هل أنت متأكد من حذف المصروف "${op.title}" بمبلغ ${formatCurrency(op.amount, currency)}؟ سيتم استرجاع المبلغ لصافي التحصيل.`,
+                          });
+                        } else if (isOrd) {
+                          setItemToDelete({
+                            type: 'order',
+                            id: op.id,
+                            title: 'حذف طلب شغل',
+                            message: `هل أنت متأكد من حذف طلب الشغل #${ordRaw?.orderNumber || ''} للتاجر "${op.title}"؟`,
                           });
                         }
                       }}
@@ -805,26 +900,35 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     ? 'bg-blue-100 dark:bg-blue-900/60 text-blue-600 dark:text-blue-400' 
                     : selectedOperation.type === 'payment'
                     ? 'bg-emerald-100 dark:bg-emerald-900/60 text-emerald-600 dark:text-emerald-400'
-                    : 'bg-amber-100 dark:bg-amber-900/60 text-amber-600 dark:text-amber-400'
+                    : selectedOperation.type === 'expense'
+                    ? 'bg-amber-100 dark:bg-amber-900/60 text-amber-600 dark:text-amber-400'
+                    : 'bg-purple-100 dark:bg-purple-900/60 text-purple-600 dark:text-purple-400'
                 }`}>
                   {selectedOperation.type === 'invoice' ? (
-                    <Receipt className="w-4 h-4" />
+                    selectedOperation.rawInvoice?.orderId ? <Truck className="w-4 h-4" /> : <Receipt className="w-4 h-4" />
                   ) : selectedOperation.type === 'payment' ? (
                     <HandCoins className="w-4 h-4" />
-                  ) : (
+                  ) : selectedOperation.type === 'expense' ? (
                     <ArrowDownCircle className="w-4 h-4" />
+                  ) : (
+                    <Truck className="w-4 h-4" />
                   )}
                 </div>
                 <div>
                   <h4 className="font-bold text-slate-900 dark:text-white text-sm">
                     {selectedOperation.type === 'invoice' 
-                      ? `فاتورة بيع #${selectedOperation.rawInvoice?.invoiceNumber}` 
+                      ? (selectedOperation.rawInvoice?.orderId ? `فاتورة تسليم طلب #${selectedOperation.rawInvoice?.invoiceNumber}` : `فاتورة بيع #${selectedOperation.rawInvoice?.invoiceNumber}`)
                       : selectedOperation.type === 'payment'
                       ? `سند تحصيل دفعة #${selectedOperation.rawPayment?.receiptNumber || ''}`
-                      : `مسحوبات / مصروف`}
+                      : selectedOperation.type === 'expense'
+                      ? `مسحوبات / مصروف`
+                      : `طلب شغل #${selectedOperation.rawOrder?.orderNumber}`}
                   </h4>
-                  <span className="text-[10px] text-slate-400 dark:text-slate-500">
-                    {formatDateArabic(selectedOperation.rawInvoice?.date || selectedOperation.rawPayment?.date || selectedOperation.rawExpense?.date || '')}
+                  <span className="text-[10px] text-slate-400 dark:text-slate-500 font-mono-num">
+                    {formatDateArabic(selectedOperation.rawInvoice?.date || selectedOperation.rawPayment?.date || selectedOperation.rawExpense?.date || selectedOperation.rawOrder?.date || '')}
+                    {(selectedOperation.rawInvoice?.createdAt || selectedOperation.rawPayment?.createdAt || selectedOperation.rawExpense?.createdAt || selectedOperation.rawOrder?.createdAt) && (
+                      <> • {formatTimeAgoArabic(selectedOperation.rawInvoice?.createdAt || selectedOperation.rawPayment?.createdAt || selectedOperation.rawExpense?.createdAt || selectedOperation.rawOrder?.createdAt)}</>
+                    )}
                   </span>
                 </div>
               </div>
@@ -968,9 +1072,80 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               </div>
             )}
 
+            {selectedOperation.type === 'order' && selectedOperation.rawOrder && (
+              <div className="space-y-2">
+                <div className="flex justify-between py-1 border-b border-slate-50 dark:border-slate-800 items-center">
+                  <span className="text-slate-500 dark:text-slate-400">اسم التاجر:</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onSelectMerchant(selectedOperation.rawOrder!.merchantId);
+                      setSelectedOperation(null);
+                    }}
+                    className="font-bold text-slate-900 dark:text-white hover:text-purple-600 dark:hover:text-purple-400 hover:underline cursor-pointer flex items-center gap-1"
+                    title="فتح صفحة التاجر"
+                  >
+                    <span>{selectedOperation.rawOrder.merchantName}</span>
+                    <span className="text-[10px] text-purple-700 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/60 px-1.5 py-0.2 rounded-md font-bold">
+                      عرض الحساب ↗
+                    </span>
+                  </button>
+                </div>
+                <div className="flex justify-between py-1 border-b border-slate-50 dark:border-slate-800 items-center">
+                  <span className="text-slate-500 dark:text-slate-400">حالة الطلب:</span>
+                  <span className={`px-2 py-0.5 rounded-full font-bold text-[10px] ${
+                    selectedOperation.rawOrder.status === 'delivered'
+                      ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+                      : selectedOperation.rawOrder.status === 'partially_delivered'
+                      ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
+                      : 'bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300'
+                  }`}>
+                    {selectedOperation.rawOrder.status === 'delivered' ? 'تم التسليم بالكامل' : selectedOperation.rawOrder.status === 'partially_delivered' ? 'تسليم جزئي' : 'قيد التحضير'}
+                  </span>
+                </div>
+                <div className="flex justify-between py-1 border-b border-slate-50 dark:border-slate-800 font-mono-num">
+                  <span className="text-slate-500 dark:text-slate-400">القيمة التقديرية:</span>
+                  <span className="font-bold text-purple-700 dark:text-purple-300 text-sm">
+                    {formatCurrency(selectedOperation.rawOrder.totalEstimatedAmount, currency)}
+                  </span>
+                </div>
+                <div className="flex justify-between py-1 border-b border-slate-50 dark:border-slate-800 font-mono-num">
+                  <span className="text-slate-500 dark:text-slate-400">المبلغ المسلم:</span>
+                  <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                    {formatCurrency(selectedOperation.rawOrder.deliveredTotalAmount || 0, currency)}
+                  </span>
+                </div>
+
+                {/* Items */}
+                <div className="pt-1">
+                  <span className="text-[10px] text-slate-400 dark:text-slate-500 block mb-1">
+                    الأصناف المطلوبة ({selectedOperation.rawOrder.items.length}):
+                  </span>
+                  <div className="max-h-28 overflow-y-auto space-y-1 bg-slate-50 dark:bg-slate-800 p-2 rounded-xl">
+                    {selectedOperation.rawOrder.items.map((it, idx) => (
+                      <div key={idx} className="flex justify-between text-[11px] font-mono-num">
+                        <span className="text-slate-800 dark:text-slate-200">
+                          {it.productName} × {it.quantityOrdered} (مسلم: {it.quantityDelivered})
+                        </span>
+                        <span className="font-bold text-slate-900 dark:text-white">
+                          {formatCurrency(it.unitPrice * it.quantityOrdered, currency)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {selectedOperation.rawOrder.notes && (
+                  <div className="text-[11px] text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-800 p-2 rounded-xl">
+                    ملاحظات: {selectedOperation.rawOrder.notes}
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Actions Grid */}
             <div className="pt-2 border-t border-slate-100 dark:border-slate-800 grid grid-cols-3 gap-1.5">
-              {selectedOperation.type !== 'expense' ? (
+              {selectedOperation.type === 'invoice' || selectedOperation.type === 'payment' ? (
                 <button
                   type="button"
                   onClick={() => {
@@ -986,6 +1161,18 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   <Printer className="w-3.5 h-3.5" />
                   <span>طباعة</span>
                 </button>
+              ) : selectedOperation.type === 'order' ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveTab('orders');
+                    setSelectedOperation(null);
+                  }}
+                  className="py-2 rounded-xl bg-purple-50 dark:bg-purple-950/40 hover:bg-purple-100 dark:hover:bg-purple-900/60 text-purple-700 dark:text-purple-300 font-bold flex items-center justify-center gap-1"
+                >
+                  <Truck className="w-3.5 h-3.5" />
+                  <span>تسليم/إدارة</span>
+                </button>
               ) : (
                 <div />
               )}
@@ -1000,6 +1187,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   } else if (selectedOperation.type === 'expense' && selectedOperation.rawExpense) {
                     setEditingExpense(selectedOperation.rawExpense);
                     setIsExpenseModalOpen(true);
+                  } else if (selectedOperation.type === 'order') {
+                    setActiveTab('orders');
                   }
                   setSelectedOperation(null);
                 }}
@@ -1032,6 +1221,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       id: selectedOperation.rawExpense.id,
                       title: 'حذف مصروف / مسحوبات',
                       message: `هل أنت متأكد من حذف المصروف "${selectedOperation.rawExpense.title}" بمبلغ ${formatCurrency(selectedOperation.rawExpense.amount, currency)}؟`,
+                    });
+                  } else if (selectedOperation.type === 'order' && selectedOperation.rawOrder) {
+                    setItemToDelete({
+                      type: 'order',
+                      id: selectedOperation.rawOrder.id,
+                      title: 'حذف طلب شغل',
+                      message: `هل أنت متأكد من حذف طلب الشغل #${selectedOperation.rawOrder.orderNumber} للتاجر "${selectedOperation.rawOrder.merchantName}"؟`,
                     });
                   }
                 }}

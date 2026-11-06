@@ -136,3 +136,71 @@ export function isDateInCurrentMonth(dateStr: string, targetMonthKey?: string): 
   const monthKey = targetMonthKey || getCurrentMonthKey();
   return dateStr.slice(0, 7) === monthKey;
 }
+
+/**
+ * Format relative time in Arabic (e.g. منذ 5 دقائق، منذ ساعتين، أمس، منذ يومين...)
+ */
+export function formatTimeAgoArabic(createdAt?: string, dateStr?: string): string {
+  if (!createdAt && !dateStr) return '';
+  const now = new Date();
+  let past: Date;
+  if (createdAt) {
+    past = new Date(createdAt);
+  } else {
+    past = new Date(dateStr!);
+  }
+  if (isNaN(past.getTime())) return '';
+
+  const diffMs = now.getTime() - past.getTime();
+  if (diffMs < 0) return 'الآن';
+  const diffSec = Math.floor(diffMs / 1000);
+  const diffMin = Math.floor(diffSec / 60);
+  const diffHour = Math.floor(diffMin / 60);
+  const diffDay = Math.floor(diffHour / 24);
+
+  if (diffSec < 60) {
+    return 'الآن';
+  }
+  if (diffMin === 1) {
+    return 'منذ دقيقة';
+  }
+  if (diffMin === 2) {
+    return 'منذ دقيقتين';
+  }
+  if (diffMin >= 3 && diffMin <= 10) {
+    return `منذ ${diffMin} دقائق`;
+  }
+  if (diffMin < 60) {
+    return `منذ ${diffMin} دقيقة`;
+  }
+  if (diffHour === 1) {
+    return 'منذ ساعة';
+  }
+  if (diffHour === 2) {
+    return 'منذ ساعتين';
+  }
+  if (diffHour >= 3 && diffHour <= 10) {
+    return `منذ ${diffHour} ساعات`;
+  }
+  if (diffHour < 24) {
+    return `منذ ${diffHour} ساعة`;
+  }
+  if (diffDay === 1) {
+    return 'أمس';
+  }
+  if (diffDay === 2) {
+    return 'منذ يومين';
+  }
+  if (diffDay >= 3 && diffDay <= 10) {
+    return `منذ ${diffDay} أيام`;
+  }
+  if (diffDay < 30) {
+    return `منذ ${diffDay} يوماً`;
+  }
+  const diffMonth = Math.floor(diffDay / 30);
+  if (diffMonth === 1) return 'منذ شهر';
+  if (diffMonth === 2) return 'منذ شهرين';
+  if (diffMonth <= 10) return `منذ ${diffMonth} أشهر`;
+  return `منذ ${diffMonth} شهراً`;
+}
+

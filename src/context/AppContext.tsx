@@ -408,8 +408,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // 3. Attach Unified Shared Store Firestore Subscriptions
   useEffect(() => {
-    if (!currentUser) return;
-
     const unsubs: (() => void)[] = [];
 
     const setupStoreListener = <T extends { id: string }>(
@@ -515,7 +513,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return () => {
       unsubs.forEach(fn => fn());
     };
-  }, [currentUser]);
+  }, []);
 
   // Migrate all local state to Firebase Firestore shared store
   const migrateLocalDataToCloud = async (_uid?: string) => {
@@ -670,24 +668,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return [record, ...prev];
     });
 
-    if (currentUser) {
-      try {
-        await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'merchants', id), record, { merge: true });
-      } catch (err) {
-        console.warn("Save merchant warning:", err);
-      }
+    try {
+      await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'merchants', id), record, { merge: true });
+    } catch (err) {
+      console.warn("Save merchant warning:", err);
     }
     return id;
   };
 
   const removeMerchant = async (id: string) => {
     setMerchants(prev => prev.filter(m => m.id !== id));
-    if (currentUser) {
-      try {
-        await deleteDoc(doc(db, 'stores', SHARED_STORE_ID, 'merchants', id));
-      } catch (err) {
-        console.warn("Delete merchant warning:", err);
-      }
+    try {
+      await deleteDoc(doc(db, 'stores', SHARED_STORE_ID, 'merchants', id));
+    } catch (err) {
+      console.warn("Delete merchant warning:", err);
     }
   };
 
@@ -716,24 +710,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return [record, ...prev];
     });
 
-    if (currentUser) {
-      try {
-        await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'products', id), record, { merge: true });
-      } catch (err) {
-        console.warn("Save product warning:", err);
-      }
+    try {
+      await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'products', id), record, { merge: true });
+    } catch (err) {
+      console.warn("Save product warning:", err);
     }
     return id;
   };
 
   const removeProduct = async (id: string) => {
     setProducts(prev => prev.filter(p => p.id !== id));
-    if (currentUser) {
-      try {
-        await deleteDoc(doc(db, 'stores', SHARED_STORE_ID, 'products', id));
-      } catch (err) {
-        console.warn("Delete product warning:", err);
-      }
+    try {
+      await deleteDoc(doc(db, 'stores', SHARED_STORE_ID, 'products', id));
+    } catch (err) {
+      console.warn("Delete product warning:", err);
     }
   };
 
@@ -777,12 +767,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return [record, ...prev];
     });
 
-    if (currentUser) {
-      try {
-        await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'invoices', id), record, { merge: true });
-      } catch (err) {
-        console.warn("Save invoice warning:", err);
-      }
+    try {
+      await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'invoices', id), record, { merge: true });
+    } catch (err) {
+      console.warn("Save invoice warning:", err);
     }
 
     // If an upfront payment was made with the invoice, also record it as a Payment record
@@ -804,12 +792,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const removeInvoice = async (id: string) => {
     setInvoices(prev => prev.filter(inv => inv.id !== id));
-    if (currentUser) {
-      try {
-        await deleteDoc(doc(db, 'stores', SHARED_STORE_ID, 'invoices', id));
-      } catch (err) {
-        console.warn("Delete invoice warning:", err);
-      }
+    try {
+      await deleteDoc(doc(db, 'stores', SHARED_STORE_ID, 'invoices', id));
+    } catch (err) {
+      console.warn("Delete invoice warning:", err);
     }
   };
 
@@ -844,24 +830,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return [record, ...prev];
     });
 
-    if (currentUser) {
-      try {
-        await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'payments', id), record, { merge: true });
-      } catch (err) {
-        console.warn("Save payment warning:", err);
-      }
+    try {
+      await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'payments', id), record, { merge: true });
+    } catch (err) {
+      console.warn("Save payment warning:", err);
     }
     return id;
   };
 
   const removePayment = async (id: string) => {
     setPayments(prev => prev.filter(p => p.id !== id));
-    if (currentUser) {
-      try {
-        await deleteDoc(doc(db, 'stores', SHARED_STORE_ID, 'payments', id));
-      } catch (err) {
-        console.warn("Delete payment warning:", err);
-      }
+    try {
+      await deleteDoc(doc(db, 'stores', SHARED_STORE_ID, 'payments', id));
+    } catch (err) {
+      console.warn("Delete payment warning:", err);
     }
   };
 
@@ -894,24 +876,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return [record, ...prev];
     });
 
-    if (currentUser) {
-      try {
-        await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'expenses', id), record, { merge: true });
-      } catch (err) {
-        console.warn("Save expense warning:", err);
-      }
+    try {
+      await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'expenses', id), record, { merge: true });
+    } catch (err) {
+      console.warn("Save expense warning:", err);
     }
     return id;
   };
 
   const removeExpense = async (id: string) => {
     setExpenses(prev => prev.filter(e => e.id !== id));
-    if (currentUser) {
-      try {
-        await deleteDoc(doc(db, 'stores', SHARED_STORE_ID, 'expenses', id));
-      } catch (err) {
-        console.warn("Delete expense warning:", err);
-      }
+    try {
+      await deleteDoc(doc(db, 'stores', SHARED_STORE_ID, 'expenses', id));
+    } catch (err) {
+      console.warn("Delete expense warning:", err);
     }
   };
 
@@ -947,24 +925,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return [record, ...prev];
     });
 
-    if (currentUser) {
-      try {
-        await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'orders', id), record, { merge: true });
-      } catch (err) {
-        console.warn("Save order warning:", err);
-      }
+    try {
+      await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'orders', id), record, { merge: true });
+    } catch (err) {
+      console.warn("Save order warning:", err);
     }
     return id;
   };
 
   const removeWorkOrder = async (id: string) => {
     setOrders(prev => prev.filter(o => o.id !== id));
-    if (currentUser) {
-      try {
-        await deleteDoc(doc(db, 'stores', SHARED_STORE_ID, 'orders', id));
-      } catch (err) {
-        console.warn("Delete order warning:", err);
-      }
+    try {
+      await deleteDoc(doc(db, 'stores', SHARED_STORE_ID, 'orders', id));
+    } catch (err) {
+      console.warn("Delete order warning:", err);
     }
   };
 
@@ -1061,12 +1035,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // Save updated order
     setOrders(prev => prev.map(o => o.id === orderId ? updatedOrder : o));
 
-    if (currentUser) {
-      try {
-        await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'orders', orderId), updatedOrder, { merge: true });
-      } catch (err) {
-        console.warn("Save delivered order warning:", err);
-      }
+    try {
+      await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'orders', orderId), updatedOrder, { merge: true });
+    } catch (err) {
+      console.warn("Save delivered order warning:", err);
     }
 
     return { invoiceId, newStatus };
@@ -1100,24 +1072,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return [record, ...prev];
     });
 
-    if (currentUser) {
-      try {
-        await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'personal_contacts', id), record, { merge: true });
-      } catch (err) {
-        console.warn("Save personal contact warning:", err);
-      }
+    try {
+      await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'personal_contacts', id), record, { merge: true });
+    } catch (err) {
+      console.warn("Save personal contact warning:", err);
     }
     return id;
   };
 
   const removePersonalContact = async (id: string) => {
     setPersonalContacts(prev => prev.filter(c => c.id !== id));
-    if (currentUser) {
-      try {
-        await deleteDoc(doc(db, 'stores', SHARED_STORE_ID, 'personal_contacts', id));
-      } catch (err) {
-        console.warn("Delete personal contact warning:", err);
-      }
+    try {
+      await deleteDoc(doc(db, 'stores', SHARED_STORE_ID, 'personal_contacts', id));
+    } catch (err) {
+      console.warn("Delete personal contact warning:", err);
     }
   };
 
@@ -1150,24 +1118,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return [record, ...prev];
     });
 
-    if (currentUser) {
-      try {
-        await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'personal_transactions', id), record, { merge: true });
-      } catch (err) {
-        console.warn("Save personal transaction warning:", err);
-      }
+    try {
+      await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'personal_transactions', id), record, { merge: true });
+    } catch (err) {
+      console.warn("Save personal transaction warning:", err);
     }
     return id;
   };
 
   const removePersonalTransaction = async (id: string) => {
     setPersonalTransactions(prev => prev.filter(tx => tx.id !== id));
-    if (currentUser) {
-      try {
-        await deleteDoc(doc(db, 'stores', SHARED_STORE_ID, 'personal_transactions', id));
-      } catch (err) {
-        console.warn("Delete personal transaction warning:", err);
-      }
+    try {
+      await deleteDoc(doc(db, 'stores', SHARED_STORE_ID, 'personal_transactions', id));
+    } catch (err) {
+      console.warn("Delete personal transaction warning:", err);
     }
   };
 
@@ -1447,35 +1411,33 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (parsed.personalTransactions) setPersonalTransactions(parsed.personalTransactions);
       if (parsed.currency) setCurrency(parsed.currency);
 
-      if (currentUser) {
-        for (const m of parsed.merchants || []) {
-          if (m.id !== 'm_1' && m.id !== 'm_2' && m.id !== 'm_3') {
-            await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'merchants', m.id), m, { merge: true });
-          }
+      for (const m of parsed.merchants || []) {
+        if (m.id !== 'm_1' && m.id !== 'm_2' && m.id !== 'm_3') {
+          await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'merchants', m.id), m, { merge: true });
         }
-        for (const p of parsed.products || []) {
-          if (p.id !== 'prod_1' && p.id !== 'prod_2') {
-            await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'products', p.id), p, { merge: true });
-          }
+      }
+      for (const p of parsed.products || []) {
+        if (p.id !== 'prod_1' && p.id !== 'prod_2') {
+          await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'products', p.id), p, { merge: true });
         }
-        for (const inv of parsed.invoices || []) {
-          await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'invoices', inv.id), inv, { merge: true });
-        }
-        for (const pay of parsed.payments || []) {
-          await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'payments', pay.id), pay, { merge: true });
-        }
-        for (const exp of parsed.expenses || []) {
-          await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'expenses', exp.id), exp, { merge: true });
-        }
-        for (const ord of parsed.orders || []) {
-          await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'orders', ord.id), ord, { merge: true });
-        }
-        for (const c of parsed.personalContacts || []) {
-          await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'personal_contacts', c.id), c, { merge: true });
-        }
-        for (const tx of parsed.personalTransactions || []) {
-          await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'personal_transactions', tx.id), tx, { merge: true });
-        }
+      }
+      for (const inv of parsed.invoices || []) {
+        await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'invoices', inv.id), inv, { merge: true });
+      }
+      for (const pay of parsed.payments || []) {
+        await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'payments', pay.id), pay, { merge: true });
+      }
+      for (const exp of parsed.expenses || []) {
+        await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'expenses', exp.id), exp, { merge: true });
+      }
+      for (const ord of parsed.orders || []) {
+        await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'orders', ord.id), ord, { merge: true });
+      }
+      for (const c of parsed.personalContacts || []) {
+        await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'personal_contacts', c.id), c, { merge: true });
+      }
+      for (const tx of parsed.personalTransactions || []) {
+        await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'personal_transactions', tx.id), tx, { merge: true });
       }
       return true;
     } catch (e) {
