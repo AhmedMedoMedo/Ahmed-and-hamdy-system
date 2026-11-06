@@ -101,7 +101,7 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
       setOrderNumber(generateOrderNumber(orders.length));
       setNotes('');
 
-      // Prepopulate first product if available
+      // Prepopulate first product if available, with empty quantity ready for typing
       const firstProd = products[0];
       if (firstProd) {
         setItems([{
@@ -109,9 +109,9 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
           productId: firstProd.id,
           productName: firstProd.name,
           unitPrice: firstProd.price,
-          quantityOrdered: 5,
+          quantityOrdered: 0,
           quantityDelivered: 0,
-          quantityRemaining: 5,
+          quantityRemaining: 0,
           unit: firstProd.unit,
         }]);
       } else {
@@ -119,9 +119,9 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
           id: `ord_it_${Date.now()}`,
           productName: '',
           unitPrice: 0,
-          quantityOrdered: 1,
+          quantityOrdered: 0,
           quantityDelivered: 0,
-          quantityRemaining: 1,
+          quantityRemaining: 0,
         }]);
       }
     }
@@ -142,9 +142,9 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
       productId: firstProd ? firstProd.id : undefined,
       productName: firstProd ? firstProd.name : '',
       unitPrice: firstProd ? firstProd.price : 0,
-      quantityOrdered: 1,
+      quantityOrdered: 0,
       quantityDelivered: 0,
-      quantityRemaining: 1,
+      quantityRemaining: 0,
       unit: firstProd ? firstProd.unit : undefined,
     };
     setItems([...items, newItem]);
@@ -159,7 +159,7 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
     const prod = products.find(p => p.id === prodId);
     if (!prod) return;
     const next = [...items];
-    const qtyOrdered = next[idx].quantityOrdered || 1;
+    const qtyOrdered = next[idx].quantityOrdered || 0;
     next[idx] = {
       ...next[idx],
       productId: prod.id,
@@ -176,12 +176,14 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
     const next = [...items];
     const current = { ...next[idx], [field]: value };
     if (field === 'quantityOrdered') {
-      const q = Math.max(0.1, Number(value) || 0);
+      const parsed = parseFloat(String(value));
+      const q = isNaN(parsed) || parsed < 0 ? 0 : parsed;
       current.quantityOrdered = q;
       current.quantityRemaining = Math.max(0, q - (current.quantityDelivered || 0));
     }
     if (field === 'unitPrice') {
-      current.unitPrice = Math.max(0, Number(value) || 0);
+      const p = parseFloat(String(value));
+      current.unitPrice = isNaN(p) || p < 0 ? 0 : p;
     }
     next[idx] = current;
     setItems(next);
@@ -190,7 +192,7 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
   const adjustQty = (idx: number, delta: number) => {
     const next = [...items];
     const current = next[idx];
-    const newQty = Math.max(1, current.quantityOrdered + delta);
+    const newQty = Math.max(0, (current.quantityOrdered || 0) + delta);
     current.quantityOrdered = newQty;
     current.quantityRemaining = Math.max(0, newQty - (current.quantityDelivered || 0));
     setItems(next);
@@ -761,10 +763,11 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
                           <input
                             type="number"
                             step="any"
-                            min="0.1"
-                            value={item.quantityOrdered}
+                            min="0"
+                            placeholder="0"
+                            value={item.quantityOrdered === 0 ? '' : item.quantityOrdered}
                             onChange={(e) => handleItemChange(idx, 'quantityOrdered', e.target.value)}
-                            className="w-12 text-center font-mono-num font-bold text-xs bg-transparent text-slate-900 dark:text-white focus:outline-none"
+                            className="w-14 text-center font-mono-num font-bold text-xs bg-transparent text-slate-900 dark:text-white focus:outline-none"
                           />
                           <button
                             type="button"
@@ -780,7 +783,7 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
                             type="number"
                             step="any"
                             min="0"
-                            placeholder=""
+                            placeholder="السعر"
                             value={item.unitPrice === 0 ? '' : item.unitPrice}
                             onChange={(e) => handleItemChange(idx, 'unitPrice', e.target.value)}
                             className="w-full px-2 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-mono-num text-center text-xs"
@@ -788,7 +791,7 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
                         </div>
 
                         <div className="font-mono-num font-bold text-slate-900 dark:text-white text-xs">
-                          {formatCurrency(item.quantityOrdered * item.unitPrice, currency)}
+                          {formatCurrency((item.quantityOrdered || 0) * (item.unitPrice || 0), currency)}
                         </div>
 
                         <button
@@ -810,7 +813,7 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
                 <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">ملاحظات على الطلب أو مواعيد التسليم</label>
                 <input
                   type="text"
-                  placeholder=""
+                  placeholder="ملاحظات أو مواصفات إضافية..."
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 text-xs"
@@ -819,19 +822,20 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
 
             </form>
 
-            <div className="pt-2.5 border-t border-slate-100 dark:border-slate-800 shrink-0">
-              <div className="grid grid-cols-2 gap-2">
+            {/* Bottom Actions - Lifted above mobile navigation bar */}
+            <div className="pt-3 pb-8 sm:pb-3 border-t border-slate-100 dark:border-slate-800 shrink-0">
+              <div className="grid grid-cols-2 gap-2 mb-2 sm:mb-0">
                 <button
                   type="button"
                   onClick={handleCloseForm}
-                  className="py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs"
+                  className="py-3 sm:py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs active:scale-95 transition-all"
                 >
                   إلغاء
                 </button>
                 <button
                   type="submit"
                   form="work-order-form"
-                  className="py-2.5 rounded-xl bg-indigo-600 text-white font-bold text-xs shadow-xs"
+                  className="py-3 sm:py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md active:scale-95 transition-all"
                 >
                   {editingOrder ? 'حفظ التعديلات' : 'تسجيل طلب الشغل'}
                 </button>
@@ -1034,19 +1038,20 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
 
             </div>
 
-            <div className="pt-2.5 border-t border-slate-100 dark:border-slate-800 shrink-0">
-              <div className="grid grid-cols-2 gap-2">
+            {/* Delivery Bottom Actions - Lifted above mobile navigation bar */}
+            <div className="pt-3 pb-8 sm:pb-3 border-t border-slate-100 dark:border-slate-800 shrink-0">
+              <div className="grid grid-cols-2 gap-2 mb-2 sm:mb-0">
                 <button
                   type="button"
                   onClick={() => setDeliveryModalOrder(null)}
-                  className="py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs"
+                  className="py-3 sm:py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs active:scale-95 transition-all"
                 >
                   إلغاء
                 </button>
                 <button
                   type="button"
                   onClick={handleConfirmDelivery}
-                  className="py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs"
+                  className="py-3 sm:py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md active:scale-95 transition-all"
                 >
                   تأكيد التسليم وتحديث الحساب
                 </button>

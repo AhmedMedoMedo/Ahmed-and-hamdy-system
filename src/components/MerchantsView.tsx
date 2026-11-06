@@ -495,17 +495,17 @@ export const MerchantsView: React.FC<MerchantsViewProps> = ({
                 />
               </div>
 
-              <div className="pt-3 border-t border-slate-100 dark:border-slate-800 grid grid-cols-2 gap-2">
+              <div className="pt-3 pb-8 sm:pb-3 border-t border-slate-100 dark:border-slate-800 grid grid-cols-2 gap-2 mb-2 sm:mb-0">
                 <button
                   type="button"
                   onClick={() => setIsFormOpen(false)}
-                  className="py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs"
+                  className="py-3 sm:py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs active:scale-95 transition-all"
                 >
                   إلغاء
                 </button>
                 <button
                   type="submit"
-                  className="py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs"
+                  className="py-3 sm:py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md active:scale-95 transition-all"
                 >
                   {editingMerchant ? 'حفظ التعديلات' : 'إضافة التاجر'}
                 </button>
@@ -625,14 +625,14 @@ export const MerchantsView: React.FC<MerchantsViewProps> = ({
               )}
             </div>
 
-            {/* Footer */}
-            <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
+            {/* Footer - Lifted above mobile navigation bar */}
+            <div className="pt-3 pb-8 sm:pb-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2 mb-2 sm:mb-0">
               <button
                 onClick={() => {
                   if (onOpenNewInvoiceWithMerchant) onOpenNewInvoiceWithMerchant(activeMerchant.id);
                   setActiveMerchantId(null);
                 }}
-                className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-xs transition-colors"
+                className="flex-1 py-3 sm:py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-md active:scale-95 transition-all"
               >
                 + فاتورة بيع جديدة
               </button>
@@ -641,7 +641,7 @@ export const MerchantsView: React.FC<MerchantsViewProps> = ({
                   if (onOpenNewPaymentWithMerchant) onOpenNewPaymentWithMerchant(activeMerchant.id);
                   setActiveMerchantId(null);
                 }}
-                className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs transition-colors"
+                className="flex-1 py-3 sm:py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-md active:scale-95 transition-all"
               >
                 + استلام دفعة كاش
               </button>

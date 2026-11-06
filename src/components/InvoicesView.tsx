@@ -123,15 +123,15 @@ export const InvoicesView: React.FC<InvoicesViewProps> = ({
           id: `item_${Date.now()}`,
           productId: prodToUse.id,
           productName: prodToUse.name,
-          quantity: 1,
+          quantity: 0,
           unitPrice: prodToUse.price,
-          total: prodToUse.price,
+          total: 0,
         }]);
       } else {
         setItems([{
           id: `item_${Date.now()}`,
           productName: '',
-          quantity: 1,
+          quantity: 0,
           unitPrice: 0,
           total: 0,
         }]);
@@ -154,9 +154,9 @@ export const InvoicesView: React.FC<InvoicesViewProps> = ({
       id: `item_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
       productId: firstProd ? firstProd.id : undefined,
       productName: firstProd ? firstProd.name : '',
-      quantity: 1,
+      quantity: 0,
       unitPrice: firstProd ? firstProd.price : 0,
-      total: firstProd ? firstProd.price : 0,
+      total: 0,
     };
     setItems([...items, newItem]);
   };
@@ -170,12 +170,13 @@ export const InvoicesView: React.FC<InvoicesViewProps> = ({
     const prod = products.find(p => p.id === prodId);
     if (!prod) return;
     const next = [...items];
+    const currentQty = next[idx].quantity || 0;
     next[idx] = {
       ...next[idx],
       productId: prod.id,
       productName: prod.name,
       unitPrice: prod.price,
-      total: prod.price * next[idx].quantity,
+      total: prod.price * currentQty,
     };
     setItems(next);
   };
@@ -184,8 +185,14 @@ export const InvoicesView: React.FC<InvoicesViewProps> = ({
     const next = [...items];
     const current = { ...next[idx], [field]: value };
     if (field === 'quantity' || field === 'unitPrice') {
-      const q = field === 'quantity' ? Math.max(0.01, Number(value) || 0) : current.quantity;
-      const p = field === 'unitPrice' ? Math.max(0, Number(value) || 0) : current.unitPrice;
+      const q = field === 'quantity' 
+        ? (value === '' ? 0 : Math.max(0, parseFloat(String(value)) || 0)) 
+        : (current.quantity || 0);
+      const p = field === 'unitPrice' 
+        ? (value === '' ? 0 : Math.max(0, parseFloat(String(value)) || 0)) 
+        : (current.unitPrice || 0);
+      current.quantity = q;
+      current.unitPrice = p;
       current.total = q * p;
     }
     next[idx] = current;
@@ -195,9 +202,9 @@ export const InvoicesView: React.FC<InvoicesViewProps> = ({
   const adjustQty = (idx: number, delta: number) => {
     const next = [...items];
     const current = next[idx];
-    const newQty = Math.max(1, current.quantity + delta);
+    const newQty = Math.max(0, (current.quantity || 0) + delta);
     current.quantity = newQty;
-    current.total = newQty * current.unitPrice;
+    current.total = newQty * (current.unitPrice || 0);
     setItems(next);
   };
 
@@ -663,10 +670,11 @@ export const InvoicesView: React.FC<InvoicesViewProps> = ({
                           <input
                             type="number"
                             step="any"
-                            min="0.1"
-                            value={item.quantity}
+                            min="0"
+                            placeholder="0"
+                            value={item.quantity === 0 ? '' : item.quantity}
                             onChange={(e) => handleItemChange(idx, 'quantity', e.target.value)}
-                            className="w-12 text-center font-mono-num font-bold text-xs bg-transparent text-slate-900 dark:text-white focus:outline-none"
+                            className="w-14 text-center font-mono-num font-bold text-xs bg-transparent text-slate-900 dark:text-white focus:outline-none"
                           />
                           <button
                             type="button"
@@ -804,8 +812,8 @@ export const InvoicesView: React.FC<InvoicesViewProps> = ({
 
             </form>
 
-            {/* Bottom Actions */}
-            <div className="pt-2.5 border-t border-slate-100 dark:border-slate-800 shrink-0">
+            {/* Bottom Actions - Lifted above mobile navigation bar */}
+            <div className="pt-3 pb-8 sm:pb-3 border-t border-slate-100 dark:border-slate-800 shrink-0">
               <div className="flex items-center justify-between text-xs mb-2">
                 <span className="text-slate-500 dark:text-slate-400">إجمالي الفاتورة الصافي:</span>
                 <span className="font-mono-num font-black text-emerald-700 dark:text-emerald-400 text-base">
@@ -813,18 +821,18 @@ export const InvoicesView: React.FC<InvoicesViewProps> = ({
                 </span>
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 gap-2 mb-2 sm:mb-0">
                 <button
                   type="button"
                   onClick={handleCloseForm}
-                  className="py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs"
+                  className="py-3 sm:py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs active:scale-95 transition-all"
                 >
                   إلغاء
                 </button>
                 <button
                   type="submit"
                   form="mobile-invoice-form"
-                  className="py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs"
+                  className="py-3 sm:py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md active:scale-95 transition-all"
                 >
                   {editingInvoice ? 'حفظ التعديل' : 'حفظ واعتماد الفاتورة'}
                 </button>

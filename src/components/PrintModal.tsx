@@ -163,20 +163,33 @@ ${paymentNewDebt > 0 ? `👉 *الباقي عليك للحساب:* ${formatCurre
     return new Blob([uInt8Array], { type: contentType });
   };
 
-  // 1. Capture screen from invoice element using html-to-image (Supports OKLCH colors natively)
+  // 1. Capture screen from invoice element using html-to-image (Complete 100% Full Height without ANY cutoffs)
   const handleCaptureAndOpenShare = async () => {
     const el = document.getElementById('printable-voucher');
     if (!el) return;
 
     setIsCapturing(true);
     try {
-      // Use html-to-image with skipFonts: true to avoid cross-origin SecurityError when reading external Google Fonts stylesheets
+      // Calculate true full height and width of the complete invoice document
+      const fullHeight = Math.max(el.scrollHeight, el.offsetHeight);
+      const fullWidth = Math.max(el.scrollWidth, el.offsetWidth, 560);
+
+      // Use html-to-image with skipFonts: true and explicit unconstrained full dimensions
       const dataUrl = await toPng(el, {
         cacheBust: true,
         backgroundColor: '#ffffff',
-        pixelRatio: 2,
+        pixelRatio: 2.5,
         skipFonts: true,
         fontEmbedCSS: '',
+        height: fullHeight,
+        width: fullWidth,
+        style: {
+          height: `${fullHeight}px`,
+          maxHeight: 'none',
+          overflow: 'visible',
+          transform: 'none',
+          margin: '0 auto',
+        }
       });
 
       setCapturedImageDataUrl(dataUrl);
@@ -324,12 +337,14 @@ ${paymentNewDebt > 0 ? `👉 *الباقي عليك للحساب:* ${formatCurre
           </button>
         </div>
 
-        {/* Printable Voucher Sheet — Pure White Print Spooler Replica */}
-        <div 
-          id="printable-voucher" 
-          className="flex-1 overflow-y-auto p-4 sm:p-6 bg-white text-black font-sans print:overflow-visible print:p-0 border border-slate-200 rounded-2xl shadow-inner print:border-none print:shadow-none"
-          dir="rtl"
-        >
+        {/* Scrollable Container */}
+        <div className="flex-1 overflow-y-auto p-1.5 sm:p-4 print:overflow-visible print:p-0">
+          {/* Printable Voucher Sheet — Pure White Print Spooler Replica (Unconstrained Full Height) */}
+          <div 
+            id="printable-voucher" 
+            className="p-4 sm:p-6 bg-white text-black font-sans print:p-0 border border-slate-200 rounded-2xl shadow-xs print:border-none print:shadow-none max-w-xl mx-auto w-full"
+            dir="rtl"
+          >
           
           {/* ==================== 1. SALES INVOICE VIEW ==================== */}
           {invoice && (
@@ -681,16 +696,17 @@ ${paymentNewDebt > 0 ? `👉 *الباقي عليك للحساب:* ${formatCurre
             </div>
           )}
 
+          </div>
         </div>
 
-        {/* Modal Bottom Close Button (Hidden when printing) */}
-        <div className="pt-2.5 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center print:hidden shrink-0">
+        {/* Modal Bottom Close Button (Hidden when printing) - Lifted above mobile navigation bar */}
+        <div className="pt-2.5 pb-6 sm:pb-0 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center print:hidden shrink-0">
           <span className="text-[11px] text-slate-500 dark:text-slate-400">
             {invoice ? `فاتورة #${invoice.invoiceNumber}` : `حركة #${payment?.receiptNumber || '0742'}`}
           </span>
           <button
             onClick={onClose}
-            className="px-5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs transition-colors"
+            className="px-5 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs transition-colors active:scale-95"
           >
             إغلاق
           </button>
@@ -832,11 +848,11 @@ ${paymentNewDebt > 0 ? `👉 *الباقي عليك للحساب:* ${formatCurre
 
             </div>
 
-            {/* Bottom Close */}
-            <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex justify-end shrink-0">
+            {/* Bottom Close - Lifted above mobile navigation bar */}
+            <div className="pt-2 pb-6 sm:pb-0 border-t border-slate-100 dark:border-slate-800 flex justify-end shrink-0">
               <button
                 onClick={() => setIsShareModalOpen(false)}
-                className="px-4 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs"
+                className="px-5 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs active:scale-95 transition-all"
               >
                 إغلاق
               </button>
