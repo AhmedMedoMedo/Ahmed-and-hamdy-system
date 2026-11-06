@@ -48,6 +48,8 @@ interface DashboardViewProps {
   onEditPayment?: (payment: Payment) => void;
   onPrintInvoice?: (invoice: Invoice) => void;
   onPrintPayment?: (payment: Payment) => void;
+  onPrintOrder?: (order: WorkOrder) => void;
+  onPrintExpense?: (expense: Expense) => void;
 }
 
 type PeriodFilter = 'today' | 'week' | 'month' | 'all';
@@ -62,7 +64,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onEditInvoice,
   onEditPayment,
   onPrintInvoice,
-  onPrintPayment
+  onPrintPayment,
+  onPrintOrder,
+  onPrintExpense,
 }) => {
   const { 
     currentMonthSummary, 
@@ -647,9 +651,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
         </div>
 
-        {/* List of operations with Delete & Edit buttons */}
-        <div className="space-y-1.5">
-          {filteredOperations.slice(0, 20).map((op) => {
+        {/* List of operations with expressive colors, clean 2-row layout, and print for all types */}
+        <div className="space-y-2">
+          {filteredOperations.slice(0, 25).map((op) => {
             const isInv = op.type === 'invoice';
             const isPay = op.type === 'payment';
             const isExp = op.type === 'expense';
@@ -659,115 +663,117 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             const expRaw = isExp ? (op.raw as Expense) : undefined;
             const ordRaw = isOrd ? (op.raw as WorkOrder) : undefined;
 
+            // Expressive color configuration
+            const colorConfig = isInv
+              ? invRaw?.orderId
+                ? {
+                    border: 'border-indigo-200/90 dark:border-indigo-800/60 hover:border-indigo-300 dark:hover:border-indigo-700',
+                    bg: 'bg-indigo-50/40 dark:bg-indigo-950/20',
+                    badge: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/70 dark:text-indigo-200',
+                    iconBox: 'bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300',
+                    amount: 'text-indigo-700 dark:text-indigo-300',
+                    typeLabel: 'تسليم طلب شغل',
+                  }
+                : {
+                    border: 'border-blue-200/90 dark:border-blue-800/60 hover:border-blue-300 dark:hover:border-blue-700',
+                    bg: 'bg-blue-50/40 dark:bg-blue-950/20',
+                    badge: 'bg-blue-100 text-blue-800 dark:bg-blue-900/70 dark:text-blue-200',
+                    iconBox: 'bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300',
+                    amount: 'text-blue-700 dark:text-blue-300',
+                    typeLabel: 'فاتورة بيع',
+                  }
+              : isPay
+              ? {
+                  border: 'border-emerald-200/90 dark:border-emerald-800/60 hover:border-emerald-300 dark:hover:border-emerald-700',
+                  bg: 'bg-emerald-50/40 dark:bg-emerald-950/20',
+                  badge: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/70 dark:text-emerald-200',
+                  iconBox: 'bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300',
+                  amount: 'text-emerald-600 dark:text-emerald-400',
+                  typeLabel: 'تحصيل دفعة',
+                }
+              : isExp
+              ? {
+                  border: 'border-amber-200/90 dark:border-amber-800/60 hover:border-amber-300 dark:hover:border-amber-700',
+                  bg: 'bg-amber-50/40 dark:bg-amber-950/20',
+                  badge: 'bg-amber-100 text-amber-800 dark:bg-amber-900/70 dark:text-amber-200',
+                  iconBox: 'bg-amber-100 dark:bg-amber-900/60 text-amber-700 dark:text-amber-300',
+                  amount: 'text-amber-600 dark:text-amber-400',
+                  typeLabel: 'مسحوبات / مصروف',
+                }
+              : {
+                  border: 'border-purple-200/90 dark:border-purple-800/60 hover:border-purple-300 dark:hover:border-purple-700',
+                  bg: 'bg-purple-50/40 dark:bg-purple-950/20',
+                  badge:
+                    ordRaw?.status === 'delivered'
+                      ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/70 dark:text-emerald-200'
+                      : ordRaw?.status === 'partially_delivered'
+                      ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/70 dark:text-amber-200'
+                      : 'bg-purple-100 text-purple-800 dark:bg-purple-900/70 dark:text-purple-200',
+                  iconBox: 'bg-purple-100 dark:bg-purple-900/60 text-purple-700 dark:text-purple-300',
+                  amount: 'text-purple-700 dark:text-purple-300',
+                  typeLabel:
+                    ordRaw?.status === 'delivered'
+                      ? 'طلب شغل (تم تسليمه)'
+                      : ordRaw?.status === 'partially_delivered'
+                      ? 'طلب شغل (تسليم جزئي)'
+                      : 'طلب شغل (قيد التحضير)',
+                };
+
             return (
               <div 
                 key={op.type + '_' + op.id} 
                 onClick={() => handleOpenOperationDetail(op)}
-                className={`flex items-center justify-between p-2.5 rounded-xl text-xs border cursor-pointer hover:shadow-2xs transition-all active:scale-99 ${
-                  isInv 
-                    ? (invRaw?.orderId 
-                        ? 'bg-indigo-50/50 dark:bg-indigo-950/25 border-indigo-200/80 dark:border-indigo-900/50 hover:border-indigo-300' 
-                        : 'bg-blue-50/40 dark:bg-blue-950/20 border-blue-200/80 dark:border-blue-900/50 hover:border-blue-300')
-                    : isPay
-                    ? 'bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-200/80 dark:border-emerald-900/50 hover:border-emerald-300'
-                    : isExp
-                    ? 'bg-amber-50/50 dark:bg-amber-950/20 border-amber-200/80 dark:border-amber-900/50 hover:border-amber-300'
-                    : 'bg-purple-50/50 dark:bg-purple-950/20 border-purple-200/80 dark:border-purple-900/50 hover:border-purple-300'
-                }`}
+                className={`p-2.5 sm:p-3 rounded-2xl border cursor-pointer hover:shadow-xs transition-all active:scale-[0.99] ${colorConfig.bg} ${colorConfig.border}`}
               >
-                <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
-                    isInv 
-                      ? (invRaw?.orderId 
-                          ? 'bg-indigo-100 dark:bg-indigo-900/60 text-indigo-600 dark:text-indigo-400' 
-                          : 'bg-blue-100 dark:bg-blue-900/60 text-blue-600 dark:text-blue-400')
-                      : isPay
-                      ? 'bg-emerald-100 dark:bg-emerald-900/60 text-emerald-600 dark:text-emerald-400'
-                      : isExp
-                      ? 'bg-amber-100 dark:bg-amber-900/60 text-amber-600 dark:text-amber-400'
-                      : 'bg-purple-100 dark:bg-purple-900/60 text-purple-600 dark:text-purple-400'
-                  }`}>
-                    {isInv ? (
-                      invRaw?.orderId ? <Truck className="w-4 h-4" /> : <Receipt className="w-4 h-4" />
-                    ) : isPay ? (
-                      <HandCoins className="w-4 h-4" />
-                    ) : isExp ? (
-                      <ArrowDownCircle className="w-4 h-4" />
-                    ) : (
-                      <Truck className="w-4 h-4" />
-                    )}
-                  </div>
-                  <div className="min-w-0 pr-1">
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded-md ${
-                        isInv 
-                          ? (invRaw?.orderId 
-                              ? 'bg-indigo-100 dark:bg-indigo-900/60 text-indigo-800 dark:text-indigo-300' 
-                              : 'bg-blue-100 dark:bg-blue-900/60 text-blue-800 dark:text-blue-300')
-                          : isPay
-                          ? 'bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300'
-                          : isExp
-                          ? 'bg-amber-100 dark:bg-amber-900/60 text-amber-800 dark:text-amber-300'
-                          : 'bg-purple-100 dark:bg-purple-900/60 text-purple-800 dark:text-purple-300'
-                      }`}>
-                        {isInv 
-                          ? (invRaw?.orderId ? 'تسليم طلب شغل' : 'فاتورة بيع') 
-                          : isPay 
-                          ? 'تحصيل دفعة' 
-                          : isExp 
-                          ? 'مسحوبات' 
-                          : `طلب شغل (${ordRaw?.status === 'delivered' ? 'تم تسليمه' : ordRaw?.status === 'partially_delivered' ? 'تسليم جزئي' : 'قيد التحضير'})`}
-                      </span>
-                      {op.merchantId ? (
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onSelectMerchant(op.merchantId!);
-                          }}
-                          className="font-bold text-slate-900 dark:text-white truncate text-right hover:text-emerald-600 dark:hover:text-emerald-400 hover:underline cursor-pointer"
-                          title="فتح صفحة وحساب التاجر"
-                        >
-                          {op.title}
-                        </button>
+                {/* Row 1: Main Operation Info (Right: Type + Merchant + Subtitle, Left: Amount) */}
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 shadow-2xs ${colorConfig.iconBox}`}>
+                      {isInv ? (
+                        invRaw?.orderId ? <Truck className="w-4 h-4" /> : <Receipt className="w-4 h-4" />
+                      ) : isPay ? (
+                        <HandCoins className="w-4 h-4" />
+                      ) : isExp ? (
+                        <ArrowDownCircle className="w-4 h-4" />
                       ) : (
-                        <span className="font-bold text-slate-900 dark:text-white truncate">{op.title}</span>
+                        <Truck className="w-4 h-4" />
                       )}
                     </div>
-                    
-                    {/* Subtitle with Registration Date AND Relative Time (منذ كم من الوقت) */}
-                    <div className="flex items-center gap-1.5 text-[10px] text-slate-500 dark:text-slate-400 mt-0.5 flex-wrap font-mono-num">
-                      <span className="truncate">{op.subTitle}</span>
-                      <span>•</span>
-                      <span className="inline-flex items-center gap-0.5 font-bold text-slate-700 dark:text-slate-300 shrink-0">
-                        <Calendar className="w-2.5 h-2.5 text-slate-400" />
-                        <span>{formatDateArabic(op.date)}</span>
-                      </span>
-                      {op.createdAt && (
-                        <>
-                          <span>•</span>
-                          <span className="inline-flex items-center gap-0.5 text-indigo-700 dark:text-indigo-300 font-bold bg-indigo-50/80 dark:bg-indigo-950/60 px-1.5 py-0.2 rounded-md shrink-0">
-                            <Clock className="w-2.5 h-2.5" />
-                            <span>{formatTimeAgoArabic(op.createdAt, op.date)}</span>
+
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md shrink-0 ${colorConfig.badge}`}>
+                          {colorConfig.typeLabel}
+                        </span>
+                        {op.merchantId ? (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onSelectMerchant(op.merchantId!);
+                            }}
+                            className="font-bold text-slate-900 dark:text-white truncate text-xs sm:text-sm text-right hover:text-emerald-600 dark:hover:text-emerald-400 hover:underline cursor-pointer"
+                            title="فتح صفحة وحساب التاجر"
+                          >
+                            {op.title}
+                          </button>
+                        ) : (
+                          <span className="font-bold text-slate-900 dark:text-white truncate text-xs sm:text-sm">
+                            {op.title}
                           </span>
-                        </>
-                      )}
+                        )}
+                      </div>
+
+                      {/* Document Reference / Subtitle */}
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 font-mono-num truncate mt-0.5">
+                        {op.subTitle}
+                      </p>
                     </div>
                   </div>
-                </div>
 
-                {/* Amount + Action Buttons */}
-                <div className="flex items-center gap-2 shrink-0 pl-1">
-                  <div className="text-left font-mono-num">
-                    <span className={`font-black block text-xs sm:text-sm ${
-                      isInv 
-                        ? (invRaw?.orderId ? 'text-indigo-700 dark:text-indigo-300' : 'text-blue-700 dark:text-blue-300')
-                        : isPay
-                        ? 'text-emerald-600 dark:text-emerald-400'
-                        : isExp
-                        ? 'text-amber-600 dark:text-amber-400'
-                        : 'text-purple-700 dark:text-purple-300'
-                    }`}>
+                  {/* Amount Block */}
+                  <div className="text-left font-mono-num shrink-0">
+                    <span className={`text-xs sm:text-sm font-black block ${colorConfig.amount}`}>
                       {isInv 
                         ? formatCurrency(op.amount, currency) 
                         : isPay
@@ -786,36 +792,59 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       <span className={`text-[10px] font-bold block ${
                         ordRaw?.status === 'delivered' ? 'text-emerald-600 dark:text-emerald-400' : 'text-purple-600 dark:text-purple-400'
                       }`}>
-                        {ordRaw?.status === 'delivered' ? 'تم التسليم' : `مسلم: ${formatCurrency(ordRaw?.deliveredTotalAmount || 0, currency)}`}
+                        {ordRaw?.status === 'delivered' ? 'تم التسليم بالكامل' : `مسلم: ${formatCurrency(ordRaw?.deliveredTotalAmount || 0, currency)}`}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Subtle Divider */}
+                <div className="my-2 border-t border-slate-200/70 dark:border-slate-800/70" />
+
+                {/* Row 2: Date & Time Metadata + Quick Action Buttons */}
+                <div className="flex items-center justify-between gap-2 text-xs">
+                  {/* Clean Date & Time badges without wrapping bullets */}
+                  <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 font-mono-num flex-wrap">
+                    <span className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-600 dark:text-slate-300">
+                      <Calendar className="w-3 h-3 text-slate-400 dark:text-slate-500" />
+                      <span>{formatDateArabic(op.date)}</span>
+                    </span>
+                    {op.createdAt && (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                        <Clock className="w-2.5 h-2.5 text-slate-400" />
+                        <span>{formatTimeAgoArabic(op.createdAt, op.date)}</span>
                       </span>
                     )}
                   </div>
 
-                  {/* Direct Action Buttons on Row */}
-                  <div className="flex items-center gap-1 border-r border-slate-200 dark:border-slate-700 pr-1 mr-1">
-                    {/* Quick Print/Share (for invoices and payments) */}
-                    {(isInv || isPay) && (
-                      <button
-                        type="button"
-                        title="عرض وطباعة"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (isInv && invRaw && onPrintInvoice) {
-                            onPrintInvoice(invRaw);
-                          } else if (isPay && payRaw && onPrintPayment) {
-                            onPrintPayment(payRaw);
-                          }
-                        }}
-                        className="p-1 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                      >
-                        <Printer className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-
-                    {/* Edit / Manage Button */}
+                  {/* Actions Group: Print for ALL operations, Edit/Manage, Delete */}
+                  <div className="flex items-center gap-1 shrink-0">
+                    {/* Quick Print Button - Available for ALL operations */}
                     <button
                       type="button"
-                      title={isOrd ? "فتح صفحة الطلبات" : "تعديل العملية"}
+                      title="عرض وطباعة المستند"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (isInv && invRaw && onPrintInvoice) {
+                          onPrintInvoice(invRaw);
+                        } else if (isPay && payRaw && onPrintPayment) {
+                          onPrintPayment(payRaw);
+                        } else if (isOrd && ordRaw && onPrintOrder) {
+                          onPrintOrder(ordRaw);
+                        } else if (isExp && expRaw && onPrintExpense) {
+                          onPrintExpense(expRaw);
+                        }
+                      }}
+                      className="flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-bold text-slate-700 dark:text-slate-200 bg-white/95 dark:bg-slate-800/95 hover:bg-white dark:hover:bg-slate-700 border border-slate-200/90 dark:border-slate-700 shadow-2xs hover:shadow-xs active:scale-95 transition-all"
+                    >
+                      <Printer className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                      <span className="text-[10px]">طباعة</span>
+                    </button>
+
+                    {/* Edit / Deliver Button */}
+                    <button
+                      type="button"
+                      title={isOrd ? "تسليم وإدارة طلب الشغل" : "تعديل العملية"}
                       onClick={(e) => {
                         e.stopPropagation();
                         if (isInv && invRaw && onEditInvoice) {
@@ -829,9 +858,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                           setActiveTab('orders');
                         }
                       }}
-                      className="p-1 rounded-lg text-slate-400 hover:text-emerald-700 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950 transition-colors"
+                      className="p-1.5 rounded-lg text-slate-600 dark:text-slate-300 bg-white/95 dark:bg-slate-800/95 hover:bg-white dark:hover:bg-slate-700 hover:text-emerald-600 dark:hover:text-emerald-400 border border-slate-200/90 dark:border-slate-700 shadow-2xs active:scale-95 transition-all"
                     >
-                      {isOrd ? <Truck className="w-3.5 h-3.5" /> : <Edit3 className="w-3.5 h-3.5" />}
+                      {isOrd ? <Truck className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" /> : <Edit3 className="w-3.5 h-3.5" />}
                     </button>
 
                     {/* Direct Delete Button */}
@@ -870,7 +899,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                           });
                         }
                       }}
-                      className="p-1 rounded-lg text-rose-400 hover:text-rose-600 dark:hover:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-950 transition-colors"
+                      className="p-1.5 rounded-lg text-rose-400 hover:text-rose-600 dark:hover:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-950/60 transition-colors"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -1145,37 +1174,25 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
             {/* Actions Grid */}
             <div className="pt-2 border-t border-slate-100 dark:border-slate-800 grid grid-cols-3 gap-1.5">
-              {selectedOperation.type === 'invoice' || selectedOperation.type === 'payment' ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (selectedOperation.type === 'invoice' && selectedOperation.rawInvoice && onPrintInvoice) {
-                      onPrintInvoice(selectedOperation.rawInvoice);
-                    } else if (selectedOperation.type === 'payment' && selectedOperation.rawPayment && onPrintPayment) {
-                      onPrintPayment(selectedOperation.rawPayment);
-                    }
-                    setSelectedOperation(null);
-                  }}
-                  className="py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold flex items-center justify-center gap-1"
-                >
-                  <Printer className="w-3.5 h-3.5" />
-                  <span>طباعة</span>
-                </button>
-              ) : selectedOperation.type === 'order' ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setActiveTab('orders');
-                    setSelectedOperation(null);
-                  }}
-                  className="py-2 rounded-xl bg-purple-50 dark:bg-purple-950/40 hover:bg-purple-100 dark:hover:bg-purple-900/60 text-purple-700 dark:text-purple-300 font-bold flex items-center justify-center gap-1"
-                >
-                  <Truck className="w-3.5 h-3.5" />
-                  <span>تسليم/إدارة</span>
-                </button>
-              ) : (
-                <div />
-              )}
+              <button
+                type="button"
+                onClick={() => {
+                  if (selectedOperation.type === 'invoice' && selectedOperation.rawInvoice && onPrintInvoice) {
+                    onPrintInvoice(selectedOperation.rawInvoice);
+                  } else if (selectedOperation.type === 'payment' && selectedOperation.rawPayment && onPrintPayment) {
+                    onPrintPayment(selectedOperation.rawPayment);
+                  } else if (selectedOperation.type === 'order' && selectedOperation.rawOrder && onPrintOrder) {
+                    onPrintOrder(selectedOperation.rawOrder);
+                  } else if (selectedOperation.type === 'expense' && selectedOperation.rawExpense && onPrintExpense) {
+                    onPrintExpense(selectedOperation.rawExpense);
+                  }
+                  setSelectedOperation(null);
+                }}
+                className="py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold flex items-center justify-center gap-1 active:scale-98 transition-all"
+              >
+                <Printer className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                <span>طباعة</span>
+              </button>
 
               <button
                 type="button"

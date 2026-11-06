@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import type { Invoice, Payment } from '../types';
+import type { Invoice, Payment, WorkOrder, Expense } from '../types';
 import { formatCurrency, formatDateArabic } from '../utils/formatters';
 import { toPng } from 'html-to-image';
 import { 
@@ -19,6 +19,8 @@ import {
 interface PrintModalProps {
   invoice?: Invoice | null;
   payment?: Payment | null;
+  order?: WorkOrder | null;
+  expense?: Expense | null;
   currency?: string;
   onClose: () => void;
 }
@@ -26,6 +28,8 @@ interface PrintModalProps {
 export const PrintModal: React.FC<PrintModalProps> = ({
   invoice,
   payment,
+  order,
+  expense,
   onClose,
 }) => {
   const { merchantBalances, storeName, currency, merchants, showToast } = useApp();
@@ -36,15 +40,15 @@ export const PrintModal: React.FC<PrintModalProps> = ({
   const [capturedImageDataUrl, setCapturedImageDataUrl] = useState<string | null>(null);
   const [capturedBlob, setCapturedBlob] = useState<Blob | null>(null);
   const [selectedMerchantId, setSelectedMerchantId] = useState<string>(
-    invoice?.merchantId || payment?.merchantId || (merchants[0]?.id || '')
+    invoice?.merchantId || payment?.merchantId || order?.merchantId || (merchants[0]?.id || '')
   );
   const [customPhone, setCustomPhone] = useState<string>(() => {
-    const targetId = invoice?.merchantId || payment?.merchantId;
+    const targetId = invoice?.merchantId || payment?.merchantId || order?.merchantId;
     const m = merchants.find(item => item.id === targetId);
     return m?.phone || '';
   });
 
-  if (!invoice && !payment) return null;
+  if (!invoice && !payment && !order && !expense) return null;
 
   // Format date and time in authentic Egyptian commercial style
   const getFormattedDateTime = (dateStr: string) => {
@@ -257,17 +261,17 @@ ${paymentNewDebt > 0 ? `👉 *الباقي عليك للحساب:* ${formatCurre
   // 2. Direct Web Share API (native WhatsApp image share on mobile - Photo Only without text)
   const handleNativeShareImage = async () => {
     if (!capturedBlob) return;
-    const docNumber = invoice ? invoice.invoiceNumber : (payment?.receiptNumber || '0742');
-    const fileName = `فاتورة-${docNumber}.png`;
+    const docNumber = invoice ? invoice.invoiceNumber : payment ? (payment.receiptNumber || '0742') : order ? order.orderNumber : (expense ? `صرف-${expense.id.slice(-4)}` : '001');
+    const fileName = `مستند-${docNumber}.png`;
     const file = new File([capturedBlob], fileName, { type: 'image/png' });
 
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
       try {
         await navigator.share({
           files: [file],
-          title: `فاتورة ${invoice?.merchantName || payment?.merchantName || ''}`,
+          title: `مستند ${invoice?.merchantName || payment?.merchantName || order?.merchantName || expense?.title || ''}`,
         });
-        showToast('تمت مشاركة صورة الفاتورة بنجاح عبر الواتساب');
+        showToast('تمت مشاركة صورة المستند بنجاح عبر الواتساب');
       } catch (err: unknown) {
         if (err instanceof Error && err.name !== 'AbortError') {
           console.error('Error sharing file', err);
@@ -311,16 +315,16 @@ ${paymentNewDebt > 0 ? `👉 *الباقي عليك للحساب:* ${formatCurre
     a.click();
     document.body.removeChild(a);
 
-    showToast('تم حفظ صورة الفاتورة في جهازك وفتح محادثة الواتساب مع التاجر 📸');
+    showToast('تم حفظ صورة المستند في جهازك وفتح محادثة الواتساب مع التاجر 📸');
   };
 
   // 4. Download Image directly
   const handleDownloadImage = () => {
     if (!capturedImageDataUrl) return;
-    const docNumber = invoice ? invoice.invoiceNumber : (payment?.receiptNumber || '0742');
+    const docNumber = invoice ? invoice.invoiceNumber : payment ? (payment.receiptNumber || '0742') : order ? order.orderNumber : (expense ? `صرف-${expense.id.slice(-4)}` : '001');
     const link = document.createElement('a');
     link.href = capturedImageDataUrl;
-    link.download = `فاتورة_${docNumber}.png`;
+    link.download = `مستند_${docNumber}.png`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -728,13 +732,220 @@ ${paymentNewDebt > 0 ? `👉 *الباقي عليك للحساب:* ${formatCurre
             </div>
           )}
 
+          {/* ==================== 3. WORK ORDER VIEW ==================== */}
+          {order && (
+            <div className="space-y-4 w-full">
+              {/* Header: Company Title (Right) + Order # / Date Box (Left) */}
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h1 className="text-xl sm:text-2xl font-black text-black tracking-tight leading-tight">
+                    {storeName || 'Ahmed And Hamdy'}
+                  </h1>
+                  <p className="text-[11px] text-slate-600 font-medium mt-0.5">
+                    النظام المحاسبي الداخلي — إذن تحضير وتشغيل شغل
+                  </p>
+                </div>
+
+                <div className="border border-slate-300 rounded-md text-[11px] font-mono-num divide-y divide-slate-200 min-w-[190px] text-right">
+                  <div className="p-1.5 flex justify-between gap-2">
+                    <span className="text-slate-500 font-sans">رقم طلب الشغل:</span>
+                    <span className="font-black text-black">#{order.orderNumber}</span>
+                  </div>
+                  <div className="p-1.5 flex justify-between gap-2">
+                    <span className="text-slate-500 font-sans">تاريخ الطلب:</span>
+                    <span className="font-bold text-black text-[10px]">
+                      {getFormattedDateTime(order.date)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="border-b-2 border-black my-2"></div>
+
+              <div className="flex items-center justify-between text-xs">
+                <span className="border border-purple-800 bg-purple-50 text-purple-900 px-3 py-0.5 rounded text-[11px] font-bold">
+                  إذن تحضير وتشغيل طلب شغل
+                </span>
+                <span className="text-[10px] text-slate-500 font-mono-num">
+                  {order.items.length} أصناف في الطلب
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="border border-slate-300 rounded-md p-2 flex flex-col justify-between min-h-[64px]">
+                  <span className="text-[10px] text-slate-500">طلب الشغل إلى:</span>
+                  <div className="text-sm sm:text-base font-black text-black break-words my-0.5">
+                    {order.merchantName}
+                  </div>
+                  <span className="text-[10px] text-slate-500">التاجر / العميل</span>
+                </div>
+
+                <div className="border border-slate-300 rounded-md p-2 flex flex-col justify-between min-h-[64px]">
+                  <span className="text-[10px] text-slate-500">حالة الطلب:</span>
+                  <div className={`text-xs sm:text-sm font-black break-words my-0.5 ${
+                    order.status === 'delivered' 
+                      ? 'text-emerald-700' 
+                      : order.status === 'partially_delivered' 
+                      ? 'text-amber-700' 
+                      : 'text-purple-700'
+                  }`}>
+                    {order.status === 'delivered' ? 'تم التسليم بالكامل' : order.status === 'partially_delivered' ? 'تسليم جزئي' : 'قيد التحضير والتجهيز'}
+                  </div>
+                  <span className="text-[10px] text-slate-500 font-mono-num">
+                    {order.deliveredTotalAmount > 0 ? `مسلم فعلياً: ${formatCurrency(order.deliveredTotalAmount, currency)}` : 'جاهز للبدء في التحضير'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Items Table */}
+              <div className="border border-slate-300 rounded-md overflow-hidden">
+                <table className="w-full text-right text-xs border-collapse">
+                  <thead>
+                    <tr className="bg-slate-100/80 border-b border-slate-300 text-[11px] font-bold text-black">
+                      <th className="py-1.5 px-2 border-l border-slate-200">الصنف المطلوب</th>
+                      <th className="py-1.5 px-2 text-center border-l border-slate-200">الكمية</th>
+                      <th className="py-1.5 px-2 text-center border-l border-slate-200">المسلم</th>
+                      <th className="py-1.5 px-2 text-center border-l border-slate-200">المتبقي</th>
+                      <th className="py-1.5 px-2 text-center border-l border-slate-200">سعر القطعة</th>
+                      <th className="py-1.5 px-2 text-left">الإجمالي التقديري</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200 font-mono-num text-xs">
+                    {order.items.map((it, idx) => (
+                      <tr key={idx} className="hover:bg-slate-50">
+                        <td className="py-1.5 px-2 font-sans font-bold text-black border-l border-slate-200">
+                          {it.productName}
+                        </td>
+                        <td className="py-1.5 px-2 text-center border-l border-slate-200 font-bold">
+                          {it.quantityOrdered}
+                        </td>
+                        <td className="py-1.5 px-2 text-center border-l border-slate-200 text-emerald-700 font-bold">
+                          {it.quantityDelivered}
+                        </td>
+                        <td className="py-1.5 px-2 text-center border-l border-slate-200 text-rose-700 font-bold">
+                          {it.quantityRemaining}
+                        </td>
+                        <td className="py-1.5 px-2 text-center border-l border-slate-200">
+                          {formatCurrency(it.unitPrice, currency)}
+                        </td>
+                        <td className="py-1.5 px-2 text-left font-black text-black">
+                          {formatCurrency(it.quantityOrdered * it.unitPrice, currency)}
+                        </td>
+                      </tr>
+                    ))}
+
+                    <tr className="bg-purple-50/50 border-t-2 border-slate-300 text-xs">
+                      <td colSpan={5} className="py-2 px-2 font-black text-black text-right border-l border-slate-200">
+                        إجمالي القيمة التقديرية لطلب الشغل
+                      </td>
+                      <td className="py-2 px-2 text-left font-black text-purple-900 font-mono-num text-sm">
+                        {formatCurrency(order.totalEstimatedAmount, currency)}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              {order.notes && (
+                <div className="p-2 border border-dashed border-slate-300 rounded-md text-[10px] text-slate-600">
+                  <span className="font-bold">ملاحظات طلب الشغل: </span>
+                  <span>{order.notes}</span>
+                </div>
+              )}
+
+              <div className="pt-4 border-t border-dashed border-slate-300 flex items-center justify-between text-[10px] text-slate-500">
+                <div>توقيع المشرف / الفني: .......................................</div>
+                <div>توقيع التاجر / المستلم: .......................................</div>
+              </div>
+
+              <div className="text-[9px] text-slate-400 font-mono-num text-right">
+                #{order.orderNumber}
+              </div>
+            </div>
+          )}
+
+          {/* ==================== 4. EXPENSE VIEW ==================== */}
+          {expense && (
+            <div className="space-y-4 w-full">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h1 className="text-xl sm:text-2xl font-black text-black tracking-tight leading-tight">
+                    {storeName || 'Ahmed And Hamdy'}
+                  </h1>
+                  <p className="text-[11px] text-slate-600 font-medium mt-0.5">
+                    النظام المحاسبي الداخلي — إذن صرف ومسحوبات
+                  </p>
+                </div>
+
+                <div className="border border-slate-300 rounded-md text-[11px] font-mono-num divide-y divide-slate-200 min-w-[190px] text-right">
+                  <div className="p-1.5 flex justify-between gap-2">
+                    <span className="text-slate-500 font-sans">رقم الإذن:</span>
+                    <span className="font-black text-black">#صرف-{expense.id.slice(-4)}</span>
+                  </div>
+                  <div className="p-1.5 flex justify-between gap-2">
+                    <span className="text-slate-500 font-sans">تاريخ الصرف:</span>
+                    <span className="font-bold text-black text-[10px]">
+                      {getFormattedDateTime(expense.date)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="border-b-2 border-black my-2"></div>
+
+              <div className="flex items-center justify-between text-xs">
+                <span className="border border-amber-800 bg-amber-50 text-amber-900 px-3 py-0.5 rounded text-[11px] font-bold">
+                  إذن صرف نقدية / مسحوبات
+                </span>
+                <span className="text-[10px] text-slate-500">
+                  تصنيف: {expense.category}
+                </span>
+              </div>
+
+              <div className="border border-slate-300 rounded-md p-4 bg-amber-50/20 text-center">
+                <span className="text-xs text-slate-500 block mb-1">المبلغ المنصرف / المسحوب</span>
+                <div className="text-2xl sm:text-3xl font-black text-amber-700 font-mono-num">
+                  {formatCurrency(expense.amount, currency)}
+                </div>
+                <span className="text-xs font-bold text-slate-700 mt-2 block">
+                  البيان: {expense.title} ({expense.category})
+                </span>
+                <span className="text-[11px] text-slate-500 block mt-0.5">
+                  طريقة السحب: {expense.paymentMethod}
+                </span>
+              </div>
+
+              {expense.notes && (
+                <div className="p-2 border border-dashed border-slate-300 rounded-md text-[10px] text-slate-600">
+                  <span className="font-bold">ملاحظات الصرف: </span>
+                  <span>{expense.notes}</span>
+                </div>
+              )}
+
+              <div className="pt-4 border-t border-dashed border-slate-300 flex items-center justify-between text-[10px] text-slate-500">
+                <div>توقيع المستلم: .......................................</div>
+                <div>توقيع أمين الصندوق: .......................................</div>
+              </div>
+
+              <div className="text-[9px] text-slate-400 font-mono-num text-right">
+                #صرف-{expense.id.slice(-4)}
+              </div>
+            </div>
+          )}
+
           </div>
         </div>
 
         {/* Modal Bottom Close Button (Hidden when printing) - Lifted above mobile navigation bar */}
         <div className="pt-2.5 pb-6 sm:pb-0 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center print:hidden shrink-0">
-          <span className="text-[11px] text-slate-500 dark:text-slate-400">
-            {invoice ? `فاتورة #${invoice.invoiceNumber}` : `حركة #${payment?.receiptNumber || '0742'}`}
+          <span className="text-[11px] text-slate-500 dark:text-slate-400 font-mono-num">
+            {invoice 
+              ? `فاتورة #${invoice.invoiceNumber}` 
+              : payment 
+              ? `حركة #${payment.receiptNumber || '0742'}`
+              : order 
+              ? `طلب شغل #${order.orderNumber}`
+              : `إذن صرف #${expense?.id.slice(-4)}`}
           </span>
           <button
             onClick={onClose}

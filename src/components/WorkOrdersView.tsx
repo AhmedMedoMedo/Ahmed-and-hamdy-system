@@ -34,12 +34,14 @@ import { SearchableSelect } from './SearchableSelect';
 interface WorkOrdersViewProps {
   onOpenOrderInvoice?: (invoiceId: string) => void;
   onPrintInvoice?: (invoice: any) => void;
+  onPrintOrder?: (order: WorkOrder) => void;
   onSelectMerchant?: (merchantId: string) => void;
 }
 
 export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
   onOpenOrderInvoice,
   onPrintInvoice,
+  onPrintOrder,
   onSelectMerchant,
 }) => {
   const { 
