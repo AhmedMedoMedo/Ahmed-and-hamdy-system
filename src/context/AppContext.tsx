@@ -1275,18 +1275,57 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
     });
 
+    // Also include any delivered or debt work orders that don't have a duplicate invoice record in invoices
+    orders.forEach(ord => {
+      const hasInvoice = invoices.some(inv => inv.orderId === ord.id || (inv.notes && inv.notes.includes(ord.orderNumber)));
+      if (!hasInvoice) {
+        const orderDebt = ord.status === 'delivered'
+          ? (ord.deliveredTotalAmount || ord.totalEstimatedAmount || 0)
+          : (ord.deliveredTotalAmount || 0);
+
+        if (orderDebt > 0) {
+          const canonicalId = findCanonicalId(ord.merchantId, ord.merchantName);
+          if (!map[canonicalId]) {
+            map[canonicalId] = {
+              merchantId: canonicalId,
+              merchantName: ord.merchantName || 'تاجر غير محدد',
+              totalInvoicedAllTime: 0,
+              totalPaidAllTime: 0,
+              currentDebt: 0,
+              monthInvoiced: 0,
+              monthPaid: 0,
+              carriedDebt: 0,
+            };
+          }
+          const b = map[canonicalId];
+          b.totalInvoicedAllTime += orderDebt;
+
+          const ordMonth = ord.monthKey || getMonthKeyFromDate(ord.date);
+          if (ordMonth === selectedMonth) {
+            b.monthInvoiced += orderDebt;
+          } else if (ordMonth < selectedMonth) {
+            b.carriedDebt += orderDebt;
+          }
+        }
+      }
+    });
+
     // Compute current total debts
     Object.values(map).forEach(b => {
       b.currentDebt = b.totalInvoicedAllTime - b.totalPaidAllTime;
     });
 
     return map;
-  }, [merchants, invoices, payments, selectedMonth]);
+  }, [merchants, invoices, payments, orders, selectedMonth]);
 
   // Overall totals across all time
   const totalAllTimeSales = useMemo(() => {
-    return invoices.reduce((sum, inv) => sum + (inv.total || 0), 0);
-  }, [invoices]);
+    const invTotal = invoices.reduce((sum, inv) => sum + (inv.total || 0), 0);
+    const unbilledOrders = orders
+      .filter(ord => !invoices.some(inv => inv.orderId === ord.id || (inv.notes && inv.notes.includes(ord.orderNumber))))
+      .reduce((sum, ord) => sum + (ord.status === 'delivered' ? (ord.deliveredTotalAmount || ord.totalEstimatedAmount || 0) : (ord.deliveredTotalAmount || 0)), 0);
+    return invTotal + unbilledOrders;
+  }, [invoices, orders]);
 
   const totalAllTimeCollections = useMemo(() => {
     return payments.reduce((sum, pay) => sum + (pay.amount || 0), 0);
