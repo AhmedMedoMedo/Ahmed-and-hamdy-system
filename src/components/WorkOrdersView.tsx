@@ -319,7 +319,7 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
     }
 
     try {
-      const { newStatus } = await deliverWorkOrder(
+      const { newStatus, invoice } = await deliverWorkOrder(
         deliveryModalOrder.id,
         deliveryPayload,
         deliveryPaymentType,
@@ -333,6 +333,11 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
           : 'تم تسليم الجزء المحدد وإصدار فاتورة به، وبقي الباقي قيد التحضير!'
       );
       setDeliveryModalOrder(null);
+
+      // Open print/share modal immediately for the generated delivery invoice
+      if (invoice && onPrintInvoice) {
+        onPrintInvoice(invoice);
+      }
     } catch (err: any) {
       setDeliveryError(err?.message || 'حدث خطأ أثناء تسجيل التسليم');
     }
@@ -1085,7 +1090,7 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
                       step="any"
                       min="0"
                       max={currentBatchTotal}
-                      placeholder=""
+                      placeholder="0"
                       value={deliveryPaidAmount}
                       onChange={(e) => setDeliveryPaidAmount(e.target.value)}
                       className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 font-mono-num text-xs font-bold text-teal-700 dark:text-teal-400"
@@ -1095,6 +1100,37 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
                     </div>
                   </div>
                 )}
+
+                {/* Live Merchant Debt Preview Before and After Delivery */}
+                {(() => {
+                  const mBal = merchantBalances[deliveryModalOrder.merchantId];
+                  const currentMerchantDebt = mBal ? Math.max(0, mBal.currentDebt) : 0;
+                  const addedDebt = deliveryPaymentType === 'debt'
+                    ? currentBatchTotal
+                    : deliveryPaymentType === 'paid_full'
+                    ? 0
+                    : Math.max(0, currentBatchTotal - (parseFloat(deliveryPaidAmount) || 0));
+                  const projectedDebt = currentMerchantDebt + addedDebt;
+
+                  return (
+                    <div className="p-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200/90 dark:border-slate-700 font-mono-num text-xs space-y-1">
+                      <div className="flex justify-between text-slate-500 dark:text-slate-400">
+                        <span className="font-sans">حساب التاجر السابق (قبل التسليم):</span>
+                        <span className="font-bold text-slate-700 dark:text-slate-200">{formatCurrency(currentMerchantDebt, currency)}</span>
+                      </div>
+                      <div className="flex justify-between text-rose-600 dark:text-rose-400">
+                        <span className="font-sans font-bold">المضاف للدين من هذه الدفعة:</span>
+                        <span className="font-black">+{formatCurrency(addedDebt, currency)}</span>
+                      </div>
+                      <div className="pt-1 border-t border-slate-100 dark:border-slate-700 flex justify-between font-bold">
+                        <span className="font-sans text-slate-800 dark:text-slate-200">حساب التاجر الإجمالي بعد التسليم:</span>
+                        <span className={`font-black ${projectedDebt > 0 ? 'text-rose-600 dark:text-rose-400 text-sm' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                          {formatCurrency(projectedDebt, currency)}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* Delivery Notes */}

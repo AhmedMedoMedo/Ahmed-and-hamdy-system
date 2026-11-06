@@ -129,7 +129,7 @@ interface AppContextType {
     paymentType: 'debt' | 'paid_full' | 'paid_partial', 
     paidAmountInput?: number, 
     notes?: string
-  ) => Promise<{ invoiceId: string; newStatus: OrderStatus }>;
+  ) => Promise<{ invoiceId: string; newStatus: OrderStatus; invoice?: Invoice }>;
 
   // Personal Contacts CRUD
   savePersonalContact: (contact: Omit<PersonalContact, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }) => Promise<string>;
@@ -174,7 +174,9 @@ const STORAGE_KEYS = {
   theme: 'account_app_theme',
 };
 
-export const SHARED_STORE_ID = 'ahmed_and_hamdy';
+// Dedicated SmartScanner cloud store identifier in Firebase Firestore
+export const SMARTSCANNER_STORE_ID = 'smartscanner_main_store';
+export const SHARED_STORE_ID = SMARTSCANNER_STORE_ID;
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -475,40 +477,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
     unsubs.push(unsubSec);
 
-    // Sync any existing local real data (e.g. 'تجربه 1') to shared store if cloud is empty
-    const syncExistingLocalToSharedStore = async () => {
+    // Seamless one-time migration from legacy 'ahmed_and_hamdy' to 'smartscanner_main_store' if newly initialized
+    const checkAndMigrateLegacyStore = async () => {
       try {
-        const localMRaw = localStorage.getItem(STORAGE_KEYS.merchants);
-        if (localMRaw) {
-          const list: Merchant[] = JSON.parse(localMRaw);
-          for (const item of list) {
-            if (item.id !== 'm_1' && item.id !== 'm_2' && item.id !== 'm_3') {
-              await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'merchants', item.id), item, { merge: true });
+        const testSnap = await getDocs(collection(db, 'stores', SMARTSCANNER_STORE_ID, 'invoices'));
+        if (testSnap.empty) {
+          const collectionsToMigrate = ['merchants', 'products', 'invoices', 'payments', 'expenses', 'orders', 'personal_contacts', 'personal_transactions'];
+          for (const collName of collectionsToMigrate) {
+            const legacySnap = await getDocs(collection(db, 'stores', 'ahmed_and_hamdy', collName));
+            for (const docItem of legacySnap.docs) {
+              await setDoc(doc(db, 'stores', SMARTSCANNER_STORE_ID, collName, docItem.id), docItem.data(), { merge: true });
             }
           }
         }
-        const localInvRaw = localStorage.getItem(STORAGE_KEYS.invoices);
-        if (localInvRaw) {
-          const list: Invoice[] = JSON.parse(localInvRaw);
-          for (const item of list) {
-            await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'invoices', item.id), item, { merge: true });
-          }
-        }
-        const localPayRaw = localStorage.getItem(STORAGE_KEYS.payments);
-        if (localPayRaw) {
-          const list: Payment[] = JSON.parse(localPayRaw);
-          for (const item of list) {
-            await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'payments', item.id), item, { merge: true });
-          }
-        }
-      } catch (e) {
-        console.warn("Auto-sync existing local data error:", e);
+      } catch (err) {
+        console.warn("Legacy store migration check notice:", err);
       }
     };
 
-    syncExistingLocalToSharedStore().then(() => {
-      refreshFromCloud();
-    });
+    checkAndMigrateLegacyStore();
 
     return () => {
       unsubs.forEach(fn => fn());
@@ -773,29 +760,88 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       console.warn("Save invoice warning:", err);
     }
 
-    // If an upfront payment was made with the invoice, also record it as a Payment record
-    if (autoAddPayment && record.paidAmount > 0 && !data.id) {
-      await savePayment({
-        merchantId: record.merchantId,
-        merchantName: record.merchantName,
-        amount: record.paidAmount,
-        date: record.date,
-        monthKey: record.monthKey,
-        paymentMethod: 'كاش',
-        notes: `دفعة نقدية مسددة عند استلام الفاتورة رقم ${record.invoiceNumber}`,
-        invoiceId: record.id,
-      });
+    // Keep linked payment strictly synchronized with invoice paidAmount
+    if (autoAddPayment) {
+      const existingLinkedPay = payments.find(p => p.invoiceId === record.id);
+      if (record.paidAmount > 0) {
+        await savePayment({
+          ...(existingLinkedPay ? { id: existingLinkedPay.id } : {}),
+          merchantId: record.merchantId,
+          merchantName: record.merchantName,
+          amount: record.paidAmount,
+          date: record.date,
+          monthKey: record.monthKey,
+          paymentMethod: 'كاش',
+          notes: `دفعة نقدية مسددة عند استلام الفاتورة رقم ${record.invoiceNumber}`,
+          invoiceId: record.id,
+        });
+      } else if (existingLinkedPay) {
+        // If invoice was updated to unpaid/debt, remove the linked payment to keep merchant ledger pure!
+        await removePayment(existingLinkedPay.id);
+      }
     }
 
     return id;
   };
 
   const removeInvoice = async (id: string) => {
-    setInvoices(prev => prev.filter(inv => inv.id !== id));
+    const inv = invoices.find(item => item.id === id);
+
+    // 1. Remove the invoice from state and Firestore
+    setInvoices(prev => prev.filter(item => item.id !== id));
     try {
       await deleteDoc(doc(db, 'stores', SHARED_STORE_ID, 'invoices', id));
     } catch (err) {
       console.warn("Delete invoice warning:", err);
+    }
+
+    // 2. Remove any linked payment created alongside this invoice
+    const linkedPayments = payments.filter(p => p.invoiceId === id);
+    if (linkedPayments.length > 0) {
+      setPayments(prev => prev.filter(p => p.invoiceId !== id));
+      for (const lp of linkedPayments) {
+        try {
+          await deleteDoc(doc(db, 'stores', SHARED_STORE_ID, 'payments', lp.id));
+        } catch (e) {
+          console.warn("Delete linked payment error:", e);
+        }
+      }
+    }
+
+    // 3. Rollback delivered quantities on the linked Work Order if this invoice came from an order
+    if (inv?.orderId) {
+      const order = orders.find(o => o.id === inv.orderId);
+      if (order) {
+        const revertedItems = order.items.map(it => {
+          const invItem = inv.items.find(it2 => it2.productId === it.productId || it2.productName === it.productName);
+          const deliveredInInv = invItem ? invItem.quantity : 0;
+          const newDelivered = Math.max(0, it.quantityDelivered - deliveredInInv);
+          const newRemaining = Math.max(0, it.quantityOrdered - newDelivered);
+          return {
+            ...it,
+            quantityDelivered: newDelivered,
+            quantityRemaining: newRemaining,
+          };
+        });
+        const someDelivered = revertedItems.some(it => it.quantityDelivered > 0);
+        const allDelivered = revertedItems.every(it => it.quantityRemaining === 0);
+        const newStatus: OrderStatus = allDelivered ? 'delivered' : someDelivered ? 'partially_delivered' : 'pending';
+        const newDeliveredTotal = Math.max(0, (order.deliveredTotalAmount || 0) - inv.total);
+
+        const updatedOrder: WorkOrder = {
+          ...order,
+          items: revertedItems,
+          status: newStatus,
+          deliveredTotalAmount: newDeliveredTotal,
+          updatedAt: new Date().toISOString(),
+        };
+        setOrders(prev => prev.map(o => o.id === order.id ? updatedOrder : o));
+        try {
+          await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'orders', order.id), updatedOrder, { merge: true });
+        } catch (e) {
+          console.warn("Rollback order error:", e);
+        }
+      }
     }
   };
 
@@ -948,7 +994,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     paymentType: 'debt' | 'paid_full' | 'paid_partial',
     paidAmountInput?: number,
     notes?: string
-  ): Promise<{ invoiceId: string; newStatus: OrderStatus }> => {
+  ): Promise<{ invoiceId: string; newStatus: OrderStatus; invoice?: Invoice }> => {
     const order = orders.find(o => o.id === orderId);
     if (!order) throw new Error('Order not found');
 
@@ -1012,7 +1058,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const remainingDebt = Math.max(0, batchDeliveryTotal - paidAmount);
 
     // Automatically record sales invoice for this delivery batch
-    const invoiceId = await saveInvoice({
+    const invData: Omit<Invoice, 'id' | 'createdAt' | 'updatedAt'> = {
       invoiceNumber: generateInvoiceNumber(invoices.length),
       merchantId: order.merchantId,
       merchantName: order.merchantName,
@@ -1030,7 +1076,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         ? `تسليم من طلب الشغل #${order.orderNumber}: ${notes}` 
         : `تسليم من طلب الشغل #${order.orderNumber} (${newStatus === 'delivered' ? 'تسليم كامل' : 'تسليم جزئي'})`,
       orderId: order.id,
-    }, true);
+    };
+
+    const invoiceId = await saveInvoice(invData, true);
 
     // Save updated order
     setOrders(prev => prev.map(o => o.id === orderId ? updatedOrder : o));
@@ -1041,7 +1089,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       console.warn("Save delivered order warning:", err);
     }
 
-    return { invoiceId, newStatus };
+    const createdInvoice: Invoice = {
+      ...invData,
+      id: invoiceId,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    return { invoiceId, newStatus, invoice: createdInvoice };
   };
 
   const pendingOrdersCount = useMemo(() => {

@@ -384,52 +384,81 @@ export const InvoicesView: React.FC<InvoicesViewProps> = ({
       {/* Invoices List */}
       <div className="space-y-2.5">
         {filteredInvoices.map((inv) => {
-          const isFullyPaid = inv.remainingAmount <= 0;
-          const isPartiallyPaid = inv.paidAmount > 0 && inv.remainingAmount > 0;
+          const isFullyPaid = (inv.remainingAmount || 0) <= 0;
+          const isUnpaidDebt = (inv.paidAmount || 0) <= 0;
+          const isPartiallyPaid = (inv.paidAmount || 0) > 0 && (inv.remainingAmount || 0) > 0;
+
+          // Compute merchant balance before and after this invoice
+          const mBal = merchantBalances[inv.merchantId];
+          const currentDebt = mBal ? Math.max(0, mBal.currentDebt) : (inv.remainingAmount || 0);
+          const prevDebt = Math.max(0, currentDebt - (inv.remainingAmount || 0));
+          const newDebt = prevDebt + (inv.remainingAmount || 0);
 
           return (
             <div
               key={inv.id}
-              className="bg-white rounded-2xl border border-slate-200/80 p-3.5 shadow-2xs hover:border-slate-300 transition-all"
+              className={`rounded-2xl border p-3.5 shadow-2xs transition-all ${
+                isFullyPaid
+                  ? 'bg-emerald-50/20 dark:bg-emerald-950/15 border-emerald-200/70 dark:border-emerald-900/40 hover:border-emerald-300'
+                  : isPartiallyPaid
+                  ? 'bg-amber-50/20 dark:bg-amber-950/15 border-amber-200/70 dark:border-amber-900/40 hover:border-amber-300'
+                  : 'bg-rose-50/20 dark:bg-rose-950/15 border-rose-200/70 dark:border-rose-900/40 hover:border-rose-300'
+              }`}
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className={`text-[10px] px-2 py-0.5 rounded-md font-bold shrink-0 ${
+                      isFullyPaid 
+                        ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300' 
+                        : isPartiallyPaid
+                        ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-300'
+                        : 'bg-rose-100 text-rose-800 dark:bg-rose-900/60 dark:text-rose-300'
+                    }`}>
+                      {isFullyPaid ? 'كاش (مسددة فوري)' : isPartiallyPaid ? 'سداد جزئي' : 'دين آجل (على الحساب)'}
+                    </span>
+
                     <button
                       type="button"
                       onClick={() => {
                         if (onSelectMerchant) onSelectMerchant(inv.merchantId);
                       }}
-                      className="font-bold text-slate-900 text-sm hover:text-emerald-600 hover:underline cursor-pointer text-right"
+                      className="font-bold text-slate-900 dark:text-white text-sm hover:text-emerald-600 dark:hover:text-emerald-400 hover:underline cursor-pointer text-right"
                       title="فتح صفحة التاجر"
                     >
                       {inv.merchantName}
                     </button>
-                    <span className="text-[10px] px-1.5 py-0.2 rounded bg-slate-100 font-mono-num font-bold text-slate-600">
+                    <span className="text-[10px] px-1.5 py-0.2 rounded bg-slate-100 dark:bg-slate-800 font-mono-num font-bold text-slate-600 dark:text-slate-400">
                       #{inv.invoiceNumber}
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-2 text-[11px] text-slate-400 mt-0.5">
+                  <div className="flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400 mt-1">
                     <span className="flex items-center gap-0.5">
-                      <Calendar className="w-3 h-3" />
+                      <Calendar className="w-3 h-3 text-slate-400" />
                       {formatDateArabic(inv.date)}
                     </span>
                     <span>•</span>
                     <span>{inv.items.length} أصناف</span>
+                    {inv.orderId && (
+                      <>
+                        <span>•</span>
+                        <span className="text-indigo-600 dark:text-indigo-400 font-bold">تسليم طلب شغل</span>
+                      </>
+                    )}
                   </div>
                 </div>
 
                 <div className="text-left shrink-0 pl-1 font-mono-num">
-                  <div className="text-sm font-black text-slate-900">
+                  <div className="text-sm font-black text-slate-900 dark:text-white">
                     {formatCurrency(inv.total, currency)}
                   </div>
                   {inv.remainingAmount > 0 ? (
-                    <div className="text-[10px] font-bold text-rose-600">
+                    <div className="text-[10px] font-bold text-rose-600 dark:text-rose-400">
                       متبقي دين: {formatCurrency(inv.remainingAmount, currency)}
                     </div>
                   ) : (
-                    <div className="text-[10px] font-bold text-emerald-600">
+                    <div className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
                       مسددة بالكامل
                     </div>
                   )}
@@ -437,21 +466,35 @@ export const InvoicesView: React.FC<InvoicesViewProps> = ({
               </div>
 
               {/* Items summary */}
-              <div className="py-2 flex items-center gap-1 flex-wrap text-[11px] text-slate-600 border-t border-slate-100 mt-2">
+              <div className="py-2 flex items-center gap-1 flex-wrap text-[11px] text-slate-600 dark:text-slate-300 border-t border-slate-200/60 dark:border-slate-800 mt-2">
                 {inv.items.map((it, idx) => (
-                  <span key={idx} className="bg-slate-50 border border-slate-200/60 px-1.5 py-0.5 rounded-md">
+                  <span key={idx} className="bg-white/80 dark:bg-slate-800 border border-slate-200/70 dark:border-slate-700 px-1.5 py-0.5 rounded-md">
                     {it.productName} ({it.quantity}x)
                   </span>
                 ))}
                 {inv.discount > 0 && (
-                  <span className="bg-amber-50 text-amber-800 border border-amber-200 px-1.5 py-0.5 rounded-md font-bold">
+                  <span className="bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-900/60 px-1.5 py-0.5 rounded-md font-bold">
                     خصم {formatCurrency(inv.discount, currency)}
                   </span>
                 )}
               </div>
 
+              {/* Account Balance Before & After Invoice */}
+              <div className="bg-white/90 dark:bg-slate-800/80 rounded-xl p-2 border border-slate-200/80 dark:border-slate-700/80 flex items-center justify-between text-[11px] font-mono-num flex-wrap gap-1">
+                <div className="flex items-center gap-1 text-slate-500 dark:text-slate-400">
+                  <span>حساب التاجر قبل الفاتورة:</span>
+                  <span className="font-bold text-slate-800 dark:text-slate-200">{formatCurrency(prevDebt, currency)}</span>
+                </div>
+                <div className="flex items-center gap-1 font-bold">
+                  <span className="text-slate-600 dark:text-slate-400">الحساب بعد الفاتورة:</span>
+                  <span className={newDebt > 0 ? "text-rose-600 dark:text-rose-400 font-black" : "text-emerald-600 dark:text-emerald-400 font-black"}>
+                    {formatCurrency(newDebt, currency)}
+                  </span>
+                </div>
+              </div>
+
               {/* Action Buttons */}
-              <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
+              <div className="pt-2 border-t border-slate-200/60 dark:border-slate-800 flex items-center justify-between gap-2 mt-2">
                 <span className="text-[10px] text-slate-400 truncate">
                   {inv.notes || `مسدد نقداً: ${formatCurrency(inv.paidAmount, currency)}`}
                 </span>
@@ -766,36 +809,115 @@ export const InvoicesView: React.FC<InvoicesViewProps> = ({
                 </div>
               </div>
 
-              {/* Cash Paid Upfront & Debt */}
-              <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700 space-y-2">
+              {/* Payment Type Selection & Cash/Debt calculation */}
+              <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700 space-y-2.5">
                 <div className="flex items-center justify-between">
-                  <label className="font-bold text-slate-700 dark:text-slate-300 text-xs">
-                    المدفوع نقداً فوراً عند الفاتورة:
+                  <label className="font-bold text-slate-800 dark:text-slate-200 text-xs">
+                    طريقة وحالة الدفع:
                   </label>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
+                    remainingAmount <= 0
+                      ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+                      : paidAmount > 0
+                      ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
+                      : 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'
+                  }`}>
+                    {remainingAmount <= 0 ? 'كاش (مسددة بالكامل)' : paidAmount > 0 ? 'سداد جزئي' : 'دين آجل بالكامل'}
+                  </span>
+                </div>
+
+                {/* 3 Quick 1-Click Payment Selectors */}
+                <div className="grid grid-cols-3 gap-1.5 text-xs">
                   <button
                     type="button"
                     onClick={() => setPaidAmount(netTotal)}
-                    className="text-[11px] text-emerald-600 dark:text-emerald-400 font-bold hover:underline"
+                    className={`py-1.5 px-2 rounded-lg font-bold border transition-all text-center ${
+                      paidAmount >= netTotal && netTotal > 0
+                        ? 'bg-emerald-600 text-white border-emerald-600 shadow-2xs'
+                        : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-emerald-300'
+                    }`}
                   >
-                    سداد بالكامل نقداً
+                    كاش بالكامل
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setPaidAmount(0)}
+                    className={`py-1.5 px-2 rounded-lg font-bold border transition-all text-center ${
+                      paidAmount === 0
+                        ? 'bg-rose-600 text-white border-rose-600 shadow-2xs'
+                        : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-rose-300'
+                    }`}
+                  >
+                    دين آجل بالكامل
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (paidAmount === 0 || paidAmount >= netTotal) {
+                        setPaidAmount(Math.round(netTotal / 2));
+                      }
+                    }}
+                    className={`py-1.5 px-2 rounded-lg font-bold border transition-all text-center ${
+                      paidAmount > 0 && paidAmount < netTotal
+                        ? 'bg-amber-600 text-white border-amber-600 shadow-2xs'
+                        : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-amber-300'
+                    }`}
+                  >
+                    سداد جزئي
                   </button>
                 </div>
-                <input
-                  type="number"
-                  step="any"
-                  min="0"
-                  placeholder="المبلغ المدفوع فوراً"
-                  value={paidAmount === 0 ? '' : paidAmount}
-                  onChange={(e) => setPaidAmount(parseFloat(e.target.value) || 0)}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-emerald-700 dark:text-emerald-400 font-mono-num font-bold text-sm"
-                />
 
-                <div className="flex items-center justify-between pt-1 border-t border-slate-200 dark:border-slate-700 text-xs">
-                  <span className="text-slate-600 dark:text-slate-400">المتبقي دين على التاجر:</span>
-                  <span className="font-black text-rose-600 dark:text-rose-400 font-mono-num text-sm">
-                    {formatCurrency(remainingAmount, currency)}
-                  </span>
+                {/* Paid Input */}
+                <div>
+                  <div className="flex items-center justify-between text-xs mb-1">
+                    <span className="text-slate-600 dark:text-slate-400">المدفوع نقداً فوري:</span>
+                    <span className="font-mono-num font-bold text-emerald-600 dark:text-emerald-400">
+                      {formatCurrency(paidAmount, currency)}
+                    </span>
+                  </div>
+                  <input
+                    type="number"
+                    step="any"
+                    min="0"
+                    max={netTotal}
+                    placeholder="0"
+                    value={paidAmount === 0 ? '' : paidAmount}
+                    onChange={(e) => setPaidAmount(parseFloat(e.target.value) || 0)}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-mono-num font-bold text-sm focus:outline-none focus:border-emerald-500"
+                  />
                 </div>
+
+                {/* Live Account Preview Before and After */}
+                {(() => {
+                  const mBal = merchantBalances[merchantId];
+                  const currentMerchantDebt = mBal ? Math.max(0, mBal.currentDebt) : 0;
+                  const projectedDebt = currentMerchantDebt + remainingAmount;
+
+                  return (
+                    <div className="p-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200/90 dark:border-slate-700 font-mono-num text-xs space-y-1.5">
+                      <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
+                        <span className="font-sans">حساب التاجر السابق:</span>
+                        <span className="font-bold text-slate-700 dark:text-slate-300">
+                          {formatCurrency(currentMerchantDebt, currency)}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-rose-600 dark:text-rose-400">
+                        <span className="font-sans font-bold">المتبقي دين من الفاتورة:</span>
+                        <span className="font-black">
+                          +{formatCurrency(remainingAmount, currency)}
+                        </span>
+                      </div>
+                      <div className="pt-1 border-t border-slate-100 dark:border-slate-700 flex items-center justify-between font-bold">
+                        <span className="font-sans text-slate-800 dark:text-slate-200">الحساب بعد الفاتورة:</span>
+                        <span className={`font-black ${projectedDebt > 0 ? 'text-rose-600 dark:text-rose-400 text-sm' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                          {formatCurrency(projectedDebt, currency)}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* Notes */}

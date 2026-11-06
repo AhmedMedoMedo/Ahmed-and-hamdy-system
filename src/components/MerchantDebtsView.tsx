@@ -255,7 +255,7 @@ export const MerchantDebtsView: React.FC<MerchantDebtsViewProps> = ({
               {/* Invoiced vs Paid breakdown */}
               <div className="grid grid-cols-2 gap-2 text-[11px] bg-slate-50 dark:bg-slate-900/60 p-2 rounded-xl border border-slate-100 dark:border-slate-800 font-mono-num">
                 <div className="text-right">
-                  <span className="text-slate-400 text-[10px] block font-sans">إجمالي المسحوبات:</span>
+                  <span className="text-slate-400 text-[10px] block font-sans">إجمالي فواتير البيع:</span>
                   <span className="font-bold text-slate-700 dark:text-slate-200">
                     {formatCurrency(totalInvoiced, currency)}
                   </span>

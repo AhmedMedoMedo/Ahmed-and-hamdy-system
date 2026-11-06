@@ -22,6 +22,8 @@ export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 
+export const SMARTSCANNER_STORE_ID = 'smartscanner_main_store';
+
 export enum OperationType {
   CREATE = 'create',
   UPDATE = 'update',

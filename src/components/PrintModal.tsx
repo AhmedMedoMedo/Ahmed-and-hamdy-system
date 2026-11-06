@@ -73,6 +73,7 @@ export const PrintModal: React.FC<PrintModalProps> = ({
   let invoicePrevDebt = 0;
   let invoiceNewTotalDebt = 0;
   let invoicePaymentStatusText = '';
+  let invoicePaymentBadgeClass = '';
 
   if (invoice) {
     const mBal = merchantBalances[invoice.merchantId];
@@ -81,11 +82,14 @@ export const PrintModal: React.FC<PrintModalProps> = ({
     invoiceNewTotalDebt = invoicePrevDebt + invoice.remainingAmount;
 
     if (invoice.remainingAmount <= 0) {
-      invoicePaymentStatusText = 'خالصة ومسددة بالكامل';
+      invoicePaymentStatusText = 'كاش (مسددة بالكامل فوري)';
+      invoicePaymentBadgeClass = 'text-emerald-700 bg-emerald-50 border-emerald-300';
     } else if (invoice.paidAmount > 0) {
-      invoicePaymentStatusText = `مسدد منها ${formatCurrency(invoice.paidAmount, currency)} (متبقي دين)`;
+      invoicePaymentStatusText = `سداد جزئي (مدفوع ${formatCurrency(invoice.paidAmount, currency)} والباقي دين)`;
+      invoicePaymentBadgeClass = 'text-amber-800 bg-amber-50 border-amber-300';
     } else {
-      invoicePaymentStatusText = 'غير مدفوعة (على الحساب)';
+      invoicePaymentStatusText = 'دين آجل (على الحساب بالكامل)';
+      invoicePaymentBadgeClass = 'text-rose-700 bg-rose-50 border-rose-300';
     }
   }
 
@@ -106,17 +110,18 @@ export const PrintModal: React.FC<PrintModalProps> = ({
 ----------------------------------------
 👤 *التاجر/العميل:* ${invoice.merchantName}
 📅 *تاريخ الفاتورة:* ${formatDateArabic(invoice.date)}
+💳 *حالة الدفع:* *${invoicePaymentStatusText}*
 📦 *الأصناف المباعة:*
 ${invoice.items.map(it => `• ${it.productName} (${it.quantity} قطعة) × ${formatCurrency(it.unitPrice, currency)} = ${formatCurrency(it.total, currency)}`).join('\n')}
 ----------------------------------------
 💰 *المجموع الفرعي:* ${formatCurrency(invoice.subtotal, currency)}
-${invoice.discount > 0 ? `🏷️ *الخصم الممنوح:* -${formatCurrency(invoice.discount, currency)}\n` : ''}💵 *الإجمالي الصافي:* ${formatCurrency(invoice.total, currency)}
-${invoice.paidAmount > 0 ? `✅ *المسدد كاش فوري:* ${formatCurrency(invoice.paidAmount, currency)}\n` : ''}⏳ *الباقي من الفاتورة:* ${formatCurrency(invoice.remainingAmount, currency)}
-----------------------------------------
-📊 *ملخص حساب التاجر:*
-• الحساب القديم: ${formatCurrency(invoicePrevDebt, currency)}
-• إجمالي الحساب المطلوب دلوقتي: *${formatCurrency(invoiceNewTotalDebt, currency)}*
-${invoiceNewTotalDebt > 0 ? `👉 *المطلوب سداده:* ${formatCurrency(invoiceNewTotalDebt, currency)}` : '🎉 *حسابك خالص ومسدد بالكامل*'}
+${invoice.discount > 0 ? `🏷️ *الخصم الممنوح:* -${formatCurrency(invoice.discount, currency)}\n` : ''}💵 *إجمالي قيمة الفاتورة:* ${formatCurrency(invoice.total, currency)}
+${invoice.paidAmount > 0 ? `✅ *المسدد كاش فوري:* ${formatCurrency(invoice.paidAmount, currency)}\n` : ''}${invoice.remainingAmount > 0 ? `⏳ *المتبقي دين من الفاتورة:* ${formatCurrency(invoice.remainingAmount, currency)}\n` : ''}----------------------------------------
+📊 *كشف حساب التاجر (قبل وبعد الفاتورة):*
+• الحساب القديم قبل الفاتورة: ${formatCurrency(invoicePrevDebt, currency)}
+• قيمة الفاتورة الحالية: ${formatCurrency(invoice.total, currency)}
+${invoice.paidAmount > 0 ? `• المدفوع كاش: ${formatCurrency(invoice.paidAmount, currency)}\n` : ''}• إجمالي الحساب المطلوب بعد الفاتورة: *${formatCurrency(invoiceNewTotalDebt, currency)}*
+${invoiceNewTotalDebt > 0 ? `👉 *المطلوب سداده بعد الفاتورة:* ${formatCurrency(invoiceNewTotalDebt, currency)}` : '🎉 *حسابك خالص ومسدد بالكامل بدون أي ديون*'}
 
 شكراً لتعاملكم الراقي معنا.. تسلم وربنا يباركلك في رزقك 🙏`;
     } else if (payment) {
@@ -552,26 +557,40 @@ ${paymentNewDebt > 0 ? `👉 *الباقي عليك للحساب:* ${formatCurre
                 </table>
               </div>
 
-              {/* Merchant Account Summary Card (Exact Match to Screenshot) */}
+              {/* Merchant Account Summary Card: Before and After Balance */}
               <div className="border border-slate-300 rounded-md overflow-hidden text-xs">
                 {/* Header */}
-                <div className="bg-slate-100 px-3 py-1 border-b border-slate-300 font-bold text-black flex justify-between items-center text-[11px]">
-                  <span>ملخص حساب التاجر</span>
-                  <span className="text-[10px] text-slate-500 font-normal">{invoice.merchantName}</span>
+                <div className="bg-slate-100 px-3 py-1.5 border-b border-slate-300 font-bold text-black flex justify-between items-center text-[11px]">
+                  <span>ملخص حساب التاجر (قبل وبعد الفاتورة)</span>
+                  <span className="text-[10px] text-slate-600 font-bold">{invoice.merchantName}</span>
                 </div>
 
-                {/* 2 Equal Columns: Previous Debt vs New Total Debt */}
-                <div className="grid grid-cols-2 divide-x divide-x-reverse divide-slate-300 p-2 font-mono-num text-center">
-                  <div className="px-2">
-                    <span className="text-[10px] text-slate-500 font-sans block mb-1">حساب التاجر السابق</span>
-                    <span className="font-bold text-black text-sm">
+                {/* 4 Informative Metrics: Previous Debt, Invoice Total, Cash Paid, Total Debt After */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 divide-x divide-x-reverse divide-slate-300 p-2 font-mono-num text-center gap-y-2">
+                  <div className="px-1.5">
+                    <span className="text-[10px] text-slate-500 font-sans block mb-0.5">الحساب السابق</span>
+                    <span className="font-bold text-slate-800 text-xs sm:text-sm">
                       {formatCurrency(invoicePrevDebt, currency)}
                     </span>
                   </div>
 
-                  <div className="px-2">
-                    <span className="text-[10px] text-slate-500 font-sans block mb-1">حساب التاجر الإجمالي</span>
-                    <span className="font-black text-black text-sm">
+                  <div className="px-1.5">
+                    <span className="text-[10px] text-slate-500 font-sans block mb-0.5">قيمة الفاتورة</span>
+                    <span className="font-bold text-blue-800 text-xs sm:text-sm">
+                      {formatCurrency(invoice.total, currency)}
+                    </span>
+                  </div>
+
+                  <div className="px-1.5">
+                    <span className="text-[10px] text-slate-500 font-sans block mb-0.5">المسدد كاش فوري</span>
+                    <span className="font-bold text-emerald-700 text-xs sm:text-sm">
+                      {formatCurrency(invoice.paidAmount, currency)}
+                    </span>
+                  </div>
+
+                  <div className="px-1.5 bg-slate-50 rounded">
+                    <span className="text-[10px] text-slate-700 font-sans font-bold block mb-0.5">الحساب بعد الفاتورة</span>
+                    <span className="font-black text-black text-xs sm:text-sm">
                       {formatCurrency(invoiceNewTotalDebt, currency)}
                     </span>
                   </div>
@@ -579,14 +598,14 @@ ${paymentNewDebt > 0 ? `👉 *الباقي عليك للحساب:* ${formatCurre
 
                 {/* Sub-footer inside box: Status of account after operation */}
                 <div className="bg-slate-50 px-3 py-1.5 border-t border-slate-200 text-center text-[11px] font-bold text-black">
-                  <span>وضع الحساب بعد العملية: </span>
+                  <span>وضع الحساب بعد الفاتورة ({invoicePaymentStatusText}): </span>
                   {invoiceNewTotalDebt > 0 ? (
                     <span className="font-black text-rose-700 font-mono-num">
-                      على التاجر تسديد {formatCurrency(invoiceNewTotalDebt, currency)}
+                      على التاجر سداد {formatCurrency(invoiceNewTotalDebt, currency)}
                     </span>
                   ) : (
                     <span className="font-black text-emerald-700">
-                      حساب التاجر خالص ومسدد تماماً ولا يوجد عليه دين
+                      حساب التاجر خالص ومسدد تماماً ولا يوجد عليه أي دين
                     </span>
                   )}
                 </div>
