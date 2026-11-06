@@ -8,16 +8,18 @@ import {
   Package, 
   UserCheck, 
   Archive,
-  Truck
+  Truck,
+  AlertCircle
 } from 'lucide-react';
 
 export const TopNav: React.FC = () => {
-  const { activeTab, setActiveTab, pendingOrdersCount } = useApp();
+  const { activeTab, setActiveTab, pendingOrdersCount, debtorMerchantsCount } = useApp();
   const navContainerRef = useRef<HTMLDivElement>(null);
 
   const tabs = [
     { id: 'dashboard', label: 'الرئيسية', icon: LayoutDashboard },
     { id: 'orders', label: 'الطلبات', icon: Truck, badge: pendingOrdersCount > 0 ? pendingOrdersCount : undefined },
+    { id: 'debts', label: 'ديون التجار', icon: AlertCircle, badge: debtorMerchantsCount > 0 ? debtorMerchantsCount : undefined },
     { id: 'merchants', label: 'التجار', icon: Users },
     { id: 'invoices', label: 'الفواتير', icon: FileText },
     { id: 'payments', label: 'الدفعات', icon: HandCoins },
@@ -55,9 +57,13 @@ export const TopNav: React.FC = () => {
                 isActive
                   ? tab.id === 'orders'
                     ? 'bg-indigo-600 text-white shadow-2xs'
+                    : tab.id === 'debts'
+                    ? 'bg-rose-600 text-white shadow-2xs'
                     : tab.id === 'personal'
                     ? 'bg-violet-600 text-white shadow-2xs'
                     : 'bg-emerald-600 text-white shadow-2xs'
+                  : tab.id === 'debts' && debtorMerchantsCount > 0
+                  ? 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 hover:bg-rose-100 dark:hover:bg-rose-900/60'
                   : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
               }`}
             >

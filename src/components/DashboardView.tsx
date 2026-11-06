@@ -532,7 +532,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
 
         {/* Card 6: Current Total Debts across all merchants */}
-        <div className="bg-white dark:bg-slate-900 rounded-2xl p-3 border border-rose-200 dark:border-rose-900/60 bg-rose-50/20 dark:bg-rose-950/20 shadow-2xs">
+        <div 
+          onClick={() => setActiveTab('debts')}
+          className="bg-white dark:bg-slate-900 rounded-2xl p-3 border border-rose-200 dark:border-rose-900/60 bg-rose-50/20 dark:bg-rose-950/20 shadow-2xs cursor-pointer hover:border-rose-400 transition-all active:scale-98"
+        >
           <div className="flex items-center justify-between text-rose-700 dark:text-rose-400 text-xs mb-1 font-bold">
             <span>إجمالي الديون</span>
             <AlertCircle className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
@@ -575,10 +578,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <span>ديون التجار المطلوب تحصيلها</span>
           </h3>
           <button
-            onClick={() => setActiveTab('merchants')}
-            className="text-[11px] text-emerald-600 dark:text-emerald-400 hover:underline font-bold flex items-center gap-0.5"
+            onClick={() => setActiveTab('debts')}
+            className="text-[11px] text-rose-600 dark:text-rose-400 hover:underline font-bold flex items-center gap-0.5"
           >
-            كل التجار ({merchants.length})
+            عرض ديون التجار ({sortedDebtors.length})
             <ChevronLeft className="w-3 h-3" />
           </button>
         </div>

@@ -132,6 +132,17 @@
         "updatedAt": { "type": "string" }
       },
       "required": ["title", "category", "amount", "date", "monthKey", "createdAt", "updatedAt"]
+    },
+    "SecurityConfig": {
+      "title": "SecurityConfig",
+      "description": "Store security configuration including PIN passkey and lock settings",
+      "type": "object",
+      "properties": {
+        "pin": { "type": "string", "maxLength": 30 },
+        "isPinEnabled": { "type": "boolean" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["pin", "updatedAt"]
     }
   },
   "firestore": {
@@ -198,6 +209,10 @@
     "/stores/{storeId}/personal_transactions/{transactionId}": {
       "schema": "PersonalTransaction",
       "description": "Unified personal ledger transactions"
+    },
+    "/stores/{storeId}/config/{configId}": {
+      "schema": "SecurityConfig",
+      "description": "Store configuration and security settings"
     }
   }
 }

@@ -19,7 +19,8 @@ import {
   setDoc, 
   deleteDoc, 
   onSnapshot,
-  getDocs
+  getDocs,
+  getDoc
 } from 'firebase/firestore';
 import type { 
   Merchant, 
@@ -82,6 +83,7 @@ interface AppContextType {
   totalAllTimeCollections: number;
   totalAllTimeExpenses: number;
   totalAllTimeNetCollections: number;
+  debtorMerchantsCount: number;
   
   // Personal finance stats
   personalStats: {
@@ -151,9 +153,9 @@ interface AppContextType {
   unlockSystem: () => void;
   lockSystem: () => void;
   systemPin: string;
-  updateSystemPin: (newPin: string) => void;
+  updateSystemPin: (newPin: string) => Promise<void>;
   isPinEnabled: boolean;
-  togglePinEnabled: (enabled: boolean) => void;
+  togglePinEnabled: (enabled: boolean) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -247,14 +249,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setIsLocked(true);
   }, []);
 
-  const updateSystemPin = useCallback((newPin: string) => {
-    setSystemPin(newPin);
+  const updateSystemPin = useCallback(async (newPin: string) => {
+    const cleanPin = (newPin || '').trim();
+    if (!cleanPin) return;
+    setSystemPin(cleanPin);
     try {
-      localStorage.setItem('account_app_system_pin', newPin);
+      localStorage.setItem('account_app_system_pin', cleanPin);
     } catch {}
+    try {
+      await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'config', 'security'), {
+        pin: cleanPin,
+        isPinEnabled: true,
+        updatedAt: new Date().toISOString(),
+      }, { merge: true });
+    } catch (e) {
+      console.warn("Save PIN to Firestore error:", e);
+    }
   }, []);
 
-  const togglePinEnabled = useCallback((enabled: boolean) => {
+  const togglePinEnabled = useCallback(async (enabled: boolean) => {
     setIsPinEnabled(enabled);
     try {
       localStorage.setItem('account_app_pin_enabled', enabled ? 'true' : 'false');
@@ -262,6 +275,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setIsLocked(false);
       }
     } catch {}
+    try {
+      await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'config', 'security'), {
+        isPinEnabled: enabled,
+        updatedAt: new Date().toISOString(),
+      }, { merge: true });
+    } catch (e) {
+      console.warn("Save PIN enabled to Firestore error:", e);
+    }
   }, []);
 
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -429,6 +450,33 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setupStoreListener<PersonalContact>('personal_contacts', setPersonalContacts, STORAGE_KEYS.personalContacts);
     setupStoreListener<PersonalTransaction>('personal_transactions', setPersonalTransactions, STORAGE_KEYS.personalTransactions);
 
+    // Real-time security PIN & config subscription
+    const secDocRef = doc(db, 'stores', SHARED_STORE_ID, 'config', 'security');
+    const unsubSec = onSnapshot(secDocRef, (snap) => {
+      if (snap.exists()) {
+        const secData = snap.data();
+        if (secData?.pin) {
+          const pinStr = String(secData.pin).trim();
+          setSystemPin(pinStr);
+          try {
+            localStorage.setItem('account_app_system_pin', pinStr);
+          } catch {}
+        }
+        if (typeof secData?.isPinEnabled === 'boolean') {
+          setIsPinEnabled(secData.isPinEnabled);
+          try {
+            localStorage.setItem('account_app_pin_enabled', secData.isPinEnabled ? 'true' : 'false');
+            if (!secData.isPinEnabled) {
+              setIsLocked(false);
+            }
+          } catch {}
+        }
+      }
+    }, (err) => {
+      console.warn("Security config listener warning:", err);
+    });
+    unsubs.push(unsubSec);
+
     // Sync any existing local real data (e.g. 'تجربه 1') to shared store if cloud is empty
     const syncExistingLocalToSharedStore = async () => {
       try {
@@ -572,6 +620,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       ordSnap.forEach(d => ordItems.push({ id: d.id, ...d.data() } as WorkOrder));
       setOrders(ordItems);
       localStorage.setItem(STORAGE_KEYS.orders, JSON.stringify(ordItems));
+
+      // Fetch security config
+      try {
+        const secSnap = await getDoc(doc(db, 'stores', SHARED_STORE_ID, 'config', 'security'));
+        if (secSnap.exists()) {
+          const secData = secSnap.data();
+          if (secData?.pin) {
+            const pinStr = String(secData.pin).trim();
+            setSystemPin(pinStr);
+            localStorage.setItem('account_app_system_pin', pinStr);
+          }
+          if (typeof secData?.isPinEnabled === 'boolean') {
+            setIsPinEnabled(secData.isPinEnabled);
+            localStorage.setItem('account_app_pin_enabled', secData.isPinEnabled ? 'true' : 'false');
+          }
+        }
+      } catch (err) {
+        console.warn("Security fetch warning in refreshFromCloud:", err);
+      }
 
       showToast(`تمت المزامنة بنجاح! متصل بسحابة المحل الموحدة ☁️`);
     } catch (e) {
@@ -1200,6 +1267,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return totalAllTimeSales - totalAllTimeCollections;
   }, [totalAllTimeSales, totalAllTimeCollections]);
 
+  // Debtor merchants count (merchants with currentDebt > 0)
+  const debtorMerchantsCount = useMemo(() => {
+    return merchants.filter(m => {
+      const b = merchantBalances[m.id];
+      return b && b.currentDebt > 0;
+    }).length;
+  }, [merchants, merchantBalances]);
+
   // Current Month Summary with Zero Reset & Carried Balances & Expenses Deduction
   const currentMonthSummary = useMemo<MonthSummary>(() => {
     // 1. Invoices in selected month
@@ -1441,6 +1516,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       totalAllTimeCollections,
       totalAllTimeExpenses,
       totalAllTimeNetCollections,
+      debtorMerchantsCount,
       personalStats,
       loginWithGoogle,
       loginWithGoogleRedirect,

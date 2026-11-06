@@ -121,8 +121,9 @@ export const SecurityLockModal: React.FC<SecurityLockModalProps> = ({
             ))}
           </div>
 
-          <div className="text-[11px] text-slate-400 dark:text-slate-500 pt-1">
-            الرمز الافتراضي للنظام: <span className="font-mono font-bold text-slate-600 dark:text-slate-300">1999</span> (يمكن تغييره من الإعدادات)
+          <div className="text-[10px] text-slate-400 dark:text-slate-500 pt-1 font-medium flex items-center justify-center gap-1">
+            <ShieldCheck className="w-3 h-3 text-emerald-500" />
+            <span>نظام مشفر ومحمي برمز وصول سري</span>
           </div>
         </form>
 

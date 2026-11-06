@@ -49,7 +49,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
   const [authWorking, setAuthWorking] = useState(false);
   const [importStatus, setImportStatus] = useState<string | null>(null);
   const [newPinValue, setNewPinValue] = useState(systemPin);
+  const [isSavingPin, setIsSavingPin] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  React.useEffect(() => {
+    setNewPinValue(systemPin);
+  }, [systemPin]);
 
   const handleGoogleAuth = async () => {
     try {
@@ -271,23 +276,32 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
               <input
                 type="text"
                 value={newPinValue}
-                onChange={(e) => setNewPinValue(e.target.value.slice(0, 8))}
-                placeholder="أدخل رمز جديد (مثال: 1999)"
+                onChange={(e) => setNewPinValue(e.target.value.replace(/[^0-9a-zA-Z]/g, '').slice(0, 8))}
+                placeholder="أدخل الرمز السري الجديد"
                 className="flex-1 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs sm:text-sm font-mono font-bold text-center focus:ring-2 focus:ring-emerald-500 focus:outline-none"
               />
               <button
                 type="button"
-                onClick={() => {
-                  if (newPinValue.trim().length >= 3) {
-                    updateSystemPin(newPinValue.trim());
-                    showToast('تم تحديث رمز المرور بنجاح 🔒');
+                disabled={isSavingPin}
+                onClick={async () => {
+                  const clean = newPinValue.trim();
+                  if (clean.length >= 3) {
+                    setIsSavingPin(true);
+                    try {
+                      await updateSystemPin(clean);
+                      showToast('تم حفظ وتحديث رمز المرور السحابي بنجاح 🔒');
+                    } catch (e) {
+                      showToast('حدث خطأ أثناء حفظ الرمز');
+                    } finally {
+                      setIsSavingPin(false);
+                    }
                   } else {
-                    showToast('يجب أن يتكون الرمز من 3 أرقام على الأقل');
+                    showToast('يجب أن يتكون الرمز من 3 خانات على الأقل');
                   }
                 }}
-                className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition-colors shrink-0"
+                className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition-colors shrink-0 disabled:opacity-60"
               >
-                حفظ الرمز
+                {isSavingPin ? 'جاري الحفظ...' : 'حفظ الرمز'}
               </button>
             </div>
 

@@ -10,6 +10,7 @@ import { PaymentsView } from './components/PaymentsView';
 import { WorkOrdersView } from './components/WorkOrdersView';
 import { PersonalLedgerView } from './components/PersonalLedgerView';
 import { MonthlyArchiveView } from './components/MonthlyArchiveView';
+import { MerchantDebtsView } from './components/MerchantDebtsView';
 import { PrintModal } from './components/PrintModal';
 import { SettingsModal } from './components/SettingsModal';
 import { SecurityLockModal } from './components/SecurityLockModal';
@@ -120,6 +121,14 @@ const MainLayout: React.FC = () => {
           {activeTab === 'orders' && (
             <WorkOrdersView 
               onSelectMerchant={handleSelectMerchant}
+            />
+          )}
+
+          {activeTab === 'debts' && (
+            <MerchantDebtsView
+              onSelectMerchant={handleSelectMerchant}
+              onOpenNewPayment={(merchantId) => handleOpenNewPayment(merchantId)}
+              onOpenNewInvoice={(merchantId) => handleOpenNewInvoice(merchantId)}
             />
           )}
 
