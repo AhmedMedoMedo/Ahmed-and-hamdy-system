@@ -1,0 +1,180 @@
+export type PaymentMethod = 'كاش' | 'تحويل بنكي' | 'فودافون كاش / إنستاباي' | 'شيك' | 'أخرى';
+
+export type PersonalTransactionType = 
+  | 'loan_given'       // أسلفت له (سلفية له - يطلب منه)
+  | 'loan_repaid'      // استرداد سلفية
+  | 'loan_taken'       // استلفت منه (دين عليّ)
+  | 'debt_paid'        // سداد دين عليّ
+  | 'personal_expense' // مصروف شخصي
+  | 'expense'
+  | 'personal_income'  // دخل شخصي
+  | 'income';
+
+export interface Merchant {
+  id: string;
+  name: string;
+  phone: string;
+  address: string;
+  notes: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Product {
+  id: string;
+  name: string;
+  price: number;
+  costPrice?: number;
+  unit: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface InvoiceItem {
+  id: string;
+  productId?: string;
+  productName: string;
+  quantity: number;
+  unitPrice: number;
+  total: number;
+}
+
+export interface Invoice {
+  id: string;
+  invoiceNumber: string;
+  merchantId: string;
+  merchantName: string;
+  date: string;         // YYYY-MM-DD
+  monthKey: string;     // YYYY-MM
+  items: InvoiceItem[];
+  subtotal: number;
+  discountType: 'amount' | 'percentage';
+  discountValue: number;
+  discount: number;     // calculated discount in currency
+  total: number;        // net total after discount
+  paidAmount: number;   // paid upfront at time of invoice
+  remainingAmount: number; // remaining to be added to merchant debt
+  notes?: string;
+  orderId?: string;     // Reference to originating work order if created upon delivery
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Payment {
+  id: string;
+  merchantId: string;
+  merchantName: string;
+  amount: number;
+  date: string;         // YYYY-MM-DD
+  monthKey: string;     // YYYY-MM
+  paymentMethod: PaymentMethod;
+  notes?: string;
+  invoiceId?: string;
+  receiptNumber?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Work Order / Delivery Preparation Types
+export type OrderStatus = 'pending' | 'partially_delivered' | 'delivered' | 'cancelled';
+
+export interface OrderItem {
+  id: string;
+  productId?: string;
+  productName: string;
+  unitPrice: number;
+  quantityOrdered: number;       // الكمية المطلوبة كاملة
+  quantityDelivered: number;     // الكمية المسلمة حتى الآن
+  quantityRemaining: number;     // الكمية المتبقية للتسليم
+  unit?: string;
+}
+
+export interface WorkOrder {
+  id: string;
+  orderNumber: string;           // e.g. طلب-26-001
+  merchantId: string;
+  merchantName: string;
+  date: string;                  // YYYY-MM-DD
+  monthKey: string;              // YYYY-MM
+  items: OrderItem[];
+  status: OrderStatus;
+  totalEstimatedAmount: number;  // إجمالي قيمة الطلب الكامل
+  deliveredTotalAmount: number;  // قيمة ما تم تسليمه فعلياً حتى الآن
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PersonalContact {
+  id: string;
+  name: string;
+  phone: string;
+  relationship?: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PersonalTransaction {
+  id: string;
+  contactId?: string;
+  contactName?: string;
+  type: PersonalTransactionType;
+  amount: number;
+  date: string;         // YYYY-MM-DD
+  monthKey: string;     // YYYY-MM
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MerchantBalance {
+  merchantId: string;
+  merchantName: string;
+  totalInvoicedAllTime: number;
+  totalPaidAllTime: number;
+  currentDebt: number; // Invoiced - Paid
+  
+  // For selected month
+  monthInvoiced: number;
+  monthPaid: number;
+  carriedDebt: number; // Debt accumulated prior to selected month
+}
+
+export type ExpenseCategory = 
+  | 'مصاريف عامة وتوريد'
+  | 'مرتبات وأجور'
+  | 'صيانة وتصليح'
+  | 'نقل وتوصيل'
+  | 'إيجار وكهرباء'
+  | 'مسحوبات شخصية'
+  | 'أخرى';
+
+export interface Expense {
+  id: string;
+  title: string;
+  category: ExpenseCategory;
+  amount: number;
+  date: string;         // YYYY-MM-DD
+  monthKey: string;     // YYYY-MM
+  paymentMethod: PaymentMethod;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MonthSummary {
+  monthKey: string;             // YYYY-MM
+  monthName: string;            // e.g. "أكتوبر 2026"
+  newSales: number;             // مبيعات الشهر الجديد (يبدأ بصفر)
+  newCollections: number;       // تحصيلات الشهر الجديد (يبدأ بصفر)
+  newExpenses: number;          // مسحوبات ومصاريف الشهر
+  netCollections: number;       // صافي التحصيل بعد خصم المسحوبات (newCollections - newExpenses)
+  netMonthMovement: number;     // newSales - newCollections
+  carriedForwardDebt: number;   // ديون مرحلة من الشهور السابقة
+  endingDebt: number;           // إجمالي الدين بنهاية هذا الشهر
+  invoicesCount: number;
+  paymentsCount: number;
+  expensesCount: number;
+}

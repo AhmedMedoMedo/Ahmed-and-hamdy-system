@@ -1,0 +1,6 @@
+{
+  "name": "نظام الحسابات وإدارة التجار والأرشيف الشهري",
+  "description": "نظام محاسبي متكامل وشامل لإدارة التجار، فواتير البيع والخصومات، استلام الدفعات، الحساب الشخصي المستقل، والترحيل والأرشيف الشهري",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

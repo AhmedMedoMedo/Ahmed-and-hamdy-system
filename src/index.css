@@ -1,0 +1,24 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Custom scrollbar for horizontal mobile top nav */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Ensure smooth dark mode transition and dark defaults */
+.dark body {
+  background-color: #020617;
+  color: #f8fafc;
+}
+
+.dark input, 
+.dark select, 
+.dark textarea {
+  color-scheme: dark;
+}

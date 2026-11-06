@@ -1,0 +1,656 @@
+import React, { useState, useMemo } from 'react';
+import { useApp } from '../context/AppContext';
+import type { Merchant } from '../types';
+import { formatCurrency, formatDateArabic, getTodayDateString } from '../utils/formatters';
+import { ConfirmModal } from './ConfirmModal';
+import { 
+  Users, 
+  Search, 
+  Plus, 
+  Phone, 
+  MapPin, 
+  FileText, 
+  HandCoins, 
+  Edit3, 
+  Trash2, 
+  Share2, 
+  Printer, 
+  X,
+  PlusCircle,
+  Receipt
+} from 'lucide-react';
+
+interface MerchantsViewProps {
+  initialSelectedMerchantId?: string | null;
+  onClearSelectedMerchant?: () => void;
+  onOpenNewInvoiceWithMerchant?: (merchantId: string) => void;
+  onOpenNewPaymentWithMerchant?: (merchantId: string) => void;
+}
+
+export const MerchantsView: React.FC<MerchantsViewProps> = ({
+  initialSelectedMerchantId,
+  onClearSelectedMerchant,
+  onOpenNewInvoiceWithMerchant,
+  onOpenNewPaymentWithMerchant
+}) => {
+  const { 
+    merchants, 
+    merchantBalances, 
+    invoices, 
+    payments, 
+    currency, 
+    saveMerchant, 
+    removeMerchant,
+    removeInvoice,
+    removePayment,
+    showToast
+  } = useApp();
+
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterType, setFilterType] = useState<'all' | 'debt' | 'settled'>('all');
+
+  // Modal states
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [editingMerchant, setEditingMerchant] = useState<Merchant | null>(null);
+  const [formData, setFormData] = useState({ name: '', phone: '', address: '', notes: '' });
+
+  // Detail / Statement state
+  const [activeMerchantId, setActiveMerchantId] = useState<string | null>(initialSelectedMerchantId || null);
+
+  // Deletion Modal state (replaces window.confirm completely)
+  const [deleteDialog, setDeleteDialog] = useState<{
+    isOpen: boolean;
+    type: 'merchant' | 'invoice' | 'payment';
+    id: string;
+    title: string;
+    message: string;
+  }>({
+    isOpen: false,
+    type: 'merchant',
+    id: '',
+    title: '',
+    message: '',
+  });
+
+  // Filtered merchants
+  const filteredMerchants = useMemo(() => {
+    return merchants.filter(m => {
+      const matchSearch = 
+        m.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        m.phone.includes(searchTerm) ||
+        (m.address && m.address.toLowerCase().includes(searchTerm.toLowerCase()));
+      
+      const balance = merchantBalances[m.id]?.currentDebt || 0;
+      if (filterType === 'debt') return matchSearch && balance > 0;
+      if (filterType === 'settled') return matchSearch && balance <= 0;
+      return matchSearch;
+    });
+  }, [merchants, searchTerm, filterType, merchantBalances]);
+
+  // Handle open add/edit modal
+  const handleOpenForm = (merchant?: Merchant) => {
+    if (merchant) {
+      setEditingMerchant(merchant);
+      setFormData({
+        name: merchant.name,
+        phone: merchant.phone || '',
+        address: merchant.address || '',
+        notes: merchant.notes || '',
+      });
+    } else {
+      setEditingMerchant(null);
+      setFormData({ name: '', phone: '', address: '', notes: '' });
+    }
+    setIsFormOpen(true);
+  };
+
+  const handleSubmitForm = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.name.trim()) return;
+
+    await saveMerchant({
+      ...(editingMerchant ? { id: editingMerchant.id } : {}),
+      name: formData.name,
+      phone: formData.phone,
+      address: formData.address,
+      notes: formData.notes,
+    });
+
+    showToast(editingMerchant ? 'تم تعديل بيانات التاجر' : 'تمت إضافة التاجر بنجاح');
+    setIsFormOpen(false);
+    setEditingMerchant(null);
+  };
+
+  // Safe Deletion confirmation
+  const triggerDeleteMerchant = (merchant: Merchant) => {
+    setDeleteDialog({
+      isOpen: true,
+      type: 'merchant',
+      id: merchant.id,
+      title: `حذف التاجر "${merchant.name}"`,
+      message: 'هل أنت متأكد من حذف هذا التاجر؟ لن تفقد الفواتير المحفوظة ولكن سيتم إزالته من قائمة التجار.',
+    });
+  };
+
+  const triggerDeleteStatementItem = (tx: { id: string; type: 'invoice' | 'payment'; title: string }) => {
+    setDeleteDialog({
+      isOpen: true,
+      type: tx.type,
+      id: tx.id,
+      title: `حذف ${tx.title}`,
+      message: tx.type === 'invoice' 
+        ? 'سيتم حذف الفاتورة وخصم قيمتها من إجمالي دين التاجر وإعادة احتساب الرصيد.' 
+        : 'سيتم حذف سند القبض وإعادة المبلغ كدين مستحق على التاجر.',
+    });
+  };
+
+  const handleConfirmDelete = async () => {
+    if (deleteDialog.type === 'merchant') {
+      await removeMerchant(deleteDialog.id);
+      if (activeMerchantId === deleteDialog.id) {
+        setActiveMerchantId(null);
+        if (onClearSelectedMerchant) onClearSelectedMerchant();
+      }
+      showToast('تم حذف التاجر بنجاح');
+    } else if (deleteDialog.type === 'invoice') {
+      await removeInvoice(deleteDialog.id);
+      showToast('تم حذف الفاتورة وإعادة ضبط الحساب');
+    } else if (deleteDialog.type === 'payment') {
+      await removePayment(deleteDialog.id);
+      showToast('تم حذف سند الدفعة وتحديث الرصيد');
+    }
+    setDeleteDialog(prev => ({ ...prev, isOpen: false }));
+  };
+
+  // Active Merchant Statement Ledger calculations
+  const activeMerchant = useMemo(() => {
+    return merchants.find(m => m.id === activeMerchantId) || null;
+  }, [merchants, activeMerchantId]);
+
+  const activeMerchantTransactions = useMemo(() => {
+    if (!activeMerchantId) return [];
+
+    const merchantInvs = invoices
+      .filter(inv => inv.merchantId === activeMerchantId)
+      .map(inv => ({
+        id: inv.id,
+        type: 'invoice' as const,
+        date: inv.date,
+        title: `فاتورة #${inv.invoiceNumber}`,
+        debit: inv.total,
+        credit: 0,
+        notes: inv.notes || '',
+        createdAt: inv.createdAt,
+      }));
+
+    const merchantPays = payments
+      .filter(pay => pay.merchantId === activeMerchantId)
+      .map(pay => ({
+        id: pay.id,
+        type: 'payment' as const,
+        date: pay.date,
+        title: `دفعة (${pay.paymentMethod})`,
+        debit: 0,
+        credit: pay.amount,
+        notes: pay.notes || '',
+        createdAt: pay.createdAt,
+      }));
+
+    const combined = [...merchantInvs, ...merchantPays].sort((a, b) => {
+      const cmp = a.date.localeCompare(b.date);
+      if (cmp !== 0) return cmp;
+      return a.createdAt.localeCompare(b.createdAt);
+    });
+
+    let runningBalance = 0;
+    return combined.map(tx => {
+      runningBalance += (tx.debit - tx.credit);
+      return {
+        ...tx,
+        balanceAfter: runningBalance
+      };
+    });
+  }, [activeMerchantId, invoices, payments]);
+
+  // Share statement via WhatsApp
+  const handleShareWhatsApp = () => {
+    if (!activeMerchant) return;
+    const b = merchantBalances[activeMerchant.id] || { totalInvoicedAllTime: 0, totalPaidAllTime: 0, currentDebt: 0 };
+    const text = `*كشف حساب التاجر: ${activeMerchant.name}*
+------------------------------
+إجمالي المسحوبات: ${formatCurrency(b.totalInvoicedAllTime, currency)}
+إجمالي المسدد: ${formatCurrency(b.totalPaidAllTime, currency)}
+*المتبقي دين: ${formatCurrency(b.currentDebt, currency)}*
+------------------------------
+تاريخ الاستخراج: ${formatDateArabic(getTodayDateString())}`;
+
+    const encoded = encodeURIComponent(text);
+    const phone = activeMerchant.phone.replace(/[^0-9]/g, '');
+    const url = phone ? `https://wa.me/${phone}?text=${encoded}` : `https://wa.me/?text=${encoded}`;
+    
+    // Copy to clipboard as well for convenience
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(text).catch(() => {});
+    }
+    const a = document.createElement('a');
+    a.href = url;
+    a.target = '_blank';
+    a.rel = 'noopener noreferrer';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+
+  return (
+    <div className="space-y-3.5 pb-24">
+      
+      {/* Top Mobile Bar */}
+      <div className="flex items-center justify-between gap-2 pt-1">
+        <div>
+          <h2 className="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-1.5">
+            <Users className="w-5 h-5 text-emerald-600" />
+            <span>سجل التجار والعملاء</span>
+            <span className="text-xs bg-slate-200 text-slate-700 px-2 py-0.5 rounded-full font-mono-num font-bold">
+              {merchants.length}
+            </span>
+          </h2>
+          <p className="text-[11px] text-slate-500">متابعة حسابات التجار والديون وكشوف الحساب</p>
+        </div>
+
+        <button
+          onClick={() => handleOpenForm()}
+          className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white text-xs font-bold shadow-xs transition-all shrink-0"
+        >
+          <Plus className="w-4 h-4" />
+          <span>إضافة تاجر</span>
+        </button>
+      </div>
+
+      {/* Search Bar */}
+      <div className="space-y-2">
+        <div className="relative">
+          <Search className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2" />
+          <input
+            type="text"
+            placeholder="بحث باسم التاجر أو رقم الهاتف..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-3 pr-9 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-500 bg-white"
+          />
+          {searchTerm && (
+            <button
+              onClick={() => setSearchTerm('')}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+
+        {/* Status filter tabs */}
+        <div className="grid grid-cols-3 gap-1.5 bg-slate-200/70 p-1 rounded-xl text-xs">
+          <button
+            onClick={() => setFilterType('all')}
+            className={`py-1.5 rounded-lg font-bold transition-all ${
+              filterType === 'all' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-600'
+            }`}
+          >
+            الكل ({merchants.length})
+          </button>
+          <button
+            onClick={() => setFilterType('debt')}
+            className={`py-1.5 rounded-lg font-bold transition-all ${
+              filterType === 'debt' ? 'bg-rose-600 text-white shadow-2xs' : 'text-rose-700'
+            }`}
+          >
+            عليهم ديون
+          </button>
+          <button
+            onClick={() => setFilterType('settled')}
+            className={`py-1.5 rounded-lg font-bold transition-all ${
+              filterType === 'settled' ? 'bg-emerald-600 text-white shadow-2xs' : 'text-emerald-700'
+            }`}
+          >
+            خالص السداد
+          </button>
+        </div>
+      </div>
+
+      {/* Merchants List (Mobile Cards) */}
+      <div className="space-y-2.5">
+        {filteredMerchants.map((merchant) => {
+          const balance = merchantBalances[merchant.id] || {
+            totalInvoicedAllTime: 0,
+            totalPaidAllTime: 0,
+            currentDebt: 0,
+          };
+          const hasDebt = balance.currentDebt > 0;
+
+          return (
+            <div
+              key={merchant.id}
+              className={`bg-white rounded-2xl border p-3.5 shadow-2xs transition-all ${
+                hasDebt ? 'border-rose-100 hover:border-rose-200' : 'border-slate-200/80 hover:border-slate-300'
+              }`}
+            >
+              <div className="flex items-start justify-between gap-2 mb-2">
+                <div className="min-w-0">
+                  <h3 className="font-bold text-slate-900 text-sm truncate">{merchant.name}</h3>
+                  {merchant.phone && (
+                    <div className="flex items-center gap-1 text-[11px] text-slate-500 mt-0.5" dir="ltr">
+                      <Phone className="w-3 h-3 text-slate-400" />
+                      <span>{merchant.phone}</span>
+                    </div>
+                  )}
+                </div>
+
+                <span
+                  className={`px-2 py-0.5 rounded-full text-[11px] font-bold shrink-0 ${
+                    hasDebt 
+                      ? 'bg-rose-50 text-rose-700 border border-rose-200' 
+                      : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                  }`}
+                >
+                  {hasDebt ? 'عليه دين' : 'خالص'}
+                </span>
+              </div>
+
+              {/* Financial Summary */}
+              <div className="bg-slate-50 rounded-xl p-2.5 border border-slate-100 flex items-center justify-between text-xs my-2">
+                <div>
+                  <span className="text-[10px] text-slate-500 block">المسحوبات</span>
+                  <span className="font-bold font-mono-num text-slate-800">
+                    {formatCurrency(balance.totalInvoicedAllTime, currency)}
+                  </span>
+                </div>
+                <div className="border-r border-slate-200 pr-2.5">
+                  <span className="text-[10px] text-slate-500 block">المسدد</span>
+                  <span className="font-bold font-mono-num text-teal-700">
+                    {formatCurrency(balance.totalPaidAllTime, currency)}
+                  </span>
+                </div>
+                <div className="border-r border-slate-200 pr-2.5">
+                  <span className="text-[10px] text-rose-600 font-bold block">المتبقي دين</span>
+                  <span className={`font-black font-mono-num ${hasDebt ? 'text-rose-600' : 'text-emerald-600'}`}>
+                    {formatCurrency(balance.currentDebt, currency)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Action Buttons Row */}
+              <div className="flex items-center gap-1.5 pt-1">
+                <button
+                  onClick={() => setActiveMerchantId(merchant.id)}
+                  className="flex-1 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold flex items-center justify-center gap-1 transition-colors"
+                >
+                  <FileText className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>كشف حساب</span>
+                </button>
+
+                <button
+                  onClick={() => onOpenNewInvoiceWithMerchant && onOpenNewInvoiceWithMerchant(merchant.id)}
+                  title="إصدار فاتورة بيع للتاجر"
+                  className="py-1.5 px-2.5 rounded-xl bg-emerald-50 text-emerald-700 hover:bg-emerald-100 text-xs font-bold flex items-center gap-1"
+                >
+                  <Receipt className="w-3.5 h-3.5" />
+                  <span>فاتورة</span>
+                </button>
+
+                <button
+                  onClick={() => onOpenNewPaymentWithMerchant && onOpenNewPaymentWithMerchant(merchant.id)}
+                  title="استلام دفعة نقدية"
+                  className="py-1.5 px-2.5 rounded-xl bg-teal-50 text-teal-700 hover:bg-teal-100 text-xs font-bold flex items-center gap-1"
+                >
+                  <HandCoins className="w-3.5 h-3.5" />
+                  <span>دفعة</span>
+                </button>
+
+                <button
+                  onClick={() => handleOpenForm(merchant)}
+                  title="تعديل بيانات التاجر"
+                  className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-500"
+                >
+                  <Edit3 className="w-4 h-4" />
+                </button>
+
+                <button
+                  onClick={() => triggerDeleteMerchant(merchant)}
+                  title="حذف التاجر"
+                  className="p-1.5 rounded-xl hover:bg-rose-50 text-rose-500"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          );
+        })}
+
+        {filteredMerchants.length === 0 && (
+          <div className="py-12 text-center bg-white rounded-2xl border border-dashed border-slate-200 p-6">
+            <Users className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+            <h4 className="font-bold text-slate-700 text-sm">لا يوجد تجار مطابقين</h4>
+            <p className="text-xs text-slate-500 mt-1">اضغط على زر "إضافة تاجر" للبدء في التسجيل.</p>
+          </div>
+        )}
+      </div>
+
+      {/* Add / Edit Merchant Modal */}
+      {isFormOpen && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="bg-white rounded-t-3xl sm:rounded-3xl max-w-md w-full p-5 shadow-2xl border border-slate-200 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-3">
+              <h3 className="font-bold text-base text-slate-900 flex items-center gap-2">
+                <Users className="w-5 h-5 text-emerald-600" />
+                <span>{editingMerchant ? 'تعديل بيانات التاجر' : 'إضافة تاجر جديد'}</span>
+              </h3>
+              <button onClick={() => setIsFormOpen(false)} className="p-1 text-slate-400 hover:text-slate-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmitForm} className="space-y-3 text-xs sm:text-sm">
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">اسم التاجر أو المحل *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder=""
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-500"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">رقم الهاتف / الواتساب</label>
+                <input
+                  type="tel"
+                  dir="ltr"
+                  placeholder=""
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-500 text-right"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">العنوان أو المنطقة</label>
+                <input
+                  type="text"
+                  placeholder=""
+                  value={formData.address}
+                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-500"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">ملاحظات (شروط، مواعيد دفع...)</label>
+                <textarea
+                  rows={2}
+                  placeholder=""
+                  value={formData.notes}
+                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-500"
+                />
+              </div>
+
+              <div className="pt-3 border-t border-slate-100 grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsFormOpen(false)}
+                  className="py-2.5 rounded-xl bg-slate-100 text-slate-700 font-bold text-xs"
+                >
+                  إلغاء
+                </button>
+                <button
+                  type="submit"
+                  className="py-2.5 rounded-xl bg-emerald-600 text-white font-bold text-xs shadow-xs"
+                >
+                  {editingMerchant ? 'حفظ التعديلات' : 'إضافة التاجر'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Detailed Merchant Statement Modal */}
+      {activeMerchant && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="bg-white rounded-t-3xl sm:rounded-3xl max-w-lg w-full p-4 shadow-2xl border border-slate-200 max-h-[92vh] flex flex-col justify-between overflow-hidden">
+            
+            {/* Header */}
+            <div>
+              <div className="flex items-center justify-between pb-2.5 border-b border-slate-100 mb-2">
+                <div className="min-w-0 pr-1">
+                  <h3 className="font-bold text-sm sm:text-base text-slate-900 truncate">كشف حساب: {activeMerchant.name}</h3>
+                  <p className="text-[11px] text-slate-500">حركة الفواتير والدفعات والرصيد التراكمي</p>
+                </div>
+
+                <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    onClick={handleShareWhatsApp}
+                    className="p-1.5 rounded-lg bg-emerald-50 text-emerald-700 text-xs font-bold flex items-center gap-1"
+                    title="مشاركة عبر واتساب"
+                  >
+                    <Share2 className="w-3.5 h-3.5" />
+                    <span>واتساب</span>
+                  </button>
+                  <button
+                    onClick={() => setActiveMerchantId(null)}
+                    className="p-1 text-slate-400 hover:text-slate-600 rounded-lg"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Financial Balance Strip */}
+              <div className="grid grid-cols-3 gap-1.5 p-2 bg-slate-50 rounded-xl border border-slate-200/80 mb-2 text-center text-xs">
+                <div>
+                  <span className="text-[10px] text-slate-500 block">المسحوبات</span>
+                  <span className="font-bold font-mono-num text-slate-800">
+                    {formatCurrency(merchantBalances[activeMerchant.id]?.totalInvoicedAllTime || 0, currency)}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-500 block">المسدد</span>
+                  <span className="font-bold font-mono-num text-teal-700">
+                    {formatCurrency(merchantBalances[activeMerchant.id]?.totalPaidAllTime || 0, currency)}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-rose-600 font-bold block">صافي الدين</span>
+                  <span className="font-black font-mono-num text-rose-600">
+                    {formatCurrency(merchantBalances[activeMerchant.id]?.currentDebt || 0, currency)}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Scrollable Transaction History with INLINE DELETION option */}
+            <div className="flex-1 overflow-y-auto space-y-2 py-2 pr-1">
+              {activeMerchantTransactions.length === 0 ? (
+                <div className="text-center py-10 text-xs text-slate-400">
+                  لا توجد حركات مسجلة لهذا التاجر بعد
+                </div>
+              ) : (
+                activeMerchantTransactions.map((tx, idx) => {
+                  const isInv = tx.type === 'invoice';
+                  return (
+                    <div
+                      key={tx.id + idx}
+                      className={`p-2.5 rounded-xl border text-xs flex items-center justify-between gap-2 ${
+                        isInv ? 'bg-white border-slate-200' : 'bg-teal-50/40 border-teal-100'
+                      }`}
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="font-bold text-slate-800 flex items-center gap-1.5">
+                          <span className={isInv ? 'text-emerald-700' : 'text-teal-700'}>{tx.title}</span>
+                          <span className="text-[10px] text-slate-400 font-normal">({formatDateArabic(tx.date)})</span>
+                        </div>
+                        {tx.notes && <p className="text-[10px] text-slate-500 truncate mt-0.5">{tx.notes}</p>}
+                      </div>
+
+                      <div className="text-left shrink-0 pl-1">
+                        <div className={`font-mono-num font-bold ${isInv ? 'text-emerald-700' : 'text-teal-700'}`}>
+                          {isInv ? `+${formatCurrency(tx.debit, currency)}` : `-${formatCurrency(tx.credit, currency)}`}
+                        </div>
+                        <div className="text-[10px] text-slate-400">
+                          الرصيد: {formatCurrency(tx.balanceAfter, currency)}
+                        </div>
+                      </div>
+
+                      {/* Delete button right inside ledger! */}
+                      <button
+                        onClick={() => triggerDeleteStatementItem(tx)}
+                        title="حذف هذه المعاملة وتحديث الرصيد"
+                        className="p-1 text-slate-300 hover:text-rose-600 rounded-lg shrink-0"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
+              <button
+                onClick={() => {
+                  if (onOpenNewInvoiceWithMerchant) onOpenNewInvoiceWithMerchant(activeMerchant.id);
+                  setActiveMerchantId(null);
+                }}
+                className="flex-1 py-2 bg-emerald-600 text-white rounded-xl text-xs font-bold"
+              >
+                + فاتورة بيع جديدة
+              </button>
+              <button
+                onClick={() => {
+                  if (onOpenNewPaymentWithMerchant) onOpenNewPaymentWithMerchant(activeMerchant.id);
+                  setActiveMerchantId(null);
+                }}
+                className="flex-1 py-2 bg-teal-600 text-white rounded-xl text-xs font-bold"
+              >
+                + استلام دفعة
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Modal */}
+      <ConfirmModal
+        isOpen={deleteDialog.isOpen}
+        title={deleteDialog.title}
+        message={deleteDialog.message}
+        onConfirm={handleConfirmDelete}
+        onClose={() => setDeleteDialog(prev => ({ ...prev, isOpen: false }))}
+      />
+
+    </div>
+  );
+};

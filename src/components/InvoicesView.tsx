@@ -1,0 +1,849 @@
+import React, { useState, useMemo, useEffect } from 'react';
+import { useApp } from '../context/AppContext';
+import type { Invoice, InvoiceItem, Product } from '../types';
+import { 
+  formatCurrency, 
+  formatDateArabic, 
+  getTodayDateString, 
+  generateInvoiceNumber,
+  getMonthKeyFromDate,
+  formatMonthName 
+} from '../utils/formatters';
+import { ConfirmModal } from './ConfirmModal';
+import { SearchableSelect } from './SearchableSelect';
+import { 
+  FileText, 
+  Search, 
+  Plus, 
+  Calendar, 
+  Percent, 
+  Printer, 
+  Edit3, 
+  Trash2, 
+  X, 
+  PlusCircle,
+  Trash,
+  Minus,
+  CheckCircle2,
+  AlertCircle
+} from 'lucide-react';
+
+interface InvoicesViewProps {
+  initialOpenCreate?: boolean;
+  initialMerchantId?: string | null;
+  initialProduct?: Product | null;
+  initialEditingInvoice?: Invoice | null;
+  onClearInitialCreate?: () => void;
+  onPrintInvoice?: (invoice: Invoice) => void;
+  onSelectMerchant?: (merchantId: string) => void;
+}
+
+export const InvoicesView: React.FC<InvoicesViewProps> = ({
+  initialOpenCreate = false,
+  initialMerchantId = null,
+  initialProduct = null,
+  initialEditingInvoice = null,
+  onClearInitialCreate,
+  onPrintInvoice,
+  onSelectMerchant,
+}) => {
+  const { 
+    invoices, 
+    merchants, 
+    products, 
+    merchantBalances,
+    selectedMonth, 
+    currency, 
+    saveInvoice, 
+    removeInvoice,
+    saveMerchant,
+    showToast 
+  } = useApp();
+
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterMonthMode, setFilterMonthMode] = useState<'current' | 'all'>('current');
+  const [isFormOpen, setIsFormOpen] = useState(initialOpenCreate || !!initialEditingInvoice);
+  const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(initialEditingInvoice || null);
+
+  // Form State
+  const [invoiceNumber, setInvoiceNumber] = useState('');
+  const [merchantId, setMerchantId] = useState(initialMerchantId || '');
+  const [invoiceDate, setInvoiceDate] = useState(getTodayDateString());
+  const [items, setItems] = useState<InvoiceItem[]>([]);
+  const [discountType, setDiscountType] = useState<'amount' | 'percentage'>('amount');
+  const [discountValue, setDiscountValue] = useState<number>(0);
+  const [paidAmount, setPaidAmount] = useState<number>(0);
+  const [notes, setNotes] = useState('');
+  const [formError, setFormError] = useState<string | null>(null);
+
+  // Quick Inline Merchant Add State
+  const [isQuickAddMerchantOpen, setIsQuickAddMerchantOpen] = useState(false);
+  const [quickMerchantName, setQuickMerchantName] = useState('');
+  const [quickMerchantPhone, setQuickMerchantPhone] = useState('');
+
+  // Delete modal state
+  const [invoiceToDelete, setInvoiceToDelete] = useState<Invoice | null>(null);
+
+  // When initialOpenCreate or initialEditingInvoice changes from outside
+  useEffect(() => {
+    if (initialEditingInvoice) {
+      handleOpenCreate(initialEditingInvoice);
+    } else if (initialOpenCreate) {
+      handleOpenCreate(undefined, initialMerchantId || undefined, initialProduct || undefined);
+    }
+  }, [initialOpenCreate, initialMerchantId, initialProduct, initialEditingInvoice]);
+
+  // Open Create/Edit modal
+  const handleOpenCreate = (existing?: Invoice, preselectedMerchantId?: string, preselectedProd?: Product) => {
+    setFormError(null);
+    if (existing) {
+      setEditingInvoice(existing);
+      setInvoiceNumber(existing.invoiceNumber);
+      setMerchantId(existing.merchantId);
+      setInvoiceDate(existing.date);
+      setItems(existing.items.map(it => ({ ...it })));
+      setDiscountType(existing.discountType || 'amount');
+      setDiscountValue(existing.discountValue || 0);
+      setPaidAmount(existing.paidAmount || 0);
+      setNotes(existing.notes || '');
+    } else {
+      setEditingInvoice(null);
+      setInvoiceNumber(generateInvoiceNumber(invoices.length));
+      setMerchantId(preselectedMerchantId || (merchants[0]?.id || ''));
+      setInvoiceDate(getTodayDateString());
+      setDiscountType('amount');
+      setDiscountValue(0);
+      setPaidAmount(0);
+      setNotes('');
+
+      // If preselected product is passed or available products
+      const prodToUse = preselectedProd || products[0];
+      if (prodToUse) {
+        setItems([{
+          id: `item_${Date.now()}`,
+          productId: prodToUse.id,
+          productName: prodToUse.name,
+          quantity: 1,
+          unitPrice: prodToUse.price,
+          total: prodToUse.price,
+        }]);
+      } else {
+        setItems([{
+          id: `item_${Date.now()}`,
+          productName: '',
+          quantity: 1,
+          unitPrice: 0,
+          total: 0,
+        }]);
+      }
+    }
+    setIsFormOpen(true);
+  };
+
+  const handleCloseForm = () => {
+    setIsFormOpen(false);
+    setEditingInvoice(null);
+    setFormError(null);
+    if (onClearInitialCreate) onClearInitialCreate();
+  };
+
+  // Item helpers
+  const handleAddItem = () => {
+    const firstProd = products[0];
+    const newItem: InvoiceItem = {
+      id: `item_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      productId: firstProd ? firstProd.id : undefined,
+      productName: firstProd ? firstProd.name : '',
+      quantity: 1,
+      unitPrice: firstProd ? firstProd.price : 0,
+      total: firstProd ? firstProd.price : 0,
+    };
+    setItems([...items, newItem]);
+  };
+
+  const handleRemoveItem = (idx: number) => {
+    if (items.length <= 1) return;
+    setItems(items.filter((_, i) => i !== idx));
+  };
+
+  const handleItemProductChange = (idx: number, prodId: string) => {
+    const prod = products.find(p => p.id === prodId);
+    if (!prod) return;
+    const next = [...items];
+    next[idx] = {
+      ...next[idx],
+      productId: prod.id,
+      productName: prod.name,
+      unitPrice: prod.price,
+      total: prod.price * next[idx].quantity,
+    };
+    setItems(next);
+  };
+
+  const handleItemChange = (idx: number, field: keyof InvoiceItem, value: any) => {
+    const next = [...items];
+    const current = { ...next[idx], [field]: value };
+    if (field === 'quantity' || field === 'unitPrice') {
+      const q = field === 'quantity' ? Math.max(0.01, Number(value) || 0) : current.quantity;
+      const p = field === 'unitPrice' ? Math.max(0, Number(value) || 0) : current.unitPrice;
+      current.total = q * p;
+    }
+    next[idx] = current;
+    setItems(next);
+  };
+
+  const adjustQty = (idx: number, delta: number) => {
+    const next = [...items];
+    const current = next[idx];
+    const newQty = Math.max(1, current.quantity + delta);
+    current.quantity = newQty;
+    current.total = newQty * current.unitPrice;
+    setItems(next);
+  };
+
+  // Quick add merchant inline
+  const handleQuickAddMerchant = async () => {
+    if (!quickMerchantName.trim()) return;
+    const newId = await saveMerchant({
+      name: quickMerchantName.trim(),
+      phone: quickMerchantPhone.trim(),
+      address: '',
+      notes: '',
+    });
+    setMerchantId(newId);
+    setQuickMerchantName('');
+    setQuickMerchantPhone('');
+    setIsQuickAddMerchantOpen(false);
+    showToast('تمت إضافة واختيار التاجر الجديد');
+  };
+
+  // Financial calculations
+  const subtotal = useMemo(() => {
+    return items.reduce((acc, it) => acc + (it.total || 0), 0);
+  }, [items]);
+
+  const calculatedDiscount = useMemo(() => {
+    if (discountType === 'percentage') {
+      return Math.round((subtotal * (discountValue / 100)) * 100) / 100;
+    }
+    return Math.min(discountValue, subtotal);
+  }, [subtotal, discountType, discountValue]);
+
+  const netTotal = useMemo(() => {
+    return Math.max(0, subtotal - calculatedDiscount);
+  }, [subtotal, calculatedDiscount]);
+
+  const remainingAmount = useMemo(() => {
+    return Math.max(0, netTotal - paidAmount);
+  }, [netTotal, paidAmount]);
+
+  // Submit invoice
+  const handleSubmitInvoice = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setFormError(null);
+
+    if (!merchantId) {
+      setFormError('يرجى اختيار التاجر أولاً');
+      return;
+    }
+    if (items.length === 0 || items.some(it => !it.productName.trim() || it.quantity <= 0)) {
+      setFormError('يرجى ملء بيانات المنتجات والكميات بشكل صحيح');
+      return;
+    }
+
+    const m = merchants.find(item => item.id === merchantId);
+    const mName = m ? m.name : 'تاجر غير محدد';
+    const monthKey = getMonthKeyFromDate(invoiceDate);
+
+    await saveInvoice({
+      ...(editingInvoice ? { id: editingInvoice.id } : {}),
+      invoiceNumber: invoiceNumber.trim() || `فاتورة-${Date.now().toString().slice(-4)}`,
+      merchantId,
+      merchantName: mName,
+      date: invoiceDate,
+      monthKey,
+      items,
+      subtotal,
+      discountType,
+      discountValue,
+      discount: calculatedDiscount,
+      total: netTotal,
+      paidAmount,
+      remainingAmount,
+      notes: notes.trim(),
+    }, true);
+
+    showToast(editingInvoice ? 'تم تعديل الفاتورة بنجاح' : 'تم اعتماد الفاتورة وتحديث دين التاجر');
+    handleCloseForm();
+  };
+
+  // Delete Invoice action
+  const handleConfirmDelete = async () => {
+    if (!invoiceToDelete) return;
+    await removeInvoice(invoiceToDelete.id);
+    showToast(`تم حذف الفاتورة رقم "${invoiceToDelete.invoiceNumber}" وتعديل الحساب`);
+    setInvoiceToDelete(null);
+  };
+
+  // Filtered invoices
+  const filteredInvoices = useMemo(() => {
+    return invoices
+      .filter(inv => {
+        if (filterMonthMode === 'current') {
+          const m = inv.monthKey || getMonthKeyFromDate(inv.date);
+          if (m !== selectedMonth) return false;
+        }
+        if (!searchTerm) return true;
+        const q = searchTerm.toLowerCase();
+        return (
+          inv.invoiceNumber.toLowerCase().includes(q) ||
+          inv.merchantName.toLowerCase().includes(q) ||
+          (inv.notes && inv.notes.toLowerCase().includes(q))
+        );
+      })
+      .sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt));
+  }, [invoices, selectedMonth, filterMonthMode, searchTerm]);
+
+  return (
+    <div className="space-y-3.5 pb-24">
+      
+      {/* Top Header */}
+      <div className="flex items-center justify-between gap-2 pt-1">
+        <div>
+          <h2 className="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-1.5">
+            <FileText className="w-5 h-5 text-emerald-600" />
+            <span>فواتير البيع للعملاء</span>
+            <span className="text-xs bg-slate-200 text-slate-700 px-2 py-0.5 rounded-full font-mono-num font-bold">
+              {filteredInvoices.length}
+            </span>
+          </h2>
+          <p className="text-[11px] text-slate-500">
+            {filterMonthMode === 'current'
+              ? `فواتير شهر ${formatMonthName(selectedMonth)}`
+              : 'جميع الفواتير المسجلة'}
+          </p>
+        </div>
+
+        <button
+          onClick={() => handleOpenCreate()}
+          className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white text-xs font-bold shadow-xs transition-all shrink-0"
+        >
+          <Plus className="w-4 h-4" />
+          <span>إصدار فاتورة</span>
+        </button>
+      </div>
+
+      {/* Search & Month Filter Toggle */}
+      <div className="space-y-2">
+        <div className="relative">
+          <Search className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2" />
+          <input
+            type="text"
+            placeholder="بحث برقم الفاتورة أو اسم التاجر..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-3 pr-9 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-500 bg-white"
+          />
+          {searchTerm && (
+            <button
+              onClick={() => setSearchTerm('')}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+
+        <div className="grid grid-cols-2 gap-1.5 bg-slate-200/70 p-1 rounded-xl text-xs">
+          <button
+            onClick={() => setFilterMonthMode('current')}
+            className={`py-1.5 rounded-lg font-bold transition-all ${
+              filterMonthMode === 'current' ? 'bg-white text-emerald-700 shadow-2xs' : 'text-slate-600'
+            }`}
+          >
+            شهر {formatMonthName(selectedMonth)}
+          </button>
+          <button
+            onClick={() => setFilterMonthMode('all')}
+            className={`py-1.5 rounded-lg font-bold transition-all ${
+              filterMonthMode === 'all' ? 'bg-white text-slate-800 shadow-2xs' : 'text-slate-600'
+            }`}
+          >
+            كل الشهور ({invoices.length})
+          </button>
+        </div>
+      </div>
+
+      {/* Invoices List */}
+      <div className="space-y-2.5">
+        {filteredInvoices.map((inv) => {
+          const isFullyPaid = inv.remainingAmount <= 0;
+          const isPartiallyPaid = inv.paidAmount > 0 && inv.remainingAmount > 0;
+
+          return (
+            <div
+              key={inv.id}
+              className="bg-white rounded-2xl border border-slate-200/80 p-3.5 shadow-2xs hover:border-slate-300 transition-all"
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (onSelectMerchant) onSelectMerchant(inv.merchantId);
+                      }}
+                      className="font-bold text-slate-900 text-sm hover:text-emerald-600 hover:underline cursor-pointer text-right"
+                      title="فتح صفحة التاجر"
+                    >
+                      {inv.merchantName}
+                    </button>
+                    <span className="text-[10px] px-1.5 py-0.2 rounded bg-slate-100 font-mono-num font-bold text-slate-600">
+                      #{inv.invoiceNumber}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2 text-[11px] text-slate-400 mt-0.5">
+                    <span className="flex items-center gap-0.5">
+                      <Calendar className="w-3 h-3" />
+                      {formatDateArabic(inv.date)}
+                    </span>
+                    <span>•</span>
+                    <span>{inv.items.length} أصناف</span>
+                  </div>
+                </div>
+
+                <div className="text-left shrink-0 pl-1 font-mono-num">
+                  <div className="text-sm font-black text-slate-900">
+                    {formatCurrency(inv.total, currency)}
+                  </div>
+                  {inv.remainingAmount > 0 ? (
+                    <div className="text-[10px] font-bold text-rose-600">
+                      متبقي دين: {formatCurrency(inv.remainingAmount, currency)}
+                    </div>
+                  ) : (
+                    <div className="text-[10px] font-bold text-emerald-600">
+                      مسددة بالكامل
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Items summary */}
+              <div className="py-2 flex items-center gap-1 flex-wrap text-[11px] text-slate-600 border-t border-slate-100 mt-2">
+                {inv.items.map((it, idx) => (
+                  <span key={idx} className="bg-slate-50 border border-slate-200/60 px-1.5 py-0.5 rounded-md">
+                    {it.productName} ({it.quantity}x)
+                  </span>
+                ))}
+                {inv.discount > 0 && (
+                  <span className="bg-amber-50 text-amber-800 border border-amber-200 px-1.5 py-0.5 rounded-md font-bold">
+                    خصم {formatCurrency(inv.discount, currency)}
+                  </span>
+                )}
+              </div>
+
+              {/* Action Buttons */}
+              <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
+                <span className="text-[10px] text-slate-400 truncate">
+                  {inv.notes || `مسدد نقداً: ${formatCurrency(inv.paidAmount, currency)}`}
+                </span>
+
+                <div className="flex items-center gap-1 shrink-0">
+                  {onPrintInvoice && (
+                    <button
+                      onClick={() => onPrintInvoice(inv)}
+                      className="px-2 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center gap-1"
+                    >
+                      <Printer className="w-3 h-3" />
+                      <span>طباعة</span>
+                    </button>
+                  )}
+
+                  <button
+                    onClick={() => handleOpenCreate(inv)}
+                    title="تعديل الفاتورة"
+                    className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-600"
+                  >
+                    <Edit3 className="w-4 h-4" />
+                  </button>
+
+                  <button
+                    onClick={() => setInvoiceToDelete(inv)}
+                    title="حذف الفاتورة"
+                    className="p-1.5 rounded-lg hover:bg-rose-50 text-rose-500"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+
+        {filteredInvoices.length === 0 && (
+          <div className="py-12 text-center bg-white rounded-2xl border border-dashed border-slate-200 p-6">
+            <FileText className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+            <h4 className="font-bold text-slate-700 text-sm">لا توجد فواتير في هذا العرض</h4>
+            <p className="text-xs text-slate-500 mt-1">اضغط على زر "إصدار فاتورة" لتسجيل عملية بيع جديدة للتاجر.</p>
+          </div>
+        )}
+      </div>
+
+      {/* Create / Edit Invoice Modal (Bottom Sheet on Mobile) */}
+      {isFormOpen && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="bg-white rounded-t-3xl sm:rounded-3xl max-w-lg w-full p-4 sm:p-5 shadow-2xl border border-slate-200 max-h-[95vh] flex flex-col justify-between overflow-hidden">
+            
+            {/* Header */}
+            <div className="flex items-center justify-between pb-2.5 border-b border-slate-100 mb-2 shrink-0">
+              <h3 className="font-bold text-base text-slate-900 flex items-center gap-2">
+                <FileText className="w-5 h-5 text-emerald-600" />
+                <span>{editingInvoice ? 'تعديل فاتورة البيع' : 'إصدار فاتورة بيع جديدة'}</span>
+              </h3>
+              <button onClick={handleCloseForm} className="p-1 text-slate-400 hover:text-slate-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Error Message if any */}
+            {formError && (
+              <div className="p-2 mb-2 bg-rose-50 text-rose-700 border border-rose-200 rounded-xl text-xs flex items-center gap-1.5 font-bold">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{formError}</span>
+              </div>
+            )}
+
+            {/* Scrollable Form Body */}
+            <form onSubmit={handleSubmitInvoice} id="mobile-invoice-form" className="flex-1 overflow-y-auto space-y-3 text-xs sm:text-sm pr-1">
+              
+              {/* Merchant Selection with Instant 1-Letter Search */}
+              <div>
+                <SearchableSelect
+                  label="التاجر / العميل"
+                  required
+                  options={merchants.map(m => ({
+                    id: m.id,
+                    label: m.name,
+                    subLabel: m.phone ? `هاتف: ${m.phone}` : undefined,
+                    badge: merchantBalances[m.id]?.currentDebt > 0 
+                      ? `دين: ${formatCurrency(merchantBalances[m.id].currentDebt, currency)}` 
+                      : undefined,
+                    badgeColor: 'bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-400',
+                  }))}
+                  value={merchantId}
+                  onChange={setMerchantId}
+                  placeholder="ابحث بالاسم أو الهاتف من أول حرف..."
+                  searchPlaceholder="اكتب أول حرف للبحث الفوري..."
+                  onAddNew={() => setIsQuickAddMerchantOpen(true)}
+                  addNewText="+ تاجر جديد سريع"
+                  accentColor="emerald"
+                />
+
+                {/* Inline Quick Add Merchant */}
+                {isQuickAddMerchantOpen && (
+                  <div className="mt-2 p-3 bg-emerald-50/50 border border-emerald-200 rounded-xl space-y-2">
+                    <span className="font-bold text-xs text-emerald-900 block">إضافة تاجر جديد فوراً:</span>
+                    <input
+                      type="text"
+                      placeholder=""
+                      value={quickMerchantName}
+                      onChange={(e) => setQuickMerchantName(e.target.value)}
+                      className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-xs"
+                    />
+                    <input
+                      type="tel"
+                      dir="ltr"
+                      placeholder=""
+                      value={quickMerchantPhone}
+                      onChange={(e) => setQuickMerchantPhone(e.target.value)}
+                      className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-xs text-right"
+                    />
+                    <div className="flex justify-end gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setIsQuickAddMerchantOpen(false)}
+                        className="px-2 py-1 text-xs text-slate-500"
+                      >
+                        إلغاء
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleQuickAddMerchant}
+                        className="px-3 py-1 bg-emerald-600 text-white rounded-lg text-xs font-bold"
+                      >
+                        حفظ واختيار
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Invoice Date */}
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">تاريخ الفاتورة *</label>
+                <input
+                  type="date"
+                  required
+                  value={invoiceDate}
+                  onChange={(e) => setInvoiceDate(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-500 font-mono-num"
+                />
+              </div>
+
+              {/* Items List */}
+              <div className="space-y-2 pt-1 border-t border-slate-100">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-slate-800 text-xs">الأصناف والمنتجات المباعة:</span>
+                  <button
+                    type="button"
+                    onClick={handleAddItem}
+                    className="text-[11px] text-emerald-700 font-bold bg-emerald-50 px-2.5 py-1 rounded-lg flex items-center gap-1"
+                  >
+                    <PlusCircle className="w-3.5 h-3.5" />
+                    <span>إضافة صنف</span>
+                  </button>
+                </div>
+
+                <div className="space-y-2">
+                  {items.map((item, idx) => (
+                    <div
+                      key={item.id}
+                      className="p-2.5 bg-slate-50 rounded-xl border border-slate-200/80 space-y-2"
+                    >
+                      {/* Product Selector with Instant 1-Letter Search / Custom Name */}
+                      <div>
+                        {products.length > 0 ? (
+                          <div className="space-y-1">
+                            <SearchableSelect
+                              options={products.map(p => ({
+                                id: p.id,
+                                label: p.name,
+                                subLabel: p.unit ? `الوحدة: ${p.unit}` : undefined,
+                                badge: formatCurrency(p.price, currency),
+                                badgeColor: 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400',
+                              }))}
+                              value={item.productId || ''}
+                              onChange={(prodId) => handleItemProductChange(idx, prodId)}
+                              placeholder="-- ابحث عن صنف بالاسم من أول حرف --"
+                              searchPlaceholder="اكتب أول حرف للبحث الفوري عن المنتج..."
+                              accentColor="emerald"
+                            />
+                            <input
+                              type="text"
+                              placeholder=""
+                              value={item.productName}
+                              onChange={(e) => handleItemChange(idx, 'productName', e.target.value)}
+                              className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-xs"
+                            />
+                          </div>
+                        ) : (
+                          <input
+                            type="text"
+                            required
+                            placeholder="اسم المنتج المباع للتاجر"
+                            value={item.productName}
+                            onChange={(e) => handleItemChange(idx, 'productName', e.target.value)}
+                            className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-xs"
+                          />
+                        )}
+                      </div>
+
+                      {/* Quantity & Unit Price & Row Total with big touch buttons */}
+                      <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-200/60">
+                        {/* Quantity with +/- */}
+                        <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-slate-200">
+                          <button
+                            type="button"
+                            onClick={() => adjustQty(idx, -1)}
+                            className="w-6 h-6 rounded-lg bg-slate-100 flex items-center justify-center text-slate-700 active:scale-95"
+                          >
+                            <Minus className="w-3 h-3" />
+                          </button>
+                          <input
+                            type="number"
+                            step="any"
+                            min="0.1"
+                            value={item.quantity}
+                            onChange={(e) => handleItemChange(idx, 'quantity', e.target.value)}
+                            className="w-12 text-center font-mono-num font-bold text-xs focus:outline-none"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => adjustQty(idx, 1)}
+                            className="w-6 h-6 rounded-lg bg-slate-100 flex items-center justify-center text-slate-700 active:scale-95"
+                          >
+                            <Plus className="w-3 h-3" />
+                          </button>
+                        </div>
+
+                        {/* Price Input */}
+                        <div className="relative w-24">
+                          <input
+                            type="number"
+                            step="any"
+                            min="0"
+                            placeholder=""
+                            value={item.unitPrice === 0 ? '' : item.unitPrice}
+                            onChange={(e) => handleItemChange(idx, 'unitPrice', e.target.value)}
+                            className="w-full px-2 py-1.5 rounded-xl border border-slate-200 bg-white font-mono-num text-center text-xs"
+                          />
+                        </div>
+
+                        {/* Total Row */}
+                        <div className="font-mono-num font-bold text-slate-900 text-xs">
+                          {formatCurrency(item.total, currency)}
+                        </div>
+
+                        {/* Remove item */}
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveItem(idx)}
+                          disabled={items.length <= 1}
+                          className="p-1 text-slate-400 hover:text-rose-600 disabled:opacity-20"
+                        >
+                          <Trash className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Discount Section */}
+              <div className="p-3 bg-amber-50/70 rounded-xl border border-amber-200 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-amber-900 text-xs flex items-center gap-1">
+                    <Percent className="w-3.5 h-3.5 text-amber-600" />
+                    <span>خصم للتاجر (اختياري):</span>
+                  </span>
+
+                  <div className="flex items-center gap-1 bg-white p-0.5 rounded-lg border border-amber-200 text-xs">
+                    <button
+                      type="button"
+                      onClick={() => setDiscountType('amount')}
+                      className={`px-2 py-0.5 rounded font-bold ${
+                        discountType === 'amount' ? 'bg-amber-600 text-white' : 'text-slate-600'
+                      }`}
+                    >
+                      مبلغ ({currency})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDiscountType('percentage')}
+                      className={`px-2 py-0.5 rounded font-bold ${
+                        discountType === 'percentage' ? 'bg-amber-600 text-white' : 'text-slate-600'
+                      }`}
+                    >
+                      نسبة %
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    step="any"
+                    min="0"
+                    placeholder=""
+                    value={discountValue === 0 ? '' : discountValue}
+                    onChange={(e) => setDiscountValue(parseFloat(e.target.value) || 0)}
+                    className="w-full px-3 py-1.5 rounded-xl border border-amber-200 bg-white font-mono-num text-xs focus:outline-none"
+                  />
+                  {calculatedDiscount > 0 && (
+                    <span className="text-xs font-bold text-amber-800 shrink-0">
+                      -{formatCurrency(calculatedDiscount, currency)}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Cash Paid Upfront & Debt */}
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="font-bold text-slate-700 text-xs">
+                    المدفوع نقداً فوراً عند الفاتورة:
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setPaidAmount(netTotal)}
+                    className="text-[11px] text-emerald-600 font-bold hover:underline"
+                  >
+                    سداد بالكامل نقداً
+                  </button>
+                </div>
+                <input
+                  type="number"
+                  step="any"
+                  min="0"
+                  placeholder=""
+                  value={paidAmount === 0 ? '' : paidAmount}
+                  onChange={(e) => setPaidAmount(parseFloat(e.target.value) || 0)}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white font-mono-num text-emerald-700 font-bold text-sm"
+                />
+
+                <div className="flex items-center justify-between pt-1 border-t border-slate-200 text-xs">
+                  <span className="text-slate-600">المتبقي دين على التاجر:</span>
+                  <span className="font-black text-rose-600 font-mono-num text-sm">
+                    {formatCurrency(remainingAmount, currency)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Notes */}
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">ملاحظات على الفاتورة</label>
+                <input
+                  type="text"
+                  placeholder=""
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-500 text-xs"
+                />
+              </div>
+
+            </form>
+
+            {/* Bottom Actions */}
+            <div className="pt-2.5 border-t border-slate-100 shrink-0">
+              <div className="flex items-center justify-between text-xs mb-2">
+                <span className="text-slate-500">إجمالي الفاتورة الصافي:</span>
+                <span className="font-mono-num font-black text-emerald-700 text-base">
+                  {formatCurrency(netTotal, currency)}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={handleCloseForm}
+                  className="py-2.5 rounded-xl bg-slate-100 text-slate-700 font-bold text-xs"
+                >
+                  إلغاء
+                </button>
+                <button
+                  type="submit"
+                  form="mobile-invoice-form"
+                  className="py-2.5 rounded-xl bg-emerald-600 text-white font-bold text-xs shadow-xs"
+                >
+                  {editingInvoice ? 'حفظ التعديل' : 'حفظ واعتماد الفاتورة'}
+                </button>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={Boolean(invoiceToDelete)}
+        title={`حذف الفاتورة #${invoiceToDelete?.invoiceNumber}`}
+        message="هل أنت متأكد من حذف هذه الفاتورة؟ سيتم خصم قيمتها من إجمالي دين التاجر وإعادة احتساب الرصيد تلقائياً."
+        onConfirm={handleConfirmDelete}
+        onClose={() => setInvoiceToDelete(null)}
+      />
+
+    </div>
+  );
+};

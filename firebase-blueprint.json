@@ -1,0 +1,171 @@
+{
+  "entities": {
+    "Merchant": {
+      "title": "Merchant",
+      "description": "Merchant or client profile containing contact info and notes",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "maxLength": 100 },
+        "phone": { "type": "string", "maxLength": 30 },
+        "address": { "type": "string", "maxLength": 200 },
+        "notes": { "type": "string", "maxLength": 500 },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["name", "createdAt", "updatedAt"]
+    },
+    "Product": {
+      "title": "Product",
+      "description": "Product sold to merchants with pricing",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "maxLength": 100 },
+        "price": { "type": "number" },
+        "costPrice": { "type": "number" },
+        "unit": { "type": "string", "maxLength": 30 },
+        "notes": { "type": "string", "maxLength": 300 },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["name", "price", "createdAt", "updatedAt"]
+    },
+    "Invoice": {
+      "title": "Invoice",
+      "description": "Sales invoice registered under a merchant's name",
+      "type": "object",
+      "properties": {
+        "invoiceNumber": { "type": "string", "maxLength": 50 },
+        "merchantId": { "type": "string", "maxLength": 128 },
+        "merchantName": { "type": "string", "maxLength": 100 },
+        "date": { "type": "string", "maxLength": 20 },
+        "monthKey": { "type": "string", "maxLength": 10 },
+        "subtotal": { "type": "number" },
+        "discount": { "type": "number" },
+        "total": { "type": "number" },
+        "paidAmount": { "type": "number" },
+        "remainingAmount": { "type": "number" },
+        "notes": { "type": "string", "maxLength": 500 },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["merchantId", "merchantName", "date", "monthKey", "total", "createdAt", "updatedAt"]
+    },
+    "Payment": {
+      "title": "Payment",
+      "description": "Received payments or installments from merchants",
+      "type": "object",
+      "properties": {
+        "merchantId": { "type": "string", "maxLength": 128 },
+        "merchantName": { "type": "string", "maxLength": 100 },
+        "amount": { "type": "number" },
+        "date": { "type": "string", "maxLength": 20 },
+        "monthKey": { "type": "string", "maxLength": 10 },
+        "paymentMethod": { "type": "string", "maxLength": 50 },
+        "notes": { "type": "string", "maxLength": 500 },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["merchantId", "merchantName", "amount", "date", "monthKey", "createdAt", "updatedAt"]
+    },
+    "WorkOrder": {
+      "title": "WorkOrder",
+      "description": "Preparation work order requested by a merchant for delivery",
+      "type": "object",
+      "properties": {
+        "orderNumber": { "type": "string", "maxLength": 50 },
+        "merchantId": { "type": "string", "maxLength": 128 },
+        "merchantName": { "type": "string", "maxLength": 100 },
+        "date": { "type": "string", "maxLength": 20 },
+        "monthKey": { "type": "string", "maxLength": 10 },
+        "status": { "type": "string", "enum": ["pending", "partially_delivered", "delivered", "cancelled"] },
+        "totalEstimatedAmount": { "type": "number" },
+        "deliveredTotalAmount": { "type": "number" },
+        "notes": { "type": "string", "maxLength": 500 },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["merchantId", "merchantName", "date", "status", "createdAt", "updatedAt"]
+    },
+    "PersonalContact": {
+      "title": "PersonalContact",
+      "description": "Individual contact in independent personal account ledger",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "maxLength": 100 },
+        "phone": { "type": "string", "maxLength": 30 },
+        "notes": { "type": "string", "maxLength": 500 },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["name", "createdAt", "updatedAt"]
+    },
+    "PersonalTransaction": {
+      "title": "PersonalTransaction",
+      "description": "Personal account record (loan given, received, personal expense or income)",
+      "type": "object",
+      "properties": {
+        "contactId": { "type": "string", "maxLength": 128 },
+        "contactName": { "type": "string", "maxLength": 100 },
+        "type": { "type": "string", "enum": ["loan_given", "loan_received", "expense", "income"] },
+        "amount": { "type": "number" },
+        "date": { "type": "string", "maxLength": 20 },
+        "monthKey": { "type": "string", "maxLength": 10 },
+        "notes": { "type": "string", "maxLength": 500 },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["type", "amount", "date", "monthKey", "createdAt", "updatedAt"]
+    },
+    "Expense": {
+      "title": "Expense",
+      "description": "Business expenses, salaries, maintenance and cash withdrawals",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "maxLength": 150 },
+        "category": { "type": "string", "maxLength": 50 },
+        "amount": { "type": "number" },
+        "date": { "type": "string", "maxLength": 20 },
+        "monthKey": { "type": "string", "maxLength": 10 },
+        "paymentMethod": { "type": "string", "maxLength": 50 },
+        "notes": { "type": "string", "maxLength": 500 },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["title", "category", "amount", "date", "monthKey", "createdAt", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}/merchants/{merchantId}": {
+      "schema": "Merchant",
+      "description": "Merchants managed by the authenticated user"
+    },
+    "/users/{userId}/products/{productId}": {
+      "schema": "Product",
+      "description": "Product catalog managed by the authenticated user"
+    },
+    "/users/{userId}/invoices/{invoiceId}": {
+      "schema": "Invoice",
+      "description": "Sales invoices for merchants"
+    },
+    "/users/{userId}/payments/{paymentId}": {
+      "schema": "Payment",
+      "description": "Payments collected from merchants"
+    },
+    "/users/{userId}/expenses/{expenseId}": {
+      "schema": "Expense",
+      "description": "Business expenses and withdrawals that reduce net collections"
+    },
+    "/users/{userId}/orders/{orderId}": {
+      "schema": "WorkOrder",
+      "description": "Preparation work orders for merchants"
+    },
+    "/users/{userId}/personal_contacts/{contactId}": {
+      "schema": "PersonalContact",
+      "description": "Contacts for personal ledger"
+    },
+    "/users/{userId}/personal_transactions/{transactionId}": {
+      "schema": "PersonalTransaction",
+      "description": "Independent personal transactions"
+    }
+  }
+}
