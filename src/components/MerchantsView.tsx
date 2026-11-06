@@ -426,10 +426,10 @@ export const MerchantsView: React.FC<MerchantsViewProps> = ({
         })}
 
         {filteredMerchants.length === 0 && (
-          <div className="py-12 text-center bg-white rounded-2xl border border-dashed border-slate-200 p-6">
-            <Users className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-            <h4 className="font-bold text-slate-700 text-sm">لا يوجد تجار مطابقين</h4>
-            <p className="text-xs text-slate-500 mt-1">اضغط على زر "إضافة تاجر" للبدء في التسجيل.</p>
+          <div className="py-12 text-center bg-white dark:bg-slate-900 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 p-6">
+            <Users className="w-8 h-8 text-slate-300 dark:text-slate-600 mx-auto mb-2" />
+            <h4 className="font-bold text-slate-700 dark:text-slate-200 text-sm">لا يوجد تجار مطابقين</h4>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">اضغط على زر "إضافة تاجر" للبدء في التسجيل.</p>
           </div>
         )}
       </div>
@@ -437,75 +437,75 @@ export const MerchantsView: React.FC<MerchantsViewProps> = ({
       {/* Add / Edit Merchant Modal */}
       {isFormOpen && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="bg-white rounded-t-3xl sm:rounded-3xl max-w-md w-full p-5 shadow-2xl border border-slate-200 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-3">
-              <h3 className="font-bold text-base text-slate-900 flex items-center gap-2">
-                <Users className="w-5 h-5 text-emerald-600" />
+          <div className="bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-3xl max-w-md w-full p-5 shadow-2xl border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800 mb-3">
+              <h3 className="font-bold text-base text-slate-900 dark:text-white flex items-center gap-2">
+                <Users className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
                 <span>{editingMerchant ? 'تعديل بيانات التاجر' : 'إضافة تاجر جديد'}</span>
               </h3>
-              <button onClick={() => setIsFormOpen(false)} className="p-1 text-slate-400 hover:text-slate-600">
+              <button onClick={() => setIsFormOpen(false)} className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             <form onSubmit={handleSubmitForm} className="space-y-3 text-xs sm:text-sm">
               <div>
-                <label className="block font-bold text-slate-700 mb-1">اسم التاجر أو المحل *</label>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">اسم التاجر أو المحل *</label>
                 <input
                   type="text"
                   required
-                  placeholder=""
+                  placeholder="مثال: ألعاب النور"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-500"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500 text-xs"
                 />
               </div>
 
               <div>
-                <label className="block font-bold text-slate-700 mb-1">رقم الهاتف / الواتساب</label>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">رقم الهاتف / الواتساب</label>
                 <input
                   type="tel"
                   dir="ltr"
-                  placeholder=""
+                  placeholder="01xxxxxxxxx"
                   value={formData.phone}
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-500 text-right"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500 text-right text-xs"
                 />
               </div>
 
               <div>
-                <label className="block font-bold text-slate-700 mb-1">العنوان أو المنطقة</label>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">العنوان أو المنطقة</label>
                 <input
                   type="text"
-                  placeholder=""
+                  placeholder="المدينة أو المنطقة..."
                   value={formData.address}
                   onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-500"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500 text-xs"
                 />
               </div>
 
               <div>
-                <label className="block font-bold text-slate-700 mb-1">ملاحظات (شروط، مواعيد دفع...)</label>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">ملاحظات (شروط، مواعيد دفع...)</label>
                 <textarea
                   rows={2}
-                  placeholder=""
+                  placeholder="أي ملاحظات تخص التاجر..."
                   value={formData.notes}
                   onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-500"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500 text-xs"
                 />
               </div>
 
-              <div className="pt-3 border-t border-slate-100 grid grid-cols-2 gap-2">
+              <div className="pt-3 border-t border-slate-100 dark:border-slate-800 grid grid-cols-2 gap-2">
                 <button
                   type="button"
                   onClick={() => setIsFormOpen(false)}
-                  className="py-2.5 rounded-xl bg-slate-100 text-slate-700 font-bold text-xs"
+                  className="py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs"
                 >
                   إلغاء
                 </button>
                 <button
                   type="submit"
-                  className="py-2.5 rounded-xl bg-emerald-600 text-white font-bold text-xs shadow-xs"
+                  className="py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs"
                 >
                   {editingMerchant ? 'حفظ التعديلات' : 'إضافة التاجر'}
                 </button>
@@ -518,20 +518,20 @@ export const MerchantsView: React.FC<MerchantsViewProps> = ({
       {/* Detailed Merchant Statement Modal */}
       {activeMerchant && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="bg-white rounded-t-3xl sm:rounded-3xl max-w-lg w-full p-4 shadow-2xl border border-slate-200 max-h-[92vh] flex flex-col justify-between overflow-hidden">
+          <div className="bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-3xl max-w-lg w-full p-4 shadow-2xl border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white max-h-[92vh] flex flex-col justify-between overflow-hidden">
             
             {/* Header */}
             <div>
-              <div className="flex items-center justify-between pb-2.5 border-b border-slate-100 mb-2">
+              <div className="flex items-center justify-between pb-2.5 border-b border-slate-100 dark:border-slate-800 mb-2">
                 <div className="min-w-0 pr-1">
-                  <h3 className="font-bold text-sm sm:text-base text-slate-900 truncate">كشف حساب: {activeMerchant.name}</h3>
-                  <p className="text-[11px] text-slate-500">حركة الفواتير والدفعات والرصيد التراكمي</p>
+                  <h3 className="font-bold text-sm sm:text-base text-slate-900 dark:text-white truncate">كشف حساب: {activeMerchant.name}</h3>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">حركة الفواتير والدفعات والرصيد التراكمي</p>
                 </div>
 
                 <div className="flex items-center gap-1 shrink-0">
                   <button
                     onClick={handleShareWhatsApp}
-                    className="p-1.5 rounded-lg bg-emerald-50 text-emerald-700 text-xs font-bold flex items-center gap-1"
+                    className="p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 text-xs font-bold flex items-center gap-1"
                     title="مشاركة عبر واتساب"
                   >
                     <Share2 className="w-3.5 h-3.5" />
@@ -539,7 +539,7 @@ export const MerchantsView: React.FC<MerchantsViewProps> = ({
                   </button>
                   <button
                     onClick={() => setActiveMerchantId(null)}
-                    className="p-1 text-slate-400 hover:text-slate-600 rounded-lg"
+                    className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-lg"
                   >
                     <X className="w-5 h-5" />
                   </button>
@@ -547,22 +547,22 @@ export const MerchantsView: React.FC<MerchantsViewProps> = ({
               </div>
 
               {/* Financial Balance Strip */}
-              <div className="grid grid-cols-3 gap-1.5 p-2 bg-slate-50 rounded-xl border border-slate-200/80 mb-2 text-center text-xs">
+              <div className="grid grid-cols-3 gap-1.5 p-2 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200/80 dark:border-slate-700/80 mb-2 text-center text-xs">
                 <div>
-                  <span className="text-[10px] text-slate-500 block">المسحوبات</span>
-                  <span className="font-bold font-mono-num text-slate-800">
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400 block">المسحوبات</span>
+                  <span className="font-bold font-mono-num text-slate-800 dark:text-slate-200">
                     {formatCurrency(merchantBalances[activeMerchant.id]?.totalInvoicedAllTime || 0, currency)}
                   </span>
                 </div>
                 <div>
-                  <span className="text-[10px] text-slate-500 block">المسدد</span>
-                  <span className="font-bold font-mono-num text-teal-700">
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400 block">المسدد</span>
+                  <span className="font-bold font-mono-num text-teal-700 dark:text-teal-400">
                     {formatCurrency(merchantBalances[activeMerchant.id]?.totalPaidAllTime || 0, currency)}
                   </span>
                 </div>
                 <div>
-                  <span className="text-[10px] text-rose-600 font-bold block">صافي الدين</span>
-                  <span className="font-black font-mono-num text-rose-600">
+                  <span className="text-[10px] text-rose-600 dark:text-rose-400 font-bold block">صافي الدين</span>
+                  <span className="font-black font-mono-num text-rose-600 dark:text-rose-400">
                     {formatCurrency(merchantBalances[activeMerchant.id]?.currentDebt || 0, currency)}
                   </span>
                 </div>
@@ -572,7 +572,7 @@ export const MerchantsView: React.FC<MerchantsViewProps> = ({
             {/* Scrollable Transaction History with INLINE DELETION option */}
             <div className="flex-1 overflow-y-auto space-y-2 py-2 pr-1">
               {activeMerchantTransactions.length === 0 ? (
-                <div className="text-center py-10 text-xs text-slate-400">
+                <div className="text-center py-10 text-xs text-slate-400 dark:text-slate-500">
                   لا توجد حركات مسجلة لهذا التاجر بعد
                 </div>
               ) : (
@@ -582,27 +582,31 @@ export const MerchantsView: React.FC<MerchantsViewProps> = ({
                     <div
                       key={tx.id + idx}
                       className={`p-2.5 rounded-xl border text-xs flex items-center justify-between gap-2 ${
-                        isInv ? 'bg-blue-50/40 border-blue-200/80' : 'bg-emerald-50/50 border-emerald-200/80'
+                        isInv 
+                          ? 'bg-blue-50/40 dark:bg-blue-950/30 border-blue-200/80 dark:border-blue-800/60' 
+                          : 'bg-emerald-50/50 dark:bg-emerald-950/30 border-emerald-200/80 dark:border-emerald-800/60'
                       }`}
                     >
                       <div className="min-w-0 flex-1">
-                        <div className="font-bold text-slate-800 flex items-center gap-1.5">
+                        <div className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
                           <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded ${
-                            isInv ? 'bg-blue-100 text-blue-800' : 'bg-emerald-100 text-emerald-800'
+                            isInv 
+                              ? 'bg-blue-100 dark:bg-blue-900/60 text-blue-800 dark:text-blue-300' 
+                              : 'bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300'
                           }`}>
                             {isInv ? 'فاتورة' : 'سند قبض'}
                           </span>
-                          <span className={isInv ? 'text-blue-700 font-bold' : 'text-emerald-700 font-bold'}>{tx.title}</span>
-                          <span className="text-[10px] text-slate-400 font-normal">({formatDateArabic(tx.date)})</span>
+                          <span className={isInv ? 'text-blue-700 dark:text-blue-400 font-bold' : 'text-emerald-700 dark:text-emerald-400 font-bold'}>{tx.title}</span>
+                          <span className="text-[10px] text-slate-400 dark:text-slate-500 font-normal">({formatDateArabic(tx.date)})</span>
                         </div>
-                        {tx.notes && <p className="text-[10px] text-slate-500 truncate mt-0.5">{tx.notes}</p>}
+                        {tx.notes && <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate mt-0.5">{tx.notes}</p>}
                       </div>
 
                       <div className="text-left shrink-0 pl-1">
-                        <div className={`font-mono-num font-black ${isInv ? 'text-blue-700' : 'text-emerald-600'}`}>
+                        <div className={`font-mono-num font-black ${isInv ? 'text-blue-700 dark:text-blue-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
                           {isInv ? `+${formatCurrency(tx.debit, currency)}` : `-${formatCurrency(tx.credit, currency)}`}
                         </div>
-                        <div className="text-[10px] text-slate-400">
+                        <div className="text-[10px] text-slate-400 dark:text-slate-500">
                           الرصيد: {formatCurrency(tx.balanceAfter, currency)}
                         </div>
                       </div>
@@ -611,7 +615,7 @@ export const MerchantsView: React.FC<MerchantsViewProps> = ({
                       <button
                         onClick={() => triggerDeleteStatementItem(tx)}
                         title="حذف هذه المعاملة وتحديث الرصيد"
-                        className="p-1 text-slate-300 hover:text-rose-600 rounded-lg shrink-0"
+                        className="p-1 text-slate-300 dark:text-slate-600 hover:text-rose-600 dark:hover:text-rose-400 rounded-lg shrink-0"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -622,7 +626,7 @@ export const MerchantsView: React.FC<MerchantsViewProps> = ({
             </div>
 
             {/* Footer */}
-            <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
+            <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
               <button
                 onClick={() => {
                   if (onOpenNewInvoiceWithMerchant) onOpenNewInvoiceWithMerchant(activeMerchant.id);

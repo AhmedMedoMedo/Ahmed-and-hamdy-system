@@ -482,10 +482,10 @@ export const InvoicesView: React.FC<InvoicesViewProps> = ({
         })}
 
         {filteredInvoices.length === 0 && (
-          <div className="py-12 text-center bg-white rounded-2xl border border-dashed border-slate-200 p-6">
-            <FileText className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-            <h4 className="font-bold text-slate-700 text-sm">لا توجد فواتير في هذا العرض</h4>
-            <p className="text-xs text-slate-500 mt-1">اضغط على زر "إصدار فاتورة" لتسجيل عملية بيع جديدة للتاجر.</p>
+          <div className="py-12 text-center bg-white dark:bg-slate-900 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 p-6">
+            <FileText className="w-8 h-8 text-slate-300 dark:text-slate-600 mx-auto mb-2" />
+            <h4 className="font-bold text-slate-700 dark:text-slate-200 text-sm">لا توجد فواتير في هذا العرض</h4>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">اضغط على زر "إصدار فاتورة" لتسجيل عملية بيع جديدة للتاجر.</p>
           </div>
         )}
       </div>
@@ -493,22 +493,22 @@ export const InvoicesView: React.FC<InvoicesViewProps> = ({
       {/* Create / Edit Invoice Modal (Bottom Sheet on Mobile) */}
       {isFormOpen && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="bg-white rounded-t-3xl sm:rounded-3xl max-w-lg w-full p-4 sm:p-5 shadow-2xl border border-slate-200 max-h-[95vh] flex flex-col justify-between overflow-hidden">
+          <div className="bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-3xl max-w-lg w-full p-4 sm:p-5 shadow-2xl border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white max-h-[95vh] flex flex-col justify-between overflow-hidden">
             
             {/* Header */}
-            <div className="flex items-center justify-between pb-2.5 border-b border-slate-100 mb-2 shrink-0">
-              <h3 className="font-bold text-base text-slate-900 flex items-center gap-2">
-                <FileText className="w-5 h-5 text-emerald-600" />
+            <div className="flex items-center justify-between pb-2.5 border-b border-slate-100 dark:border-slate-800 mb-2 shrink-0">
+              <h3 className="font-bold text-base text-slate-900 dark:text-white flex items-center gap-2">
+                <FileText className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
                 <span>{editingInvoice ? 'تعديل فاتورة البيع' : 'إصدار فاتورة بيع جديدة'}</span>
               </h3>
-              <button onClick={handleCloseForm} className="p-1 text-slate-400 hover:text-slate-600">
+              <button onClick={handleCloseForm} className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             {/* Error Message if any */}
             {formError && (
-              <div className="p-2 mb-2 bg-rose-50 text-rose-700 border border-rose-200 rounded-xl text-xs flex items-center gap-1.5 font-bold">
+              <div className="p-2 mb-2 bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-900/60 rounded-xl text-xs flex items-center gap-1.5 font-bold">
                 <AlertCircle className="w-4 h-4 shrink-0" />
                 <span>{formError}</span>
               </div>
@@ -542,35 +542,35 @@ export const InvoicesView: React.FC<InvoicesViewProps> = ({
 
                 {/* Inline Quick Add Merchant */}
                 {isQuickAddMerchantOpen && (
-                  <div className="mt-2 p-3 bg-emerald-50/50 border border-emerald-200 rounded-xl space-y-2">
-                    <span className="font-bold text-xs text-emerald-900 block">إضافة تاجر جديد فوراً:</span>
+                  <div className="mt-2 p-3 bg-emerald-50/50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 rounded-xl space-y-2">
+                    <span className="font-bold text-xs text-emerald-900 dark:text-emerald-200 block">إضافة تاجر جديد فوراً:</span>
                     <input
                       type="text"
-                      placeholder=""
+                      placeholder="اسم التاجر الجديد"
                       value={quickMerchantName}
                       onChange={(e) => setQuickMerchantName(e.target.value)}
-                      className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-xs"
+                      className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-xs"
                     />
                     <input
                       type="tel"
                       dir="ltr"
-                      placeholder=""
+                      placeholder="رقم الهاتف أو الواتساب"
                       value={quickMerchantPhone}
                       onChange={(e) => setQuickMerchantPhone(e.target.value)}
-                      className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-xs text-right"
+                      className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-xs text-right"
                     />
                     <div className="flex justify-end gap-1.5">
                       <button
                         type="button"
                         onClick={() => setIsQuickAddMerchantOpen(false)}
-                        className="px-2 py-1 text-xs text-slate-500"
+                        className="px-2 py-1 text-xs text-slate-500 dark:text-slate-400"
                       >
                         إلغاء
                       </button>
                       <button
                         type="button"
                         onClick={handleQuickAddMerchant}
-                        className="px-3 py-1 bg-emerald-600 text-white rounded-lg text-xs font-bold"
+                        className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold"
                       >
                         حفظ واختيار
                       </button>
@@ -581,24 +581,24 @@ export const InvoicesView: React.FC<InvoicesViewProps> = ({
 
               {/* Invoice Date */}
               <div>
-                <label className="block font-bold text-slate-700 mb-1">تاريخ الفاتورة *</label>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">تاريخ الفاتورة *</label>
                 <input
                   type="date"
                   required
                   value={invoiceDate}
                   onChange={(e) => setInvoiceDate(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-500 font-mono-num"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500 font-mono-num"
                 />
               </div>
 
               {/* Items List */}
-              <div className="space-y-2 pt-1 border-t border-slate-100">
+              <div className="space-y-2 pt-1 border-t border-slate-100 dark:border-slate-800">
                 <div className="flex items-center justify-between">
-                  <span className="font-bold text-slate-800 text-xs">الأصناف والمنتجات المباعة:</span>
+                  <span className="font-bold text-slate-800 dark:text-slate-200 text-xs">الأصناف والمنتجات المباعة:</span>
                   <button
                     type="button"
                     onClick={handleAddItem}
-                    className="text-[11px] text-emerald-700 font-bold bg-emerald-50 px-2.5 py-1 rounded-lg flex items-center gap-1"
+                    className="text-[11px] text-emerald-700 dark:text-emerald-400 font-bold bg-emerald-50 dark:bg-emerald-950/60 px-2.5 py-1 rounded-lg flex items-center gap-1"
                   >
                     <PlusCircle className="w-3.5 h-3.5" />
                     <span>إضافة صنف</span>
@@ -609,7 +609,7 @@ export const InvoicesView: React.FC<InvoicesViewProps> = ({
                   {items.map((item, idx) => (
                     <div
                       key={item.id}
-                      className="p-2.5 bg-slate-50 rounded-xl border border-slate-200/80 space-y-2"
+                      className="p-2.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200/80 dark:border-slate-700/80 space-y-2"
                     >
                       {/* Product Selector with Instant 1-Letter Search / Custom Name */}
                       <div>
@@ -631,7 +631,7 @@ export const InvoicesView: React.FC<InvoicesViewProps> = ({
                             />
                             <input
                               type="text"
-                              placeholder=""
+                              placeholder="أو اكتب اسم مخصص للصنف"
                               value={item.productName}
                               onChange={(e) => handleItemChange(idx, 'productName', e.target.value)}
                               className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-xs"
@@ -644,19 +644,19 @@ export const InvoicesView: React.FC<InvoicesViewProps> = ({
                             placeholder="اسم المنتج المباع للتاجر"
                             value={item.productName}
                             onChange={(e) => handleItemChange(idx, 'productName', e.target.value)}
-                            className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-xs"
+                            className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-xs"
                           />
                         )}
                       </div>
 
                       {/* Quantity & Unit Price & Row Total with big touch buttons */}
-                      <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-200/60">
+                      <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-200/60 dark:border-slate-700">
                         {/* Quantity with +/- */}
-                        <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-slate-200">
+                        <div className="flex items-center gap-1 bg-white dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-700">
                           <button
                             type="button"
                             onClick={() => adjustQty(idx, -1)}
-                            className="w-6 h-6 rounded-lg bg-slate-100 flex items-center justify-center text-slate-700 active:scale-95"
+                            className="w-6 h-6 rounded-lg bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-700 dark:text-slate-200 active:scale-95"
                           >
                             <Minus className="w-3 h-3" />
                           </button>
@@ -666,12 +666,12 @@ export const InvoicesView: React.FC<InvoicesViewProps> = ({
                             min="0.1"
                             value={item.quantity}
                             onChange={(e) => handleItemChange(idx, 'quantity', e.target.value)}
-                            className="w-12 text-center font-mono-num font-bold text-xs focus:outline-none"
+                            className="w-12 text-center font-mono-num font-bold text-xs bg-transparent text-slate-900 dark:text-white focus:outline-none"
                           />
                           <button
                             type="button"
                             onClick={() => adjustQty(idx, 1)}
-                            className="w-6 h-6 rounded-lg bg-slate-100 flex items-center justify-center text-slate-700 active:scale-95"
+                            className="w-6 h-6 rounded-lg bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-700 dark:text-slate-200 active:scale-95"
                           >
                             <Plus className="w-3 h-3" />
                           </button>
@@ -683,15 +683,15 @@ export const InvoicesView: React.FC<InvoicesViewProps> = ({
                             type="number"
                             step="any"
                             min="0"
-                            placeholder=""
+                            placeholder="السعر"
                             value={item.unitPrice === 0 ? '' : item.unitPrice}
                             onChange={(e) => handleItemChange(idx, 'unitPrice', e.target.value)}
-                            className="w-full px-2 py-1.5 rounded-xl border border-slate-200 bg-white font-mono-num text-center text-xs"
+                            className="w-full px-2 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-mono-num text-center text-xs"
                           />
                         </div>
 
                         {/* Total Row */}
-                        <div className="font-mono-num font-bold text-slate-900 text-xs">
+                        <div className="font-mono-num font-bold text-slate-900 dark:text-white text-xs">
                           {formatCurrency(item.total, currency)}
                         </div>
 
@@ -711,19 +711,19 @@ export const InvoicesView: React.FC<InvoicesViewProps> = ({
               </div>
 
               {/* Discount Section */}
-              <div className="p-3 bg-amber-50/70 rounded-xl border border-amber-200 space-y-2">
+              <div className="p-3 bg-amber-50/70 dark:bg-amber-950/30 rounded-xl border border-amber-200 dark:border-amber-900/60 space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="font-bold text-amber-900 text-xs flex items-center gap-1">
-                    <Percent className="w-3.5 h-3.5 text-amber-600" />
+                  <span className="font-bold text-amber-900 dark:text-amber-300 text-xs flex items-center gap-1">
+                    <Percent className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
                     <span>خصم للتاجر (اختياري):</span>
                   </span>
 
-                  <div className="flex items-center gap-1 bg-white p-0.5 rounded-lg border border-amber-200 text-xs">
+                  <div className="flex items-center gap-1 bg-white dark:bg-slate-800 p-0.5 rounded-lg border border-amber-200 dark:border-amber-800 text-xs">
                     <button
                       type="button"
                       onClick={() => setDiscountType('amount')}
                       className={`px-2 py-0.5 rounded font-bold ${
-                        discountType === 'amount' ? 'bg-amber-600 text-white' : 'text-slate-600'
+                        discountType === 'amount' ? 'bg-amber-600 text-white' : 'text-slate-600 dark:text-slate-400'
                       }`}
                     >
                       مبلغ ({currency})
@@ -732,7 +732,7 @@ export const InvoicesView: React.FC<InvoicesViewProps> = ({
                       type="button"
                       onClick={() => setDiscountType('percentage')}
                       className={`px-2 py-0.5 rounded font-bold ${
-                        discountType === 'percentage' ? 'bg-amber-600 text-white' : 'text-slate-600'
+                        discountType === 'percentage' ? 'bg-amber-600 text-white' : 'text-slate-600 dark:text-slate-400'
                       }`}
                     >
                       نسبة %
@@ -745,13 +745,13 @@ export const InvoicesView: React.FC<InvoicesViewProps> = ({
                     type="number"
                     step="any"
                     min="0"
-                    placeholder=""
+                    placeholder="قيمة الخصم إن وجد"
                     value={discountValue === 0 ? '' : discountValue}
                     onChange={(e) => setDiscountValue(parseFloat(e.target.value) || 0)}
-                    className="w-full px-3 py-1.5 rounded-xl border border-amber-200 bg-white font-mono-num text-xs focus:outline-none"
+                    className="w-full px-3 py-1.5 rounded-xl border border-amber-200 dark:border-amber-800 bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-mono-num text-xs focus:outline-none"
                   />
                   {calculatedDiscount > 0 && (
-                    <span className="text-xs font-bold text-amber-800 shrink-0">
+                    <span className="text-xs font-bold text-amber-800 dark:text-amber-300 shrink-0">
                       -{formatCurrency(calculatedDiscount, currency)}
                     </span>
                   )}
@@ -759,15 +759,15 @@ export const InvoicesView: React.FC<InvoicesViewProps> = ({
               </div>
 
               {/* Cash Paid Upfront & Debt */}
-              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+              <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700 space-y-2">
                 <div className="flex items-center justify-between">
-                  <label className="font-bold text-slate-700 text-xs">
+                  <label className="font-bold text-slate-700 dark:text-slate-300 text-xs">
                     المدفوع نقداً فوراً عند الفاتورة:
                   </label>
                   <button
                     type="button"
                     onClick={() => setPaidAmount(netTotal)}
-                    className="text-[11px] text-emerald-600 font-bold hover:underline"
+                    className="text-[11px] text-emerald-600 dark:text-emerald-400 font-bold hover:underline"
                   >
                     سداد بالكامل نقداً
                   </button>
@@ -776,15 +776,15 @@ export const InvoicesView: React.FC<InvoicesViewProps> = ({
                   type="number"
                   step="any"
                   min="0"
-                  placeholder=""
+                  placeholder="المبلغ المدفوع فوراً"
                   value={paidAmount === 0 ? '' : paidAmount}
                   onChange={(e) => setPaidAmount(parseFloat(e.target.value) || 0)}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white font-mono-num text-emerald-700 font-bold text-sm"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-emerald-700 dark:text-emerald-400 font-mono-num font-bold text-sm"
                 />
 
-                <div className="flex items-center justify-between pt-1 border-t border-slate-200 text-xs">
-                  <span className="text-slate-600">المتبقي دين على التاجر:</span>
-                  <span className="font-black text-rose-600 font-mono-num text-sm">
+                <div className="flex items-center justify-between pt-1 border-t border-slate-200 dark:border-slate-700 text-xs">
+                  <span className="text-slate-600 dark:text-slate-400">المتبقي دين على التاجر:</span>
+                  <span className="font-black text-rose-600 dark:text-rose-400 font-mono-num text-sm">
                     {formatCurrency(remainingAmount, currency)}
                   </span>
                 </div>
@@ -792,23 +792,23 @@ export const InvoicesView: React.FC<InvoicesViewProps> = ({
 
               {/* Notes */}
               <div>
-                <label className="block font-bold text-slate-700 mb-1">ملاحظات على الفاتورة</label>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">ملاحظات على الفاتورة</label>
                 <input
                   type="text"
-                  placeholder=""
+                  placeholder="أي ملاحظات إضافية..."
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-500 text-xs"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500 text-xs"
                 />
               </div>
 
             </form>
 
             {/* Bottom Actions */}
-            <div className="pt-2.5 border-t border-slate-100 shrink-0">
+            <div className="pt-2.5 border-t border-slate-100 dark:border-slate-800 shrink-0">
               <div className="flex items-center justify-between text-xs mb-2">
-                <span className="text-slate-500">إجمالي الفاتورة الصافي:</span>
-                <span className="font-mono-num font-black text-emerald-700 text-base">
+                <span className="text-slate-500 dark:text-slate-400">إجمالي الفاتورة الصافي:</span>
+                <span className="font-mono-num font-black text-emerald-700 dark:text-emerald-400 text-base">
                   {formatCurrency(netTotal, currency)}
                 </span>
               </div>
@@ -817,14 +817,14 @@ export const InvoicesView: React.FC<InvoicesViewProps> = ({
                 <button
                   type="button"
                   onClick={handleCloseForm}
-                  className="py-2.5 rounded-xl bg-slate-100 text-slate-700 font-bold text-xs"
+                  className="py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs"
                 >
                   إلغاء
                 </button>
                 <button
                   type="submit"
                   form="mobile-invoice-form"
-                  className="py-2.5 rounded-xl bg-emerald-600 text-white font-bold text-xs shadow-xs"
+                  className="py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs"
                 >
                   {editingInvoice ? 'حفظ التعديل' : 'حفظ واعتماد الفاتورة'}
                 </button>

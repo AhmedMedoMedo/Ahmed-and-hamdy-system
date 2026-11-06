@@ -9,12 +9,11 @@ import {
   X, 
   Camera, 
   Download, 
-  Copy, 
   User, 
   Phone, 
   Loader2,
-  CheckCircle2,
-  Send
+  Send,
+  Sparkles
 } from 'lucide-react';
 
 interface PrintModalProps {
@@ -44,7 +43,6 @@ export const PrintModal: React.FC<PrintModalProps> = ({
     const m = merchants.find(item => item.id === targetId);
     return m?.phone || '';
   });
-  const [copiedText, setCopiedText] = useState(false);
 
   if (!invoice && !payment) return null;
 
@@ -211,10 +209,9 @@ ${paymentNewDebt > 0 ? `👉 *الباقي عليك للحساب:* ${formatCurre
     }
   };
 
-  // 2. Direct Web Share API (native WhatsApp image share on mobile)
+  // 2. Direct Web Share API (native WhatsApp image share on mobile - Photo Only without text)
   const handleNativeShareImage = async () => {
     if (!capturedBlob) return;
-    const text = getEgyptianMessageText();
     const docNumber = invoice ? invoice.invoiceNumber : (payment?.receiptNumber || '0742');
     const fileName = `فاتورة-${docNumber}.png`;
     const file = new File([capturedBlob], fileName, { type: 'image/png' });
@@ -224,9 +221,8 @@ ${paymentNewDebt > 0 ? `👉 *الباقي عليك للحساب:* ${formatCurre
         await navigator.share({
           files: [file],
           title: `فاتورة ${invoice?.merchantName || payment?.merchantName || ''}`,
-          text: text,
         });
-        showToast('تمت مشاركة الفاتورة بنجاح عبر الواتساب');
+        showToast('تمت مشاركة صورة الفاتورة بنجاح عبر الواتساب');
       } catch (err: unknown) {
         if (err instanceof Error && err.name !== 'AbortError') {
           console.error('Error sharing file', err);
@@ -239,9 +235,8 @@ ${paymentNewDebt > 0 ? `👉 *الباقي عليك للحساب:* ${formatCurre
     }
   };
 
-  // 3. Fallback: Copy image to clipboard, download PNG, and launch WhatsApp chat
+  // 3. Fallback: Copy image to clipboard, download PNG, and launch WhatsApp chat without text
   const handleFallbackWhatsAppChat = () => {
-    const text = getEgyptianMessageText();
     const cleanPhone = formatEgyptianPhoneForWhatsApp(customPhone);
 
     // Try to copy image to clipboard
@@ -258,10 +253,10 @@ ${paymentNewDebt > 0 ? `👉 *الباقي عليك للحساب:* ${formatCurre
     // Trigger image download to device gallery
     handleDownloadImage();
 
-    // Open WhatsApp
+    // Open WhatsApp directly without any text parameters
     const waUrl = cleanPhone 
-      ? `https://wa.me/${cleanPhone}?text=${encodeURIComponent(text)}`
-      : `https://wa.me/?text=${encodeURIComponent(text)}`;
+      ? `https://wa.me/${cleanPhone}`
+      : `https://wa.me/`;
 
     const a = document.createElement('a');
     a.href = waUrl;
@@ -284,18 +279,6 @@ ${paymentNewDebt > 0 ? `👉 *الباقي عليك للحساب:* ${formatCurre
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-  };
-
-  // 5. Copy Text Template
-  const handleCopyText = () => {
-    const text = getEgyptianMessageText();
-    if (navigator.clipboard) {
-      navigator.clipboard.writeText(text).then(() => {
-        setCopiedText(true);
-        setTimeout(() => setCopiedText(false), 2000);
-        showToast('تم نسخ بيانات الفاتورة النصية');
-      }).catch(() => {});
-    }
   };
 
   return (
@@ -811,15 +794,21 @@ ${paymentNewDebt > 0 ? `👉 *الباقي عليك للحساب:* ${formatCurre
                 </div>
               )}
 
+              {/* Note: Screenshot Only */}
+              <div className="p-2.5 bg-emerald-50/70 dark:bg-emerald-950/40 rounded-xl border border-emerald-200 dark:border-emerald-800 flex items-center gap-2 text-emerald-800 dark:text-emerald-300 font-bold text-[11px]">
+                <Sparkles className="w-4 h-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                <span>يتم إرسال سكرين شوت الفاتورة مباشرة كصورة نقية وعالية الجودة بدون أي نصوص ورسائل.</span>
+              </div>
+
               {/* Action Buttons */}
               <div className="space-y-2 pt-1">
-                {/* 1. Direct Share via Web Share */}
+                {/* 1. Direct Share via Web Share (Image only) */}
                 <button
                   onClick={handleNativeShareImage}
                   className="w-full py-2.5 px-4 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-xs transition-all active:scale-98"
                 >
                   <Send className="w-4 h-4" />
-                  <span>إرسال الصورة للواتساب مباشرة (مستحسن للهاتف) 📱</span>
+                  <span>مشاركة سكرين الفاتورة عبر الواتساب (صورة فقط) 📱</span>
                 </button>
 
                 {/* 2. Direct Chat with copy & download */}
@@ -828,36 +817,17 @@ ${paymentNewDebt > 0 ? `👉 *الباقي عليك للحساب:* ${formatCurre
                   className="w-full py-2.5 px-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 hover:bg-emerald-100 dark:hover:bg-emerald-900/80 text-emerald-800 dark:text-emerald-300 font-bold text-xs flex items-center justify-center gap-2 border border-emerald-200 dark:border-emerald-800 transition-colors"
                 >
                   <Share2 className="w-4 h-4" />
-                  <span>فتح شات الواتساب مع التاجر ولصق الصورة 💬</span>
+                  <span>فتح محادثة واتساب التاجر ولصق الصورة 💬</span>
                 </button>
 
-                {/* 3. Download & Copy Utility row */}
-                <div className="grid grid-cols-2 gap-2 pt-1">
-                  <button
-                    onClick={handleDownloadImage}
-                    className="py-2 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-[11px] flex items-center justify-center gap-1.5 transition-colors"
-                  >
-                    <Download className="w-3.5 h-3.5" />
-                    <span>حفظ الصورة بالأستوديو</span>
-                  </button>
-
-                  <button
-                    onClick={handleCopyText}
-                    className="py-2 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-[11px] flex items-center justify-center gap-1.5 transition-colors"
-                  >
-                    {copiedText ? (
-                      <>
-                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                        <span>تم نسخ النص!</span>
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="w-3.5 h-3.5" />
-                        <span>نسخ تقرير النص</span>
-                      </>
-                    )}
-                  </button>
-                </div>
+                {/* 3. Download Image button */}
+                <button
+                  onClick={handleDownloadImage}
+                  className="w-full py-2 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs flex items-center justify-center gap-1.5 transition-colors"
+                >
+                  <Download className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
+                  <span>حفظ صورة الفاتورة في المعرض / الأستوديو 📥</span>
+                </button>
               </div>
 
             </div>

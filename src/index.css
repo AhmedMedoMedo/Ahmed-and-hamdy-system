@@ -17,8 +17,22 @@
   color: #f8fafc;
 }
 
-.dark input, 
+input:not([type="checkbox"]):not([type="radio"]), 
+select, 
+textarea {
+  color: #0f172a;
+}
+
+.dark input:not([type="checkbox"]):not([type="radio"]), 
 .dark select, 
 .dark textarea {
   color-scheme: dark;
+  background-color: #1e293b;
+  color: #f8fafc;
+  border-color: #334155;
+}
+
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: #94a3b8;
 }

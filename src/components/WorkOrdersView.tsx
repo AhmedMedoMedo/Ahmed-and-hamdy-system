@@ -582,10 +582,10 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
         })}
 
         {filteredOrders.length === 0 && (
-          <div className="py-12 text-center bg-white rounded-2xl border border-dashed border-slate-200 p-6">
-            <Truck className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-            <h4 className="font-bold text-slate-700 text-sm">لا توجد طلبات شغل مسجلة</h4>
-            <p className="text-xs text-slate-500 mt-1">
+          <div className="py-12 text-center bg-white dark:bg-slate-900 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 p-6">
+            <Truck className="w-8 h-8 text-slate-300 dark:text-slate-600 mx-auto mb-2" />
+            <h4 className="font-bold text-slate-700 dark:text-slate-200 text-sm">لا توجد طلبات شغل مسجلة</h4>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
               سجل طلبات التجار لتحضيرها مسبقاً وتسليمها بضغطة زر واحدة.
             </p>
           </div>
@@ -595,20 +595,20 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
       {/* Create / Edit Work Order Modal */}
       {isFormOpen && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="bg-white rounded-t-3xl sm:rounded-3xl max-w-lg w-full p-4 sm:p-5 shadow-2xl border border-slate-200 max-h-[95vh] flex flex-col justify-between overflow-hidden">
+          <div className="bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-3xl max-w-lg w-full p-4 sm:p-5 shadow-2xl border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white max-h-[95vh] flex flex-col justify-between overflow-hidden">
             
-            <div className="flex items-center justify-between pb-2.5 border-b border-slate-100 mb-2 shrink-0">
-              <h3 className="font-bold text-base text-slate-900 flex items-center gap-2">
-                <Truck className="w-5 h-5 text-indigo-600" />
+            <div className="flex items-center justify-between pb-2.5 border-b border-slate-100 dark:border-slate-800 mb-2 shrink-0">
+              <h3 className="font-bold text-base text-slate-900 dark:text-white flex items-center gap-2">
+                <Truck className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
                 <span>{editingOrder ? 'تعديل طلب الشغل' : 'تسجيل طلب شغل جديد للتاجر'}</span>
               </h3>
-              <button onClick={handleCloseForm} className="p-1 text-slate-400 hover:text-slate-600">
+              <button onClick={handleCloseForm} className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             {formError && (
-              <div className="p-2 mb-2 bg-rose-50 text-rose-700 border border-rose-200 rounded-xl text-xs flex items-center gap-1.5 font-bold">
+              <div className="p-2 mb-2 bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-900/60 rounded-xl text-xs flex items-center gap-1.5 font-bold">
                 <AlertCircle className="w-4 h-4 shrink-0" />
                 <span>{formError}</span>
               </div>
@@ -641,28 +641,28 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
 
                 {/* Inline Quick Add Merchant */}
                 {isQuickAddMerchantOpen && (
-                  <div className="mt-2 p-3 bg-indigo-50/50 border border-indigo-200 rounded-xl space-y-2">
-                    <span className="font-bold text-xs text-indigo-900 block">إضافة تاجر جديد فوراً:</span>
+                  <div className="mt-2 p-3 bg-indigo-50/50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 rounded-xl space-y-2">
+                    <span className="font-bold text-xs text-indigo-900 dark:text-indigo-200 block">إضافة تاجر جديد فوراً:</span>
                     <input
                       type="text"
-                      placeholder=""
+                      placeholder="اسم التاجر الجديد"
                       value={quickMerchantName}
                       onChange={(e) => setQuickMerchantName(e.target.value)}
-                      className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-xs"
+                      className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-xs placeholder:text-slate-400"
                     />
                     <input
                       type="tel"
                       dir="ltr"
-                      placeholder=""
+                      placeholder="رقم الهاتف"
                       value={quickMerchantPhone}
                       onChange={(e) => setQuickMerchantPhone(e.target.value)}
-                      className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-xs text-right"
+                      className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-xs text-right placeholder:text-slate-400"
                     />
                     <div className="flex justify-end gap-1.5">
                       <button
                         type="button"
                         onClick={() => setIsQuickAddMerchantOpen(false)}
-                        className="px-2 py-1 text-xs text-slate-500"
+                        className="px-2 py-1 text-xs text-slate-500 dark:text-slate-400"
                       >
                         إلغاء
                       </button>
@@ -680,24 +680,24 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
 
               {/* Date */}
               <div>
-                <label className="block font-bold text-slate-700 mb-1">تاريخ الطلب *</label>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">تاريخ الطلب *</label>
                 <input
                   type="date"
                   required
                   value={orderDate}
                   onChange={(e) => setOrderDate(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:border-indigo-500 font-mono-num"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 font-mono-num"
                 />
               </div>
 
               {/* Order Items */}
-              <div className="space-y-2 pt-1 border-t border-slate-100">
+              <div className="space-y-2 pt-1 border-t border-slate-100 dark:border-slate-800">
                 <div className="flex items-center justify-between">
-                  <span className="font-bold text-slate-800 text-xs">الأصناف والكميات المطلوبة:</span>
+                  <span className="font-bold text-slate-800 dark:text-slate-200 text-xs">الأصناف والكميات المطلوبة:</span>
                   <button
                     type="button"
                     onClick={handleAddItem}
-                    className="text-[11px] text-indigo-700 font-bold bg-indigo-50 px-2.5 py-1 rounded-lg flex items-center gap-1"
+                    className="text-[11px] text-indigo-700 dark:text-indigo-400 font-bold bg-indigo-50 dark:bg-indigo-950/60 px-2.5 py-1 rounded-lg flex items-center gap-1"
                   >
                     <PlusCircle className="w-3.5 h-3.5" />
                     <span>إضافة صنف للطلب</span>
@@ -708,7 +708,7 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
                   {items.map((item, idx) => (
                     <div
                       key={item.id}
-                      className="p-2.5 bg-slate-50 rounded-xl border border-slate-200/80 space-y-2"
+                      className="p-2.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200/80 dark:border-slate-700/80 space-y-2"
                     >
                       {/* Product Selector with Instant 1-Letter Search / Name */}
                       <div>
@@ -743,18 +743,18 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
                             placeholder="اسم المنتج المطلوب"
                             value={item.productName}
                             onChange={(e) => handleItemChange(idx, 'productName', e.target.value)}
-                            className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-xs"
+                            className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-xs"
                           />
                         )}
                       </div>
 
                       {/* Quantity Ordered + Unit Price */}
-                      <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-200/60">
-                        <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-slate-200">
+                      <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-200/60 dark:border-slate-700/60">
+                        <div className="flex items-center gap-1 bg-white dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-700">
                           <button
                             type="button"
                             onClick={() => adjustQty(idx, -1)}
-                            className="w-6 h-6 rounded-lg bg-slate-100 flex items-center justify-center text-slate-700 active:scale-95"
+                            className="w-6 h-6 rounded-lg bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-700 dark:text-slate-200 active:scale-95"
                           >
                             <Minus className="w-3 h-3" />
                           </button>
@@ -764,12 +764,12 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
                             min="0.1"
                             value={item.quantityOrdered}
                             onChange={(e) => handleItemChange(idx, 'quantityOrdered', e.target.value)}
-                            className="w-12 text-center font-mono-num font-bold text-xs focus:outline-none"
+                            className="w-12 text-center font-mono-num font-bold text-xs bg-transparent text-slate-900 dark:text-white focus:outline-none"
                           />
                           <button
                             type="button"
                             onClick={() => adjustQty(idx, 1)}
-                            className="w-6 h-6 rounded-lg bg-slate-100 flex items-center justify-center text-slate-700 active:scale-95"
+                            className="w-6 h-6 rounded-lg bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-700 dark:text-slate-200 active:scale-95"
                           >
                             <Plus className="w-3 h-3" />
                           </button>
@@ -783,11 +783,11 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
                             placeholder=""
                             value={item.unitPrice === 0 ? '' : item.unitPrice}
                             onChange={(e) => handleItemChange(idx, 'unitPrice', e.target.value)}
-                            className="w-full px-2 py-1.5 rounded-xl border border-slate-200 bg-white font-mono-num text-center text-xs"
+                            className="w-full px-2 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-mono-num text-center text-xs"
                           />
                         </div>
 
-                        <div className="font-mono-num font-bold text-slate-900 text-xs">
+                        <div className="font-mono-num font-bold text-slate-900 dark:text-white text-xs">
                           {formatCurrency(item.quantityOrdered * item.unitPrice, currency)}
                         </div>
 
@@ -807,24 +807,24 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
 
               {/* Notes */}
               <div>
-                <label className="block font-bold text-slate-700 mb-1">ملاحظات على الطلب أو مواعيد التسليم</label>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">ملاحظات على الطلب أو مواعيد التسليم</label>
                 <input
                   type="text"
                   placeholder=""
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:border-indigo-500 text-xs"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 text-xs"
                 />
               </div>
 
             </form>
 
-            <div className="pt-2.5 border-t border-slate-100 shrink-0">
+            <div className="pt-2.5 border-t border-slate-100 dark:border-slate-800 shrink-0">
               <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
                   onClick={handleCloseForm}
-                  className="py-2.5 rounded-xl bg-slate-100 text-slate-700 font-bold text-xs"
+                  className="py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs"
                 >
                   إلغاء
                 </button>
@@ -845,25 +845,25 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
       {/* Delivery Confirmation & Partial Batch Modal */}
       {deliveryModalOrder && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="bg-white rounded-t-3xl sm:rounded-3xl max-w-lg w-full p-4 sm:p-5 shadow-2xl border border-slate-200 max-h-[95vh] flex flex-col justify-between overflow-hidden">
+          <div className="bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-3xl max-w-lg w-full p-4 sm:p-5 shadow-2xl border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white max-h-[95vh] flex flex-col justify-between overflow-hidden">
             
-            <div className="flex items-center justify-between pb-2.5 border-b border-slate-100 mb-2 shrink-0">
+            <div className="flex items-center justify-between pb-2.5 border-b border-slate-100 dark:border-slate-800 mb-2 shrink-0">
               <div className="min-w-0 pr-1">
-                <h3 className="font-bold text-base text-slate-900 flex items-center gap-1.5 truncate">
-                  <PackageCheck className="w-5 h-5 text-emerald-600" />
+                <h3 className="font-bold text-base text-slate-900 dark:text-white flex items-center gap-1.5 truncate">
+                  <PackageCheck className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
                   <span>تسليم طلب الشغل: {deliveryModalOrder.merchantName}</span>
                 </h3>
-                <p className="text-[11px] text-slate-500">
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">
                   حدد ما تم تسليمه فعلياً، واشترط هل هو دين على الحساب أم مدفوع كاش فوري.
                 </p>
               </div>
-              <button onClick={() => setDeliveryModalOrder(null)} className="p-1 text-slate-400 hover:text-slate-600">
+              <button onClick={() => setDeliveryModalOrder(null)} className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             {deliveryError && (
-              <div className="p-2 mb-2 bg-rose-50 text-rose-700 border border-rose-200 rounded-xl text-xs flex items-center gap-1.5 font-bold">
+              <div className="p-2 mb-2 bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-900/60 rounded-xl text-xs flex items-center gap-1.5 font-bold">
                 <AlertCircle className="w-4 h-4 shrink-0" />
                 <span>{deliveryError}</span>
               </div>
@@ -873,7 +873,7 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
               
               {/* Items Delivery List (User specifies what was delivered now) */}
               <div className="space-y-2">
-                <div className="font-bold text-slate-800">
+                <div className="font-bold text-slate-800 dark:text-slate-200">
                   الكمية المسلمة للتاجر في هذه الدفعة:
                 </div>
 
@@ -882,22 +882,22 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
                   const currentVal = deliveryInputs[it.id] ?? maxAllowed;
 
                   return (
-                    <div key={it.id} className="p-2.5 bg-slate-50 rounded-xl border border-slate-200/80 space-y-1.5">
+                    <div key={it.id} className="p-2.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200/80 dark:border-slate-700 space-y-1.5">
                       <div className="flex items-center justify-between">
-                        <span className="font-bold text-slate-900">{it.productName}</span>
-                        <span className="font-mono-num font-semibold text-slate-500">
+                        <span className="font-bold text-slate-900 dark:text-white">{it.productName}</span>
+                        <span className="font-mono-num font-semibold text-slate-500 dark:text-slate-400">
                           {formatCurrency(it.unitPrice, currency)} / للوحدة
                         </span>
                       </div>
 
-                      <div className="flex items-center justify-between gap-2 text-[11px] text-slate-500">
-                        <span>المتبقي للتسليم: <b className="text-slate-800 font-mono-num">{maxAllowed}</b></span>
-                        <span>تم تسليمه سابقاً: <b className="text-teal-700 font-mono-num">{it.quantityDelivered}</b></span>
+                      <div className="flex items-center justify-between gap-2 text-[11px] text-slate-500 dark:text-slate-400">
+                        <span>المتبقي للتسليم: <b className="text-slate-800 dark:text-slate-200 font-mono-num">{maxAllowed}</b></span>
+                        <span>تم تسليمه سابقاً: <b className="text-teal-700 dark:text-teal-400 font-mono-num">{it.quantityDelivered}</b></span>
                       </div>
 
                       {/* Quantity Input for this delivery batch */}
-                      <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-200/60">
-                        <span className="font-bold text-indigo-900">المسلّم الآن:</span>
+                      <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-200/60 dark:border-slate-700">
+                        <span className="font-bold text-indigo-900 dark:text-indigo-300">المسلّم الآن:</span>
 
                         <div className="flex items-center gap-1.5">
                           <input
@@ -913,19 +913,19 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
                                 [it.id]: Math.min(Math.max(0, v), maxAllowed),
                               }));
                             }}
-                            className="w-16 px-2 py-1 rounded-lg border border-indigo-300 bg-white font-mono-num text-center font-bold text-indigo-700 focus:outline-none"
+                            className="w-16 px-2 py-1 rounded-lg border border-indigo-300 dark:border-indigo-600 bg-white dark:bg-slate-800 font-mono-num text-center font-bold text-indigo-700 dark:text-indigo-300 focus:outline-none"
                           />
 
                           <button
                             type="button"
                             onClick={() => setDeliveryInputs(prev => ({ ...prev, [it.id]: maxAllowed }))}
-                            className="px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold rounded-lg text-[10px]"
+                            className="px-2 py-1 bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 font-bold rounded-lg text-[10px]"
                           >
                             تسليم الكل
                           </button>
                         </div>
 
-                        <div className="font-mono-num font-bold text-slate-900">
+                        <div className="font-mono-num font-bold text-slate-900 dark:text-white">
                           {formatCurrency(currentVal * it.unitPrice, currency)}
                         </div>
                       </div>
@@ -935,16 +935,16 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
               </div>
 
               {/* Total of Delivered Batch */}
-              <div className="p-2.5 bg-indigo-50 border border-indigo-200 rounded-xl flex items-center justify-between font-mono-num">
-                <span className="text-indigo-900 font-bold text-xs">إجمالي قيمة التسليم الحالي:</span>
-                <span className="text-base font-black text-indigo-700">
+              <div className="p-2.5 bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 rounded-xl flex items-center justify-between font-mono-num">
+                <span className="text-indigo-900 dark:text-indigo-200 font-bold text-xs">إجمالي قيمة التسليم الحالي:</span>
+                <span className="text-base font-black text-indigo-700 dark:text-indigo-300">
                   {formatCurrency(currentBatchTotal, currency)}
                 </span>
               </div>
 
               {/* Payment Type Selection (Crucial user requirement: دين أم مدفوع) */}
-              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
-                <label className="font-bold text-slate-800 block text-xs">
+              <div className="p-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl space-y-2">
+                <label className="font-bold text-slate-800 dark:text-slate-200 block text-xs">
                   حالة حساب ما تم تسليمه (دين أم مدفوع؟) *
                 </label>
 
@@ -955,7 +955,7 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
                     className={`p-2 rounded-xl border text-center font-bold transition-all ${
                       deliveryPaymentType === 'debt'
                         ? 'bg-rose-600 text-white border-rose-600 shadow-2xs'
-                        : 'bg-white text-slate-700 border-slate-200'
+                        : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
                     }`}
                   >
                     دين على الحساب
@@ -967,7 +967,7 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
                     className={`p-2 rounded-xl border text-center font-bold transition-all ${
                       deliveryPaymentType === 'paid_full'
                         ? 'bg-emerald-600 text-white border-emerald-600 shadow-2xs'
-                        : 'bg-white text-slate-700 border-slate-200'
+                        : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
                     }`}
                   >
                     مدفوع كاش فوري
@@ -979,7 +979,7 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
                     className={`p-2 rounded-xl border text-center font-bold transition-all ${
                       deliveryPaymentType === 'paid_partial'
                         ? 'bg-teal-600 text-white border-teal-600 shadow-2xs'
-                        : 'bg-white text-slate-700 border-slate-200'
+                        : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
                     }`}
                   >
                     جزء كاش والباقي دين
@@ -987,20 +987,20 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
                 </div>
 
                 {deliveryPaymentType === 'debt' && (
-                  <p className="text-[11px] text-rose-700 font-medium">
+                  <p className="text-[11px] text-rose-700 dark:text-rose-400 font-medium">
                     • سيتم إصدار فاتورة بيع بالمبلغ ({formatCurrency(currentBatchTotal, currency)}) وإضافتها كدين مستحق على التاجر.
                   </p>
                 )}
 
                 {deliveryPaymentType === 'paid_full' && (
-                  <p className="text-[11px] text-emerald-700 font-medium">
+                  <p className="text-[11px] text-emerald-700 dark:text-emerald-400 font-medium">
                     • سيتم إصدار فاتورة بيع وتسجيل استلام المبلغ نقداً ({formatCurrency(currentBatchTotal, currency)}) كإيراد دون زيادة دين.
                   </p>
                 )}
 
                 {deliveryPaymentType === 'paid_partial' && (
                   <div className="space-y-1.5 pt-1">
-                    <label className="text-[11px] text-slate-600 font-bold block">
+                    <label className="text-[11px] text-slate-600 dark:text-slate-400 font-bold block">
                       المبلغ المسدد كاش نقداً الآن:
                     </label>
                     <input
@@ -1011,9 +1011,9 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
                       placeholder=""
                       value={deliveryPaidAmount}
                       onChange={(e) => setDeliveryPaidAmount(e.target.value)}
-                      className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white font-mono-num text-xs font-bold text-teal-700"
+                      className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 font-mono-num text-xs font-bold text-teal-700 dark:text-teal-400"
                     />
-                    <div className="text-[11px] text-slate-500 font-mono-num">
+                    <div className="text-[11px] text-slate-500 dark:text-slate-400 font-mono-num">
                       المتبقي دين: <b>{formatCurrency(Math.max(0, currentBatchTotal - (parseFloat(deliveryPaidAmount) || 0)), currency)}</b>
                     </div>
                   </div>
@@ -1022,31 +1022,31 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
 
               {/* Delivery Notes */}
               <div>
-                <label className="font-bold text-slate-700 mb-1 block">ملاحظات على التسليم</label>
+                <label className="font-bold text-slate-700 dark:text-slate-300 mb-1 block">ملاحظات على التسليم</label>
                 <input
                   type="text"
                   placeholder=""
                   value={deliveryNotes}
                   onChange={(e) => setDeliveryNotes(e.target.value)}
-                  className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs"
+                  className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-xs"
                 />
               </div>
 
             </div>
 
-            <div className="pt-2.5 border-t border-slate-100 shrink-0">
+            <div className="pt-2.5 border-t border-slate-100 dark:border-slate-800 shrink-0">
               <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
                   onClick={() => setDeliveryModalOrder(null)}
-                  className="py-2.5 rounded-xl bg-slate-100 text-slate-700 font-bold text-xs"
+                  className="py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs"
                 >
                   إلغاء
                 </button>
                 <button
                   type="button"
                   onClick={handleConfirmDelivery}
-                  className="py-2.5 rounded-xl bg-emerald-600 text-white font-bold text-xs shadow-xs"
+                  className="py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs"
                 >
                   تأكيد التسليم وتحديث الحساب
                 </button>
