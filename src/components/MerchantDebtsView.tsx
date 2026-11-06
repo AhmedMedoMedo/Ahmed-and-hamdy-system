@@ -44,20 +44,28 @@ export const MerchantDebtsView: React.FC<MerchantDebtsViewProps> = ({
   // WhatsApp claim modal state
   const [claimMerchant, setClaimMerchant] = useState<{ id: string; name: string; phone: string; debt: number } | null>(null);
 
-  // Filter only merchants who have outstanding debt (> 0)
+  // Filter all merchants who have outstanding debt (> 0) from merchantBalances
   const debtorMerchants = useMemo(() => {
-    return merchants
-      .map(m => {
-        const balance = merchantBalances[m.id];
-        const debt = balance?.currentDebt || 0;
+    return Object.values(merchantBalances)
+      .filter(b => b.currentDebt > 0)
+      .map(b => {
+        const found = merchants.find(m => m.id === b.merchantId || m.name.trim().toLowerCase() === b.merchantName.trim().toLowerCase());
+        const merchantObj = found || {
+          id: b.merchantId,
+          name: b.merchantName,
+          phone: '',
+          address: '',
+          notes: '',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
         return {
-          merchant: m,
-          debt,
-          totalInvoiced: balance?.totalInvoicedAllTime || 0,
-          totalPaid: balance?.totalPaidAllTime || 0,
+          merchant: merchantObj,
+          debt: b.currentDebt,
+          totalInvoiced: b.totalInvoicedAllTime || 0,
+          totalPaid: b.totalPaidAllTime || 0,
         };
       })
-      .filter(item => item.debt > 0)
       .filter(item => {
         if (!searchTerm.trim()) return true;
         const q = searchTerm.toLowerCase();

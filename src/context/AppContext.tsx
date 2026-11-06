@@ -1209,11 +1209,28 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       };
     });
 
+    // Helper to find canonical merchant ID by ID or by name
+    const findCanonicalId = (targetId?: string, targetName?: string): string => {
+      if (targetId && merchants.some(m => m.id === targetId)) {
+        return targetId;
+      }
+      if (targetName && targetName.trim()) {
+        const foundByName = merchants.find(m => m.name.trim().toLowerCase() === targetName.trim().toLowerCase());
+        if (foundByName) return foundByName.id;
+      }
+      if (targetId && targetId.trim()) {
+        const foundByName = merchants.find(m => m.name.trim().toLowerCase() === targetId.trim().toLowerCase());
+        if (foundByName) return foundByName.id;
+      }
+      return targetId || targetName || 'unknown_merchant';
+    };
+
     invoices.forEach(inv => {
-      if (!map[inv.merchantId]) {
-        map[inv.merchantId] = {
-          merchantId: inv.merchantId,
-          merchantName: inv.merchantName,
+      const canonicalId = findCanonicalId(inv.merchantId, inv.merchantName);
+      if (!map[canonicalId]) {
+        map[canonicalId] = {
+          merchantId: canonicalId,
+          merchantName: inv.merchantName || 'تاجر غير محدد',
           totalInvoicedAllTime: 0,
           totalPaidAllTime: 0,
           currentDebt: 0,
@@ -1222,7 +1239,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           carriedDebt: 0,
         };
       }
-      const b = map[inv.merchantId];
+      const b = map[canonicalId];
       b.totalInvoicedAllTime += (inv.total || 0);
 
       const invMonth = inv.monthKey || getMonthKeyFromDate(inv.date);
@@ -1234,10 +1251,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
 
     payments.forEach(pay => {
-      if (!map[pay.merchantId]) {
-        map[pay.merchantId] = {
-          merchantId: pay.merchantId,
-          merchantName: pay.merchantName,
+      const canonicalId = findCanonicalId(pay.merchantId, pay.merchantName);
+      if (!map[canonicalId]) {
+        map[canonicalId] = {
+          merchantId: canonicalId,
+          merchantName: pay.merchantName || 'تاجر غير محدد',
           totalInvoicedAllTime: 0,
           totalPaidAllTime: 0,
           currentDebt: 0,
@@ -1246,7 +1264,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           carriedDebt: 0,
         };
       }
-      const b = map[pay.merchantId];
+      const b = map[canonicalId];
       b.totalPaidAllTime += (pay.amount || 0);
 
       const payMonth = pay.monthKey || getMonthKeyFromDate(pay.date);
@@ -1283,16 +1301,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [totalAllTimeCollections, totalAllTimeExpenses]);
 
   const totalAllTimeDebt = useMemo(() => {
-    return totalAllTimeSales - totalAllTimeCollections;
-  }, [totalAllTimeSales, totalAllTimeCollections]);
+    return Object.values(merchantBalances).reduce((sum, b) => sum + Math.max(0, b.currentDebt), 0);
+  }, [merchantBalances]);
 
-  // Debtor merchants count (merchants with currentDebt > 0)
+  // Debtor merchants count (any merchant with currentDebt > 0 across the entire system)
   const debtorMerchantsCount = useMemo(() => {
-    return merchants.filter(m => {
-      const b = merchantBalances[m.id];
-      return b && b.currentDebt > 0;
-    }).length;
-  }, [merchants, merchantBalances]);
+    return Object.values(merchantBalances).filter(b => b.currentDebt > 0).length;
+  }, [merchantBalances]);
 
   // Current Month Summary with Zero Reset & Carried Balances & Expenses Deduction
   const currentMonthSummary = useMemo<MonthSummary>(() => {

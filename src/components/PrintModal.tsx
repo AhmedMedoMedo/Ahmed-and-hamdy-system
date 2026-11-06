@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import type { Invoice, Payment, WorkOrder, Expense } from '../types';
 import { formatCurrency, formatDateArabic } from '../utils/formatters';
@@ -11,9 +11,9 @@ import {
   Download, 
   User, 
   Phone, 
-  Loader2,
-  Send,
-  Sparkles
+  Loader2, 
+  Send, 
+  Sparkles 
 } from 'lucide-react';
 
 interface PrintModalProps {
@@ -32,7 +32,53 @@ export const PrintModal: React.FC<PrintModalProps> = ({
   expense,
   onClose,
 }) => {
-  const { merchantBalances, storeName, currency, merchants, showToast } = useApp();
+  const { merchantBalances, storeName, currency, merchants, invoices, showToast } = useApp();
+
+  // Resolve effective full sales invoice to print
+  // If an invoice is passed directly, use it.
+  // If a work order is passed, find its linked sales invoice, or synthesize a full sales invoice from it so the user ALWAYS gets the full commercial layout (Image 1) and never the simplified prep voucher (Image 2).
+  const effectiveInvoice = useMemo<Invoice | null>(() => {
+    if (invoice) return invoice;
+    if (order) {
+      const linked = invoices?.find(i => i.orderId === order.id || (i.notes && i.notes.includes(order.orderNumber)));
+      if (linked) return linked;
+
+      const itemsToUse = order.items.map(it => {
+        const qty = it.quantityDelivered > 0 ? it.quantityDelivered : it.quantityOrdered;
+        return {
+          id: it.id,
+          productId: it.productId,
+          productName: it.productName,
+          quantity: qty,
+          unitPrice: it.unitPrice,
+          total: qty * it.unitPrice,
+        };
+      });
+      const totalVal = itemsToUse.reduce((sum, it) => sum + it.total, 0) || order.totalEstimatedAmount;
+
+      return {
+        id: `synth_${order.id}`,
+        invoiceNumber: order.orderNumber.startsWith('طلب') ? order.orderNumber.replace('طلب', 'فاتورة') : order.orderNumber,
+        merchantId: order.merchantId,
+        merchantName: order.merchantName,
+        date: order.date,
+        monthKey: order.monthKey,
+        items: itemsToUse,
+        subtotal: totalVal,
+        discountType: 'amount',
+        discountValue: 0,
+        discount: 0,
+        total: totalVal,
+        paidAmount: 0,
+        remainingAmount: totalVal,
+        notes: order.notes ? `طلب شغل #${order.orderNumber}: ${order.notes}` : `تسليم من طلب الشغل #${order.orderNumber}`,
+        orderId: order.id,
+        createdAt: order.createdAt,
+        updatedAt: order.updatedAt,
+      };
+    }
+    return null;
+  }, [invoice, order, invoices]);
 
   // Screenshot & Sharing States
   const [isCapturing, setIsCapturing] = useState(false);
@@ -40,15 +86,15 @@ export const PrintModal: React.FC<PrintModalProps> = ({
   const [capturedImageDataUrl, setCapturedImageDataUrl] = useState<string | null>(null);
   const [capturedBlob, setCapturedBlob] = useState<Blob | null>(null);
   const [selectedMerchantId, setSelectedMerchantId] = useState<string>(
-    invoice?.merchantId || payment?.merchantId || order?.merchantId || (merchants[0]?.id || '')
+    effectiveInvoice?.merchantId || payment?.merchantId || (merchants[0]?.id || '')
   );
   const [customPhone, setCustomPhone] = useState<string>(() => {
-    const targetId = invoice?.merchantId || payment?.merchantId || order?.merchantId;
+    const targetId = effectiveInvoice?.merchantId || payment?.merchantId;
     const m = merchants.find(item => item.id === targetId);
     return m?.phone || '';
   });
 
-  if (!invoice && !payment && !order && !expense) return null;
+  if (!effectiveInvoice && !payment && !expense) return null;
 
   // Format date and time in authentic Egyptian commercial style
   const getFormattedDateTime = (dateStr: string) => {
@@ -75,17 +121,17 @@ export const PrintModal: React.FC<PrintModalProps> = ({
   let invoicePaymentStatusText = '';
   let invoicePaymentBadgeClass = '';
 
-  if (invoice) {
-    const mBal = merchantBalances[invoice.merchantId];
-    const currentDebt = mBal ? Math.max(0, mBal.currentDebt) : invoice.remainingAmount;
-    invoicePrevDebt = Math.max(0, currentDebt - invoice.remainingAmount);
-    invoiceNewTotalDebt = invoicePrevDebt + invoice.remainingAmount;
+  if (effectiveInvoice) {
+    const mBal = merchantBalances[effectiveInvoice.merchantId];
+    const currentDebt = mBal ? Math.max(0, mBal.currentDebt) : effectiveInvoice.remainingAmount;
+    invoicePrevDebt = Math.max(0, currentDebt - effectiveInvoice.remainingAmount);
+    invoiceNewTotalDebt = invoicePrevDebt + effectiveInvoice.remainingAmount;
 
-    if (invoice.remainingAmount <= 0) {
+    if (effectiveInvoice.remainingAmount <= 0) {
       invoicePaymentStatusText = 'كاش (مسددة بالكامل فوري)';
       invoicePaymentBadgeClass = 'text-emerald-700 bg-emerald-50 border-emerald-300';
-    } else if (invoice.paidAmount > 0) {
-      invoicePaymentStatusText = `سداد جزئي (مدفوع ${formatCurrency(invoice.paidAmount, currency)} والباقي دين)`;
+    } else if (effectiveInvoice.paidAmount > 0) {
+      invoicePaymentStatusText = `سداد جزئي (مدفوع ${formatCurrency(effectiveInvoice.paidAmount, currency)} والباقي دين)`;
       invoicePaymentBadgeClass = 'text-amber-800 bg-amber-50 border-amber-300';
     } else {
       invoicePaymentStatusText = 'دين آجل (على الحساب بالكامل)';
@@ -104,23 +150,23 @@ export const PrintModal: React.FC<PrintModalProps> = ({
 
   // Generate Egyptian text summary
   const getEgyptianMessageText = () => {
-    if (invoice) {
+    if (effectiveInvoice) {
       return `*${storeName || 'Ahmed And Hamdy'}*
-*بيان بيع بضاعة — فاتورة رقم: #${invoice.invoiceNumber}*
+*بيان بيع بضاعة — فاتورة رقم: #${effectiveInvoice.invoiceNumber}*
 ----------------------------------------
-👤 *التاجر/العميل:* ${invoice.merchantName}
-📅 *تاريخ الفاتورة:* ${formatDateArabic(invoice.date)}
+👤 *التاجر/العميل:* ${effectiveInvoice.merchantName}
+📅 *تاريخ الفاتورة:* ${formatDateArabic(effectiveInvoice.date)}
 💳 *حالة الدفع:* *${invoicePaymentStatusText}*
 📦 *الأصناف المباعة:*
-${invoice.items.map(it => `• ${it.productName} (${it.quantity} قطعة) × ${formatCurrency(it.unitPrice, currency)} = ${formatCurrency(it.total, currency)}`).join('\n')}
+${effectiveInvoice.items.map(it => `• ${it.productName} (${it.quantity} قطعة) × ${formatCurrency(it.unitPrice, currency)} = ${formatCurrency(it.total, currency)}`).join('\n')}
 ----------------------------------------
-💰 *المجموع الفرعي:* ${formatCurrency(invoice.subtotal, currency)}
-${invoice.discount > 0 ? `🏷️ *الخصم الممنوح:* -${formatCurrency(invoice.discount, currency)}\n` : ''}💵 *إجمالي قيمة الفاتورة:* ${formatCurrency(invoice.total, currency)}
-${invoice.paidAmount > 0 ? `✅ *المسدد كاش فوري:* ${formatCurrency(invoice.paidAmount, currency)}\n` : ''}${invoice.remainingAmount > 0 ? `⏳ *المتبقي دين من الفاتورة:* ${formatCurrency(invoice.remainingAmount, currency)}\n` : ''}----------------------------------------
+💰 *المجموع الفرعي:* ${formatCurrency(effectiveInvoice.subtotal, currency)}
+${effectiveInvoice.discount > 0 ? `🏷️ *الخصم الممنوح:* -${formatCurrency(effectiveInvoice.discount, currency)}\n` : ''}💵 *إجمالي قيمة الفاتورة:* ${formatCurrency(effectiveInvoice.total, currency)}
+${effectiveInvoice.paidAmount > 0 ? `✅ *المسدد كاش فوري:* ${formatCurrency(effectiveInvoice.paidAmount, currency)}\n` : ''}${effectiveInvoice.remainingAmount > 0 ? `⏳ *المتبقي دين من الفاتورة:* ${formatCurrency(effectiveInvoice.remainingAmount, currency)}\n` : ''}----------------------------------------
 📊 *كشف حساب التاجر (قبل وبعد الفاتورة):*
 • الحساب القديم قبل الفاتورة: ${formatCurrency(invoicePrevDebt, currency)}
-• قيمة الفاتورة الحالية: ${formatCurrency(invoice.total, currency)}
-${invoice.paidAmount > 0 ? `• المدفوع كاش: ${formatCurrency(invoice.paidAmount, currency)}\n` : ''}• إجمالي الحساب المطلوب بعد الفاتورة: *${formatCurrency(invoiceNewTotalDebt, currency)}*
+• قيمة الفاتورة الحالية: ${formatCurrency(effectiveInvoice.total, currency)}
+${effectiveInvoice.paidAmount > 0 ? `• المدفوع كاش: ${formatCurrency(effectiveInvoice.paidAmount, currency)}\n` : ''}• إجمالي الحساب المطلوب بعد الفاتورة: *${formatCurrency(invoiceNewTotalDebt, currency)}*
 ${invoiceNewTotalDebt > 0 ? `👉 *المطلوب سداده بعد الفاتورة:* ${formatCurrency(invoiceNewTotalDebt, currency)}` : '🎉 *حسابك خالص ومسدد بالكامل بدون أي ديون*'}
 
 شكراً لتعاملكم الراقي معنا.. تسلم وربنا يباركلك في رزقك 🙏`;
@@ -388,7 +434,7 @@ ${paymentNewDebt > 0 ? `👉 *الباقي عليك للحساب:* ${formatCurre
           >
           
           {/* ==================== 1. SALES INVOICE VIEW ==================== */}
-          {invoice && (
+          {effectiveInvoice && (
             <div className="space-y-3.5 w-full">
               
               {/* Header: Company Title (Right) + Invoice # / Date Box (Left) */}
@@ -408,12 +454,12 @@ ${paymentNewDebt > 0 ? `👉 *الباقي عليك للحساب:* ${formatCurre
                 <div className="border border-slate-300 rounded-md text-[11px] font-mono-num divide-y divide-slate-200 min-w-[190px] text-right">
                   <div className="p-1.5 flex justify-between gap-2">
                     <span className="text-slate-500 font-sans">رقم الفاتورة:</span>
-                    <span className="font-black text-black">#{invoice.invoiceNumber}</span>
+                    <span className="font-black text-black">#{effectiveInvoice.invoiceNumber}</span>
                   </div>
                   <div className="p-1.5 flex justify-between gap-2">
                     <span className="text-slate-500 font-sans">تاريخ الحركة:</span>
                     <span className="font-bold text-black text-[10px]">
-                      {getFormattedDateTime(invoice.date)}
+                      {getFormattedDateTime(effectiveInvoice.date)}
                     </span>
                   </div>
                 </div>
@@ -429,7 +475,7 @@ ${paymentNewDebt > 0 ? `👉 *الباقي عليك للحساب:* ${formatCurre
                   فاتورة بيع
                 </span>
                 <span className="text-[10px] text-slate-500 font-mono-num">
-                  {invoice.items.length} أصناف مباعة
+                  {effectiveInvoice.items.length} أصناف مباعة
                 </span>
               </div>
 
@@ -440,7 +486,7 @@ ${paymentNewDebt > 0 ? `👉 *الباقي عليك للحساب:* ${formatCurre
                 <div className="border border-slate-300 rounded-md p-2 flex flex-col justify-between min-h-[64px]">
                   <span className="text-[10px] text-slate-500">الفاتورة إلى:</span>
                   <div className="text-sm sm:text-base font-black text-black break-words my-0.5">
-                    {invoice.merchantName}
+                    {effectiveInvoice.merchantName}
                   </div>
                   <span className="text-[10px] text-slate-500">التاجر / العميل</span>
                 </div>
@@ -449,19 +495,19 @@ ${paymentNewDebt > 0 ? `👉 *الباقي عليك للحساب:* ${formatCurre
                 <div className="border border-slate-300 rounded-md p-2 flex flex-col justify-between min-h-[64px]">
                   <span className="text-[10px] text-slate-500">حالة الدفع:</span>
                   <div className={`text-xs sm:text-sm font-black break-words my-0.5 ${
-                    invoice.remainingAmount <= 0 
+                    effectiveInvoice.remainingAmount <= 0 
                       ? 'text-emerald-700' 
-                      : invoice.paidAmount > 0 
+                      : effectiveInvoice.paidAmount > 0 
                       ? 'text-teal-700' 
                       : 'text-rose-700'
                   }`}>
                     {invoicePaymentStatusText}
                   </div>
                   <span className="text-[10px] text-slate-500 break-words leading-tight">
-                    {invoice.remainingAmount <= 0 
+                    {effectiveInvoice.remainingAmount <= 0 
                       ? 'مسددة بالكامل كاش فوري' 
-                      : invoice.paidAmount > 0 
-                      ? `مسدد ${formatCurrency(invoice.paidAmount, currency)} • باقي ${formatCurrency(invoice.remainingAmount, currency)}` 
+                      : effectiveInvoice.paidAmount > 0 
+                      ? `مسدد ${formatCurrency(effectiveInvoice.paidAmount, currency)} • باقي ${formatCurrency(effectiveInvoice.remainingAmount, currency)}` 
                       : 'متبقية بالكامل دين على الحساب'}
                   </span>
                 </div>
@@ -480,7 +526,7 @@ ${paymentNewDebt > 0 ? `👉 *الباقي عليك للحساب:* ${formatCurre
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200 font-mono-num text-xs">
-                    {invoice.items.map((it, idx) => (
+                    {effectiveInvoice.items.map((it, idx) => (
                       <tr key={idx} className="hover:bg-slate-50">
                         <td className="py-1.5 px-2 font-sans font-bold text-black border-l border-slate-200">
                           {it.productName}
@@ -503,18 +549,18 @@ ${paymentNewDebt > 0 ? `👉 *الباقي عليك للحساب:* ${formatCurre
                         المجموع الفرعي
                       </td>
                       <td className="py-1 px-2 text-left font-bold text-black font-mono-num">
-                        {formatCurrency(invoice.subtotal, currency)}
+                        {formatCurrency(effectiveInvoice.subtotal, currency)}
                       </td>
                     </tr>
 
                     {/* Discount (if applicable) */}
-                    {invoice.discount > 0 && (
+                    {effectiveInvoice.discount > 0 && (
                       <tr className="bg-amber-50/30 text-xs">
                         <td colSpan={3} className="py-1 px-2 font-bold text-amber-900 text-right border-l border-slate-200">
                           الخصم الممنوح
                         </td>
                         <td className="py-1 px-2 text-left font-bold text-amber-900 font-mono-num">
-                          -{formatCurrency(invoice.discount, currency)}
+                          -{formatCurrency(effectiveInvoice.discount, currency)}
                         </td>
                       </tr>
                     )}
@@ -525,30 +571,30 @@ ${paymentNewDebt > 0 ? `👉 *الباقي عليك للحساب:* ${formatCurre
                         الإجمالي الصافي
                       </td>
                       <td className="py-1.5 px-2 text-left font-black text-black font-mono-num text-sm">
-                        {formatCurrency(invoice.total, currency)}
+                        {formatCurrency(effectiveInvoice.total, currency)}
                       </td>
                     </tr>
 
                     {/* If Paid upfront */}
-                    {invoice.paidAmount > 0 && (
+                    {effectiveInvoice.paidAmount > 0 && (
                       <tr className="bg-teal-50/40 text-xs">
                         <td colSpan={3} className="py-1 px-2 font-bold text-teal-800 text-right border-l border-slate-200">
                           المدفوع كاش فوري
                         </td>
                         <td className="py-1 px-2 text-left font-bold text-teal-800 font-mono-num">
-                          {formatCurrency(invoice.paidAmount, currency)}
+                          {formatCurrency(effectiveInvoice.paidAmount, currency)}
                         </td>
                       </tr>
                     )}
 
                     {/* If Remaining Debt */}
-                    {invoice.remainingAmount > 0 && (
+                    {effectiveInvoice.remainingAmount > 0 && (
                       <tr className="bg-rose-50/40 text-xs">
                         <td colSpan={3} className="py-1 px-2 font-black text-rose-700 text-right border-l border-slate-200">
                           الباقي دين على الحساب
                         </td>
                         <td className="py-1 px-2 text-left font-black text-rose-700 font-mono-num">
-                          {formatCurrency(invoice.remainingAmount, currency)}
+                          {formatCurrency(effectiveInvoice.remainingAmount, currency)}
                         </td>
                       </tr>
                     )}
@@ -562,7 +608,7 @@ ${paymentNewDebt > 0 ? `👉 *الباقي عليك للحساب:* ${formatCurre
                 {/* Header */}
                 <div className="bg-slate-100 px-3 py-1.5 border-b border-slate-300 font-bold text-black flex justify-between items-center text-[11px]">
                   <span>ملخص حساب التاجر (قبل وبعد الفاتورة)</span>
-                  <span className="text-[10px] text-slate-600 font-bold">{invoice.merchantName}</span>
+                  <span className="text-[10px] text-slate-600 font-bold">{effectiveInvoice.merchantName}</span>
                 </div>
 
                 {/* 4 Informative Metrics: Previous Debt, Invoice Total, Cash Paid, Total Debt After */}
@@ -577,14 +623,14 @@ ${paymentNewDebt > 0 ? `👉 *الباقي عليك للحساب:* ${formatCurre
                   <div className="px-1.5">
                     <span className="text-[10px] text-slate-500 font-sans block mb-0.5">قيمة الفاتورة</span>
                     <span className="font-bold text-blue-800 text-xs sm:text-sm">
-                      {formatCurrency(invoice.total, currency)}
+                      {formatCurrency(effectiveInvoice.total, currency)}
                     </span>
                   </div>
 
                   <div className="px-1.5">
                     <span className="text-[10px] text-slate-500 font-sans block mb-0.5">المسدد كاش فوري</span>
                     <span className="font-bold text-emerald-700 text-xs sm:text-sm">
-                      {formatCurrency(invoice.paidAmount, currency)}
+                      {formatCurrency(effectiveInvoice.paidAmount, currency)}
                     </span>
                   </div>
 
@@ -612,10 +658,10 @@ ${paymentNewDebt > 0 ? `👉 *الباقي عليك للحساب:* ${formatCurre
               </div>
 
               {/* Notes */}
-              {invoice.notes && (
+              {effectiveInvoice.notes && (
                 <div className="p-2 border border-dashed border-slate-300 rounded-md text-[10px] text-slate-600">
                   <span className="font-bold">ملاحظات الفاتورة: </span>
-                  <span>{invoice.notes}</span>
+                  <span>{effectiveInvoice.notes}</span>
                 </div>
               )}
 
@@ -623,12 +669,12 @@ ${paymentNewDebt > 0 ? `👉 *الباقي عليك للحساب:* ${formatCurre
               <div className="pt-4 border-t border-dashed border-slate-300 flex items-center justify-between text-[10px] text-slate-500">
                 <div>التوقيع والختم: .......................................</div>
                 <div className="font-mono-num">
-                  تمت معاينة المستند: {getFormattedDateTime(invoice.date)}
+                  تمت معاينة المستند: {getFormattedDateTime(effectiveInvoice.date)}
                 </div>
               </div>
 
               <div className="text-[9px] text-slate-400 font-mono-num text-right">
-                {invoice.invoiceNumber}
+                {effectiveInvoice.invoiceNumber}
               </div>
 
             </div>
@@ -751,137 +797,7 @@ ${paymentNewDebt > 0 ? `👉 *الباقي عليك للحساب:* ${formatCurre
             </div>
           )}
 
-          {/* ==================== 3. WORK ORDER VIEW ==================== */}
-          {order && (
-            <div className="space-y-4 w-full">
-              {/* Header: Company Title (Right) + Order # / Date Box (Left) */}
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <h1 className="text-xl sm:text-2xl font-black text-black tracking-tight leading-tight">
-                    {storeName || 'Ahmed And Hamdy'}
-                  </h1>
-                  <p className="text-[11px] text-slate-600 font-medium mt-0.5">
-                    النظام المحاسبي الداخلي — إذن تحضير وتشغيل شغل
-                  </p>
-                </div>
 
-                <div className="border border-slate-300 rounded-md text-[11px] font-mono-num divide-y divide-slate-200 min-w-[190px] text-right">
-                  <div className="p-1.5 flex justify-between gap-2">
-                    <span className="text-slate-500 font-sans">رقم طلب الشغل:</span>
-                    <span className="font-black text-black">#{order.orderNumber}</span>
-                  </div>
-                  <div className="p-1.5 flex justify-between gap-2">
-                    <span className="text-slate-500 font-sans">تاريخ الطلب:</span>
-                    <span className="font-bold text-black text-[10px]">
-                      {getFormattedDateTime(order.date)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="border-b-2 border-black my-2"></div>
-
-              <div className="flex items-center justify-between text-xs">
-                <span className="border border-purple-800 bg-purple-50 text-purple-900 px-3 py-0.5 rounded text-[11px] font-bold">
-                  إذن تحضير وتشغيل طلب شغل
-                </span>
-                <span className="text-[10px] text-slate-500 font-mono-num">
-                  {order.items.length} أصناف في الطلب
-                </span>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                <div className="border border-slate-300 rounded-md p-2 flex flex-col justify-between min-h-[64px]">
-                  <span className="text-[10px] text-slate-500">طلب الشغل إلى:</span>
-                  <div className="text-sm sm:text-base font-black text-black break-words my-0.5">
-                    {order.merchantName}
-                  </div>
-                  <span className="text-[10px] text-slate-500">التاجر / العميل</span>
-                </div>
-
-                <div className="border border-slate-300 rounded-md p-2 flex flex-col justify-between min-h-[64px]">
-                  <span className="text-[10px] text-slate-500">حالة الطلب:</span>
-                  <div className={`text-xs sm:text-sm font-black break-words my-0.5 ${
-                    order.status === 'delivered' 
-                      ? 'text-emerald-700' 
-                      : order.status === 'partially_delivered' 
-                      ? 'text-amber-700' 
-                      : 'text-purple-700'
-                  }`}>
-                    {order.status === 'delivered' ? 'تم التسليم بالكامل' : order.status === 'partially_delivered' ? 'تسليم جزئي' : 'قيد التحضير والتجهيز'}
-                  </div>
-                  <span className="text-[10px] text-slate-500 font-mono-num">
-                    {order.deliveredTotalAmount > 0 ? `مسلم فعلياً: ${formatCurrency(order.deliveredTotalAmount, currency)}` : 'جاهز للبدء في التحضير'}
-                  </span>
-                </div>
-              </div>
-
-              {/* Items Table */}
-              <div className="border border-slate-300 rounded-md overflow-hidden">
-                <table className="w-full text-right text-xs border-collapse">
-                  <thead>
-                    <tr className="bg-slate-100/80 border-b border-slate-300 text-[11px] font-bold text-black">
-                      <th className="py-1.5 px-2 border-l border-slate-200">الصنف المطلوب</th>
-                      <th className="py-1.5 px-2 text-center border-l border-slate-200">الكمية</th>
-                      <th className="py-1.5 px-2 text-center border-l border-slate-200">المسلم</th>
-                      <th className="py-1.5 px-2 text-center border-l border-slate-200">المتبقي</th>
-                      <th className="py-1.5 px-2 text-center border-l border-slate-200">سعر القطعة</th>
-                      <th className="py-1.5 px-2 text-left">الإجمالي التقديري</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-200 font-mono-num text-xs">
-                    {order.items.map((it, idx) => (
-                      <tr key={idx} className="hover:bg-slate-50">
-                        <td className="py-1.5 px-2 font-sans font-bold text-black border-l border-slate-200">
-                          {it.productName}
-                        </td>
-                        <td className="py-1.5 px-2 text-center border-l border-slate-200 font-bold">
-                          {it.quantityOrdered}
-                        </td>
-                        <td className="py-1.5 px-2 text-center border-l border-slate-200 text-emerald-700 font-bold">
-                          {it.quantityDelivered}
-                        </td>
-                        <td className="py-1.5 px-2 text-center border-l border-slate-200 text-rose-700 font-bold">
-                          {it.quantityRemaining}
-                        </td>
-                        <td className="py-1.5 px-2 text-center border-l border-slate-200">
-                          {formatCurrency(it.unitPrice, currency)}
-                        </td>
-                        <td className="py-1.5 px-2 text-left font-black text-black">
-                          {formatCurrency(it.quantityOrdered * it.unitPrice, currency)}
-                        </td>
-                      </tr>
-                    ))}
-
-                    <tr className="bg-purple-50/50 border-t-2 border-slate-300 text-xs">
-                      <td colSpan={5} className="py-2 px-2 font-black text-black text-right border-l border-slate-200">
-                        إجمالي القيمة التقديرية لطلب الشغل
-                      </td>
-                      <td className="py-2 px-2 text-left font-black text-purple-900 font-mono-num text-sm">
-                        {formatCurrency(order.totalEstimatedAmount, currency)}
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-
-              {order.notes && (
-                <div className="p-2 border border-dashed border-slate-300 rounded-md text-[10px] text-slate-600">
-                  <span className="font-bold">ملاحظات طلب الشغل: </span>
-                  <span>{order.notes}</span>
-                </div>
-              )}
-
-              <div className="pt-4 border-t border-dashed border-slate-300 flex items-center justify-between text-[10px] text-slate-500">
-                <div>توقيع المشرف / الفني: .......................................</div>
-                <div>توقيع التاجر / المستلم: .......................................</div>
-              </div>
-
-              <div className="text-[9px] text-slate-400 font-mono-num text-right">
-                #{order.orderNumber}
-              </div>
-            </div>
-          )}
 
           {/* ==================== 4. EXPENSE VIEW ==================== */}
           {expense && (

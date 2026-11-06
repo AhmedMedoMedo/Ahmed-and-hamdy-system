@@ -176,25 +176,31 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       raw: exp,
     }));
 
-    const orderOps = orders.map(ord => {
-      const isDelivered = ord.status === 'delivered';
-      const isPartial = ord.status === 'partially_delivered';
-      const statusLabel = isDelivered ? 'تم تسليمه' : isPartial ? 'تسليم جزئي' : 'قيد التحضير';
-      return {
-        id: ord.id,
-        merchantId: ord.merchantId,
-        type: 'order' as const,
-        date: ord.date,
-        createdAt: ord.createdAt,
-        title: ord.merchantName,
-        subTitle: `طلب شغل #${ord.orderNumber} • ${statusLabel}`,
-        amount: ord.totalEstimatedAmount,
-        remainingAmount: Math.max(0, (ord.totalEstimatedAmount || 0) - (ord.deliveredTotalAmount || 0)),
-        isPaid: isDelivered,
-        notes: ord.notes,
-        raw: ord,
-      };
-    });
+    const orderOps = orders
+      .filter(ord => {
+        // If an invoice already exists for this order, the invoice is the authoritative operation
+        const hasLinkedInvoice = invoices.some(inv => inv.orderId === ord.id || (inv.notes && inv.notes.includes(ord.orderNumber)));
+        return !hasLinkedInvoice;
+      })
+      .map(ord => {
+        const isDelivered = ord.status === 'delivered';
+        const isPartial = ord.status === 'partially_delivered';
+        const statusLabel = isDelivered ? 'تم تسليمه' : isPartial ? 'تسليم جزئي' : 'قيد التحضير';
+        return {
+          id: ord.id,
+          merchantId: ord.merchantId,
+          type: 'order' as const,
+          date: ord.date,
+          createdAt: ord.createdAt,
+          title: ord.merchantName,
+          subTitle: `طلب شغل #${ord.orderNumber} • ${statusLabel}`,
+          amount: ord.totalEstimatedAmount,
+          remainingAmount: Math.max(0, (ord.totalEstimatedAmount || 0) - (ord.deliveredTotalAmount || 0)),
+          isPaid: isDelivered,
+          notes: ord.notes,
+          raw: ord,
+        };
+      });
 
     return [...invOps, ...payOps, ...expOps, ...orderOps].sort((a, b) => {
       const cmp = b.date.localeCompare(a.date);
@@ -829,8 +835,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                           onPrintInvoice(invRaw);
                         } else if (isPay && payRaw && onPrintPayment) {
                           onPrintPayment(payRaw);
-                        } else if (isOrd && ordRaw && onPrintOrder) {
-                          onPrintOrder(ordRaw);
+                        } else if (isOrd && ordRaw) {
+                          const linked = invoices.find(i => i.orderId === ordRaw.id || (i.notes && i.notes.includes(ordRaw.orderNumber)));
+                          if (linked && onPrintInvoice) {
+                            onPrintInvoice(linked);
+                          } else if (onPrintOrder) {
+                            onPrintOrder(ordRaw);
+                          }
                         } else if (isExp && expRaw && onPrintExpense) {
                           onPrintExpense(expRaw);
                         }
@@ -1181,8 +1192,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     onPrintInvoice(selectedOperation.rawInvoice);
                   } else if (selectedOperation.type === 'payment' && selectedOperation.rawPayment && onPrintPayment) {
                     onPrintPayment(selectedOperation.rawPayment);
-                  } else if (selectedOperation.type === 'order' && selectedOperation.rawOrder && onPrintOrder) {
-                    onPrintOrder(selectedOperation.rawOrder);
+                  } else if (selectedOperation.type === 'order' && selectedOperation.rawOrder) {
+                    const ord = selectedOperation.rawOrder;
+                    const linked = invoices.find(i => i.orderId === ord.id || (i.notes && i.notes.includes(ord.orderNumber)));
+                    if (linked && onPrintInvoice) {
+                      onPrintInvoice(linked);
+                    } else if (onPrintOrder) {
+                      onPrintOrder(ord);
+                    }
                   } else if (selectedOperation.type === 'expense' && selectedOperation.rawExpense && onPrintExpense) {
                     onPrintExpense(selectedOperation.rawExpense);
                   }

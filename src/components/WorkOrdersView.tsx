@@ -73,6 +73,10 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
   const [notes, setNotes] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
 
+  // Immediate delivery option upon creation
+  const [creationAction, setCreationAction] = useState<'pending' | 'deliver_debt' | 'deliver_cash' | 'deliver_partial'>('pending');
+  const [creationPaidAmount, setCreationPaidAmount] = useState<string>('');
+
   // Inline Quick Add Merchant
   const [isQuickAddMerchantOpen, setIsQuickAddMerchantOpen] = useState(false);
   const [quickMerchantName, setQuickMerchantName] = useState('');
@@ -92,6 +96,8 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
   // Open Create/Edit Order
   const handleOpenForm = (existing?: WorkOrder) => {
     setFormError(null);
+    setCreationAction('pending');
+    setCreationPaidAmount('');
     if (existing) {
       setEditingOrder(existing);
       setMerchantId(existing.merchantId);
@@ -250,7 +256,7 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
       ? 'partially_delivered' 
       : 'pending';
 
-    await saveWorkOrder({
+    const savedOrderId = await saveWorkOrder({
       ...(editingOrder ? { id: editingOrder.id } : {}),
       orderNumber: orderNumber.trim() || generateOrderNumber(orders.length),
       merchantId,
@@ -263,6 +269,38 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
       deliveredTotalAmount,
       notes: notes.trim(),
     });
+
+    if (!editingOrder && creationAction !== 'pending') {
+      const pType = creationAction === 'deliver_debt' ? 'debt' : creationAction === 'deliver_cash' ? 'paid_full' : 'paid_partial';
+      const pAmount = creationAction === 'deliver_partial' ? (parseFloat(creationPaidAmount) || 0) : undefined;
+      const deliveryPayload = items.map(it => ({
+        itemId: it.id,
+        quantityToDeliver: it.quantityOrdered,
+      }));
+
+      try {
+        const { invoice } = await deliverWorkOrder(
+          savedOrderId,
+          deliveryPayload,
+          pType,
+          pAmount,
+          notes.trim() ? `تسجيل وتسليم مباشر: ${notes.trim()}` : undefined
+        );
+
+        showToast(
+          creationAction === 'deliver_debt'
+            ? 'تم تسجيل طلب الشغل وقيد الدين على حساب التاجر وإصدار الفاتورة بنجاح!'
+            : 'تم تسجيل طلب الشغل وتسليمه كاش وإصدار الفاتورة بنجاح!'
+        );
+        handleCloseForm();
+        if (invoice && onPrintInvoice) {
+          onPrintInvoice(invoice);
+        }
+        return;
+      } catch (err: any) {
+        showToast(err?.message || 'حدث خطأ أثناء تنفيذ التسليم التلقائي');
+      }
+    }
 
     showToast(editingOrder ? 'تم تعديل طلب الشغل بنجاح' : 'تم تسجيل طلب الشغل وقيد التحضير');
     handleCloseForm();
@@ -885,6 +923,100 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
                   ))}
                 </div>
               </div>
+
+              {/* Delivery and Accounting Action at Registration */}
+              {!editingOrder && (
+                <div className="p-3 bg-indigo-50/40 dark:bg-indigo-950/30 border border-indigo-200/80 dark:border-indigo-800/80 rounded-2xl space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="font-bold text-slate-800 dark:text-slate-200 text-xs flex items-center gap-1.5">
+                      <Truck className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                      <span>طريقة تسجيل وتسليم الطلب:</span>
+                    </label>
+                    <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold">
+                      {creationAction === 'pending' ? 'تسجيل كطلب تحضير' : 'تسليم فوري وإصدار فاتورة'}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-1.5 text-xs">
+                    <button
+                      type="button"
+                      onClick={() => setCreationAction('pending')}
+                      className={`p-2 rounded-xl border text-center font-bold transition-all text-[11px] ${
+                        creationAction === 'pending'
+                          ? 'bg-purple-600 text-white border-purple-600 shadow-2xs'
+                          : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                      }`}
+                    >
+                      قيد التحضير (تسليم لاحقاً)
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setCreationAction('deliver_debt')}
+                      className={`p-2 rounded-xl border text-center font-bold transition-all text-[11px] ${
+                        creationAction === 'deliver_debt'
+                          ? 'bg-rose-600 text-white border-rose-600 shadow-2xs'
+                          : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                      }`}
+                    >
+                      تسليم فوري (دين آجل على التاجر)
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setCreationAction('deliver_cash')}
+                      className={`p-2 rounded-xl border text-center font-bold transition-all text-[11px] ${
+                        creationAction === 'deliver_cash'
+                          ? 'bg-emerald-600 text-white border-emerald-600 shadow-2xs'
+                          : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                      }`}
+                    >
+                      تسليم فوري (مسدد كاش بالكامل)
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setCreationAction('deliver_partial')}
+                      className={`p-2 rounded-xl border text-center font-bold transition-all text-[11px] ${
+                        creationAction === 'deliver_partial'
+                          ? 'bg-teal-600 text-white border-teal-600 shadow-2xs'
+                          : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                      }`}
+                    >
+                      تسليم فوري (جزء كاش وباقي دين)
+                    </button>
+                  </div>
+
+                  {creationAction === 'deliver_debt' && (
+                    <p className="text-[11px] text-rose-700 dark:text-rose-400 font-medium">
+                      • سيتم حفظ الطلب وإصدار فاتورة بيع فوراً وإضافة كامل المبلغ إلى ديون التاجر ({formatCurrency(items.reduce((s, it) => s + (it.quantityOrdered * it.unitPrice), 0), currency)}).
+                    </p>
+                  )}
+
+                  {creationAction === 'deliver_cash' && (
+                    <p className="text-[11px] text-emerald-700 dark:text-emerald-400 font-medium">
+                      • سيتم حفظ الطلب وإصدار فاتورة بيع مسددة كاش فوراً وإيداع المبلغ بالخزينة.
+                    </p>
+                  )}
+
+                  {creationAction === 'deliver_partial' && (
+                    <div className="space-y-1 pt-1">
+                      <label className="text-[11px] text-slate-600 dark:text-slate-400 font-bold block">
+                        المسدد كاش فوري الآن:
+                      </label>
+                      <input
+                        type="number"
+                        step="any"
+                        min="0"
+                        placeholder="0"
+                        value={creationPaidAmount}
+                        onChange={(e) => setCreationPaidAmount(e.target.value)}
+                        className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 font-mono-num text-xs font-bold text-teal-700 dark:text-teal-400"
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Notes */}
               <div>
