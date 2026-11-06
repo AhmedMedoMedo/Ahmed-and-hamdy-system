@@ -12,7 +12,8 @@ import {
   Loader2,
   LogIn,
   LogOut,
-  ShieldCheck
+  ShieldCheck,
+  RefreshCw
 } from 'lucide-react';
 
 interface CloudAuthModalProps {
@@ -30,7 +31,8 @@ export const CloudAuthModal: React.FC<CloudAuthModalProps> = ({ isOpen, onClose 
     merchants,
     invoices,
     payments,
-    exportDataJSON
+    exportDataJSON,
+    refreshFromCloud
   } = useApp();
 
   const [isLoading, setIsLoading] = useState(false);
@@ -284,6 +286,18 @@ export const CloudAuthModal: React.FC<CloudAuthModalProps> = ({ isOpen, onClose 
                   </div>
                 </div>
               </div>
+
+              {/* Force Cloud Sync / Refresh */}
+              <button
+                type="button"
+                onClick={async () => {
+                  await refreshFromCloud();
+                }}
+                className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-xs transition-colors active:scale-98"
+              >
+                <RefreshCw className="w-4 h-4 animate-spin-hover" />
+                <span>🔄 مزامنة وسحب أحدث بيانات الآن من السحابة</span>
+              </button>
 
               {/* Quick Backup Download */}
               <button

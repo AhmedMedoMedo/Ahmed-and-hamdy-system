@@ -18,7 +18,8 @@ import {
   doc, 
   setDoc, 
   deleteDoc, 
-  onSnapshot 
+  onSnapshot,
+  getDocs
 } from 'firebase/firestore';
 import type { 
   Merchant, 
@@ -143,6 +144,7 @@ interface AppContextType {
   // Data management
   exportDataJSON: () => string;
   importDataJSON: (jsonStr: string) => Promise<boolean>;
+  refreshFromCloud: () => Promise<void>;
 
   // Security Lock & PIN
   isLocked: boolean;
@@ -404,12 +406,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (filterClean) {
           items = filterClean(items);
         }
-        if (items.length > 0 || snapshot.metadata.hasPendingWrites) {
-          setter(items);
-          try {
-            localStorage.setItem(storageKey, JSON.stringify(items));
-          } catch {}
-        }
+        setter(items);
+        try {
+          localStorage.setItem(storageKey, JSON.stringify(items));
+        } catch {}
       }, (err) => {
         console.warn(`Shared store listener warning on ${subcoll}:`, err);
       });
@@ -460,7 +460,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
     };
 
-    syncExistingLocalToSharedStore();
+    syncExistingLocalToSharedStore().then(() => {
+      refreshFromCloud();
+    });
 
     return () => {
       unsubs.forEach(fn => fn());
@@ -527,6 +529,54 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const logoutUser = async () => {
     await logOut();
     setCurrentUser(null);
+  };
+
+  // Direct manual and boot fetch from Cloud Firestore
+  const refreshFromCloud = async () => {
+    try {
+      showToast('جاري سحب وتحديث البيانات من السحابة... ⏳');
+      const mSnap = await getDocs(collection(db, 'stores', SHARED_STORE_ID, 'merchants'));
+      const mItems: Merchant[] = [];
+      mSnap.forEach(d => mItems.push({ id: d.id, ...d.data() } as Merchant));
+      const cleanM = mItems.filter(m => m.id !== 'm_1' && m.id !== 'm_2' && m.id !== 'm_3');
+      setMerchants(cleanM);
+      localStorage.setItem(STORAGE_KEYS.merchants, JSON.stringify(cleanM));
+
+      const invSnap = await getDocs(collection(db, 'stores', SHARED_STORE_ID, 'invoices'));
+      const invItems: Invoice[] = [];
+      invSnap.forEach(d => invItems.push({ id: d.id, ...d.data() } as Invoice));
+      setInvoices(invItems);
+      localStorage.setItem(STORAGE_KEYS.invoices, JSON.stringify(invItems));
+
+      const paySnap = await getDocs(collection(db, 'stores', SHARED_STORE_ID, 'payments'));
+      const payItems: Payment[] = [];
+      paySnap.forEach(d => payItems.push({ id: d.id, ...d.data() } as Payment));
+      setPayments(payItems);
+      localStorage.setItem(STORAGE_KEYS.payments, JSON.stringify(payItems));
+
+      const pSnap = await getDocs(collection(db, 'stores', SHARED_STORE_ID, 'products'));
+      const pItems: Product[] = [];
+      pSnap.forEach(d => pItems.push({ id: d.id, ...d.data() } as Product));
+      const cleanP = pItems.filter(p => p.id !== 'prod_1' && p.id !== 'prod_2' && p.id !== 'prod_3' && p.id !== 'prod_4');
+      setProducts(cleanP);
+      localStorage.setItem(STORAGE_KEYS.products, JSON.stringify(cleanP));
+
+      const expSnap = await getDocs(collection(db, 'stores', SHARED_STORE_ID, 'expenses'));
+      const expItems: Expense[] = [];
+      expSnap.forEach(d => expItems.push({ id: d.id, ...d.data() } as Expense));
+      setExpenses(expItems);
+      localStorage.setItem(STORAGE_KEYS.expenses, JSON.stringify(expItems));
+
+      const ordSnap = await getDocs(collection(db, 'stores', SHARED_STORE_ID, 'orders'));
+      const ordItems: WorkOrder[] = [];
+      ordSnap.forEach(d => ordItems.push({ id: d.id, ...d.data() } as WorkOrder));
+      setOrders(ordItems);
+      localStorage.setItem(STORAGE_KEYS.orders, JSON.stringify(ordItems));
+
+      showToast(`تمت المزامنة بنجاح! متصل بسحابة المحل الموحدة ☁️`);
+    } catch (e) {
+      console.warn("Refresh from cloud error:", e);
+    }
   };
 
   // --- MERCHANTS CRUD ---
@@ -1417,6 +1467,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       showToast,
       exportDataJSON,
       importDataJSON,
+      refreshFromCloud,
       isLocked,
       unlockSystem,
       lockSystem,
