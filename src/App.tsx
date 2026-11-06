@@ -12,11 +12,21 @@ import { PersonalLedgerView } from './components/PersonalLedgerView';
 import { MonthlyArchiveView } from './components/MonthlyArchiveView';
 import { PrintModal } from './components/PrintModal';
 import { SettingsModal } from './components/SettingsModal';
+import { SecurityLockModal } from './components/SecurityLockModal';
 import type { Invoice, Payment, Product } from './types';
 import { CheckCircle2 } from 'lucide-react';
 
 const MainLayout: React.FC = () => {
-  const { activeTab, setActiveTab, currency, toastMessage } = useApp();
+  const { 
+    activeTab, 
+    setActiveTab, 
+    currency, 
+    toastMessage, 
+    isLocked, 
+    unlockSystem, 
+    systemPin, 
+    storeName 
+  } = useApp();
 
   // Modals & Navigation triggers
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -186,6 +196,14 @@ const MainLayout: React.FC = () => {
             }}
           />
         )}
+
+        {/* Security Lock Modal (PIN Prompt) */}
+        <SecurityLockModal
+          isOpen={isLocked}
+          correctPin={systemPin}
+          onUnlock={unlockSystem}
+          storeName={storeName}
+        />
 
       </div>
     </div>

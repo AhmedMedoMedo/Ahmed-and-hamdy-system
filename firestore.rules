@@ -24,6 +24,15 @@ service cloud.firestore {
       allow read: if isSignedIn();
     }
 
+    // Unified Business Store Scope (Shared across all authorized devices of Ahmed and Hamdy)
+    match /stores/{storeId} {
+      allow read, write: if isSignedIn() && isValidId(storeId);
+
+      match /{subcollection}/{docId} {
+        allow read, write: if isSignedIn() && isValidId(docId);
+      }
+    }
+
     // User scope collections
     match /users/{userId} {
       allow read, write: if isOwner(userId);

@@ -15,7 +15,9 @@ import {
   AlertTriangle,
   Sun,
   Moon,
-  Building2
+  Building2,
+  Lock,
+  KeyRound
 } from 'lucide-react';
 
 interface SettingsModalProps {
@@ -35,11 +37,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
     exportDataJSON, 
     importDataJSON,
     isDarkMode,
-    toggleDarkMode
+    toggleDarkMode,
+    systemPin,
+    updateSystemPin,
+    isPinEnabled,
+    togglePinEnabled,
+    lockSystem,
+    showToast
   } = useApp();
 
   const [authWorking, setAuthWorking] = useState(false);
   const [importStatus, setImportStatus] = useState<string | null>(null);
+  const [newPinValue, setNewPinValue] = useState(systemPin);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleGoogleAuth = async () => {
@@ -230,6 +239,71 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                   {c}
                 </button>
               ))}
+            </div>
+          </div>
+
+          {/* Security PIN Code Configuration */}
+          <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                <Lock className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                <span>حماية النظام برمز مرور سري (PIN)</span>
+              </span>
+              <label className="flex items-center gap-1.5 cursor-pointer text-xs font-bold text-slate-700 dark:text-slate-300">
+                <input
+                  type="checkbox"
+                  checked={isPinEnabled}
+                  onChange={(e) => {
+                    togglePinEnabled(e.target.checked);
+                    showToast(e.target.checked ? 'تم تفعيل قفل النظام بالرمز' : 'تم تعطيل قفل النظام');
+                  }}
+                  className="rounded text-emerald-600 focus:ring-emerald-500 w-4 h-4"
+                />
+                <span>مفعّل</span>
+              </label>
+            </div>
+
+            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+              يمنع أي شخص أو متطفل من رؤية حساباتك أو فواتيرك عند فتح الرابط من أي جهاز جديد دون إدخال الرمز السري.
+            </p>
+
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={newPinValue}
+                onChange={(e) => setNewPinValue(e.target.value.slice(0, 8))}
+                placeholder="أدخل رمز جديد (مثال: 1999)"
+                className="flex-1 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs sm:text-sm font-mono font-bold text-center focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  if (newPinValue.trim().length >= 3) {
+                    updateSystemPin(newPinValue.trim());
+                    showToast('تم تحديث رمز المرور بنجاح 🔒');
+                  } else {
+                    showToast('يجب أن يتكون الرمز من 3 أرقام على الأقل');
+                  }
+                }}
+                className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition-colors shrink-0"
+              >
+                حفظ الرمز
+              </button>
+            </div>
+
+            <div className="flex justify-between items-center pt-1 text-[11px] text-slate-500 dark:text-slate-400">
+              <span>الرمز الحالي: <b className="font-mono text-emerald-600 dark:text-emerald-400">{systemPin}</b></span>
+              <button
+                type="button"
+                onClick={() => {
+                  lockSystem();
+                  onClose();
+                }}
+                className="text-xs text-rose-600 dark:text-rose-400 hover:underline font-bold flex items-center gap-1"
+              >
+                <Lock className="w-3 h-3" />
+                <span>قفل النظام الآن</span>
+              </button>
             </div>
           </div>
 

@@ -166,6 +166,38 @@
     "/users/{userId}/personal_transactions/{transactionId}": {
       "schema": "PersonalTransaction",
       "description": "Independent personal transactions"
+    },
+    "/stores/{storeId}/merchants/{merchantId}": {
+      "schema": "Merchant",
+      "description": "Unified business store merchants catalog"
+    },
+    "/stores/{storeId}/products/{productId}": {
+      "schema": "Product",
+      "description": "Unified business store products catalog"
+    },
+    "/stores/{storeId}/invoices/{invoiceId}": {
+      "schema": "Invoice",
+      "description": "Unified business store sales invoices"
+    },
+    "/stores/{storeId}/payments/{paymentId}": {
+      "schema": "Payment",
+      "description": "Unified business store merchant payments"
+    },
+    "/stores/{storeId}/expenses/{expenseId}": {
+      "schema": "Expense",
+      "description": "Unified business store expenses and cash withdrawals"
+    },
+    "/stores/{storeId}/orders/{orderId}": {
+      "schema": "WorkOrder",
+      "description": "Unified business store preparation work orders"
+    },
+    "/stores/{storeId}/personal_contacts/{contactId}": {
+      "schema": "PersonalContact",
+      "description": "Unified personal ledger contacts"
+    },
+    "/stores/{storeId}/personal_transactions/{transactionId}": {
+      "schema": "PersonalTransaction",
+      "description": "Unified personal ledger transactions"
     }
   }
 }

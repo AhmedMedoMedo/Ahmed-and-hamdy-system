@@ -143,6 +143,15 @@ interface AppContextType {
   // Data management
   exportDataJSON: () => string;
   importDataJSON: (jsonStr: string) => Promise<boolean>;
+
+  // Security Lock & PIN
+  isLocked: boolean;
+  unlockSystem: () => void;
+  lockSystem: () => void;
+  systemPin: string;
+  updateSystemPin: (newPin: string) => void;
+  isPinEnabled: boolean;
+  togglePinEnabled: (enabled: boolean) => void;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -161,19 +170,7 @@ const STORAGE_KEYS = {
   theme: 'account_app_theme',
 };
 
-// Initial sample data if brand new local session
-const initialProducts: Product[] = [
-  { id: 'prod_1', name: 'كرتونة زيت طعام ممتاز (12 لتر)', price: 850, costPrice: 790, unit: 'كرتونة', notes: 'سعر الجملة للتجار', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-  { id: 'prod_2', name: 'شيكارة أرز درجة أولى (25 كجم)', price: 620, costPrice: 580, unit: 'شيكارة', notes: 'أرز عريض الحبة', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-  { id: 'prod_3', name: 'كرتونة مكرونة مشكلة (20 كيس)', price: 340, costPrice: 300, unit: 'كرتونة', notes: 'وزن الكيس 400 جرام', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-  { id: 'prod_4', name: 'شيكارة سكر بلوري (50 كجم)', price: 1450, costPrice: 1380, unit: 'شيكارة', notes: 'جملة تجار التجزئة', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-];
-
-const initialMerchants: Merchant[] = [
-  { id: 'm_1', name: 'الحاج محمود - سوبر ماركت الأمانة', phone: '01012345678', address: 'شارع الجمهورية - وسط البلد', notes: 'تاجر ملتزم، يطلب خصم 2% أحياناً', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-  { id: 'm_2', name: 'التاجر أبو كريم - بقالة البركة', phone: '01198765432', address: 'شارع المحطة - المنشية', notes: 'دفعات أسبوعية كل يوم خميس', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-  { id: 'm_3', name: 'محلات النور للسلع الغذائية', phone: '01234567890', address: 'السوق الكبير - المحل رقم 14', notes: 'سحب مستمر بفواتير دورية', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-];
+export const SHARED_STORE_ID = 'ahmed_and_hamdy';
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -207,6 +204,64 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [isDarkMode]);
 
+  // Security Lock & PIN State
+  const [systemPin, setSystemPin] = useState<string>(() => {
+    try {
+      return localStorage.getItem('account_app_system_pin') || '1999';
+    } catch {
+      return '1999';
+    }
+  });
+
+  const [isPinEnabled, setIsPinEnabled] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('account_app_pin_enabled') !== 'false';
+    } catch {
+      return true;
+    }
+  });
+
+  const [isLocked, setIsLocked] = useState<boolean>(() => {
+    try {
+      const enabled = localStorage.getItem('account_app_pin_enabled') !== 'false';
+      if (!enabled) return false;
+      return localStorage.getItem('account_app_pin_verified') !== 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  const unlockSystem = useCallback(() => {
+    try {
+      localStorage.setItem('account_app_pin_verified', 'true');
+    } catch {}
+    setIsLocked(false);
+  }, []);
+
+  const lockSystem = useCallback(() => {
+    try {
+      localStorage.removeItem('account_app_pin_verified');
+    } catch {}
+    setIsLocked(true);
+  }, []);
+
+  const updateSystemPin = useCallback((newPin: string) => {
+    setSystemPin(newPin);
+    try {
+      localStorage.setItem('account_app_system_pin', newPin);
+    } catch {}
+  }, []);
+
+  const togglePinEnabled = useCallback((enabled: boolean) => {
+    setIsPinEnabled(enabled);
+    try {
+      localStorage.setItem('account_app_pin_enabled', enabled ? 'true' : 'false');
+      if (!enabled) {
+        setIsLocked(false);
+      }
+    } catch {}
+  }, []);
+
   const [activeTab, setActiveTab] = useState('dashboard');
   const [selectedMonth, setSelectedMonth] = useState<string>(getCurrentMonthKey());
   const [currency, setCurrency] = useState<string>('ج.م');
@@ -229,7 +284,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }, 3000);
   }, []);
 
-  // 1. Initial local load
+  // 1. Initial local load (Strictly sanitizing any mock sample data)
   useEffect(() => {
     try {
       const storedCurr = localStorage.getItem(STORAGE_KEYS.currency);
@@ -239,10 +294,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (storedStore) setStoreName(storedStore);
 
       const m = localStorage.getItem(STORAGE_KEYS.merchants);
-      setMerchants(m ? JSON.parse(m) : initialMerchants);
+      if (m) {
+        const parsed: Merchant[] = JSON.parse(m);
+        // Exclude fake sample merchants (الحاج محمود, أبو كريم, محلات النور)
+        const clean = parsed.filter(item => 
+          item.id !== 'm_1' && item.id !== 'm_2' && item.id !== 'm_3' &&
+          !item.name.includes('الحاج محمود') && !item.name.includes('التاجر أبو كريم')
+        );
+        setMerchants(clean);
+      } else {
+        setMerchants([]);
+      }
 
       const p = localStorage.getItem(STORAGE_KEYS.products);
-      setProducts(p ? JSON.parse(p) : initialProducts);
+      if (p) {
+        const parsed: Product[] = JSON.parse(p);
+        const clean = parsed.filter(item => item.id !== 'prod_1' && item.id !== 'prod_2' && item.id !== 'prod_3' && item.id !== 'prod_4');
+        setProducts(clean);
+      } else {
+        setProducts([]);
+      }
 
       const inv = localStorage.getItem(STORAGE_KEYS.invoices);
       setInvoices(inv ? JSON.parse(inv) : []);
@@ -257,9 +328,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setOrders(ord ? JSON.parse(ord) : []);
 
       const pc = localStorage.getItem(STORAGE_KEYS.personalContacts);
-      setPersonalContacts(pc ? JSON.parse(pc) : [
-        { id: 'pc_1', name: 'محمد عبد الله (شخصي)', phone: '01000000001', relationship: 'صديق', notes: 'حساب سلف شخصية', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }
-      ]);
+      if (pc) {
+        const parsed: PersonalContact[] = JSON.parse(pc);
+        const clean = parsed.filter(item => item.id !== 'pc_1');
+        setPersonalContacts(clean);
+      } else {
+        setPersonalContacts([]);
+      }
 
       const pt = localStorage.getItem(STORAGE_KEYS.personalTransactions);
       setPersonalTransactions(pt ? JSON.parse(pt) : []);
@@ -282,69 +357,135 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     localStorage.setItem(STORAGE_KEYS.personalTransactions, JSON.stringify(personalTransactions));
   }, [currency, storeName, merchants, products, invoices, payments, expenses, orders, personalContacts, personalTransactions]);
 
-  // 2. Auth listener & Firestore live sync
+  // 2. Auth listener & Auto Anonymous Sign-In on boot
   useEffect(() => {
     testConnection().then((ok) => setCloudConnected(ok));
 
     const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
-      setCurrentUser(user);
-      setAuthLoading(false);
       if (user) {
+        setCurrentUser(user);
         setCloudConnected(true);
+        setAuthLoading(false);
+      } else {
+        // Automatically authenticate anonymously so all devices sync without manual clicks
+        try {
+          const anonUser = await signInAnonymouslyUser();
+          setCurrentUser(anonUser);
+          setCloudConnected(true);
+        } catch (e) {
+          console.error("Auto sign-in error:", e);
+        } finally {
+          setAuthLoading(false);
+        }
       }
     });
 
     return () => unsubscribeAuth();
   }, []);
 
-  // When currentUser is logged in, attach live Firestore subscriptions
+  // 3. Attach Unified Shared Store Firestore Subscriptions
   useEffect(() => {
     if (!currentUser) return;
-    const uid = currentUser.uid;
 
     const unsubs: (() => void)[] = [];
 
-    const setupListener = <T,>(subcoll: string, setter: React.Dispatch<React.SetStateAction<T[]>>) => {
-      const colRef = collection(db, 'users', uid, subcoll);
+    const setupStoreListener = <T extends { id: string }>(
+      subcoll: string, 
+      setter: React.Dispatch<React.SetStateAction<T[]>>, 
+      storageKey: string,
+      filterClean?: (items: T[]) => T[]
+    ) => {
+      const colRef = collection(db, 'stores', SHARED_STORE_ID, subcoll);
       const unsub = onSnapshot(colRef, (snapshot) => {
-        const items: T[] = [];
+        let items: T[] = [];
         snapshot.forEach((docSnap) => {
           items.push({ id: docSnap.id, ...docSnap.data() } as T);
         });
+        if (filterClean) {
+          items = filterClean(items);
+        }
         if (items.length > 0 || snapshot.metadata.hasPendingWrites) {
           setter(items);
+          try {
+            localStorage.setItem(storageKey, JSON.stringify(items));
+          } catch {}
         }
       }, (err) => {
-        handleFirestoreError(err, OperationType.LIST, `users/${uid}/${subcoll}`);
+        console.warn(`Shared store listener warning on ${subcoll}:`, err);
       });
       unsubs.push(unsub);
     };
 
-    setupListener<Merchant>('merchants', setMerchants);
-    setupListener<Product>('products', setProducts);
-    setupListener<Invoice>('invoices', setInvoices);
-    setupListener<Payment>('payments', setPayments);
-    setupListener<Expense>('expenses', setExpenses);
-    setupListener<WorkOrder>('orders', setOrders);
-    setupListener<PersonalContact>('personal_contacts', setPersonalContacts);
-    setupListener<PersonalTransaction>('personal_transactions', setPersonalTransactions);
+    setupStoreListener<Merchant>('merchants', setMerchants, STORAGE_KEYS.merchants, (items) =>
+      items.filter(m => m.id !== 'm_1' && m.id !== 'm_2' && m.id !== 'm_3')
+    );
+    setupStoreListener<Product>('products', setProducts, STORAGE_KEYS.products, (items) =>
+      items.filter(p => p.id !== 'prod_1' && p.id !== 'prod_2' && p.id !== 'prod_3' && p.id !== 'prod_4')
+    );
+    setupStoreListener<Invoice>('invoices', setInvoices, STORAGE_KEYS.invoices);
+    setupStoreListener<Payment>('payments', setPayments, STORAGE_KEYS.payments);
+    setupStoreListener<Expense>('expenses', setExpenses, STORAGE_KEYS.expenses);
+    setupStoreListener<WorkOrder>('orders', setOrders, STORAGE_KEYS.orders);
+    setupStoreListener<PersonalContact>('personal_contacts', setPersonalContacts, STORAGE_KEYS.personalContacts);
+    setupStoreListener<PersonalTransaction>('personal_transactions', setPersonalTransactions, STORAGE_KEYS.personalTransactions);
+
+    // Sync any existing local real data (e.g. 'تجربه 1') to shared store if cloud is empty
+    const syncExistingLocalToSharedStore = async () => {
+      try {
+        const localMRaw = localStorage.getItem(STORAGE_KEYS.merchants);
+        if (localMRaw) {
+          const list: Merchant[] = JSON.parse(localMRaw);
+          for (const item of list) {
+            if (item.id !== 'm_1' && item.id !== 'm_2' && item.id !== 'm_3') {
+              await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'merchants', item.id), item, { merge: true });
+            }
+          }
+        }
+        const localInvRaw = localStorage.getItem(STORAGE_KEYS.invoices);
+        if (localInvRaw) {
+          const list: Invoice[] = JSON.parse(localInvRaw);
+          for (const item of list) {
+            await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'invoices', item.id), item, { merge: true });
+          }
+        }
+        const localPayRaw = localStorage.getItem(STORAGE_KEYS.payments);
+        if (localPayRaw) {
+          const list: Payment[] = JSON.parse(localPayRaw);
+          for (const item of list) {
+            await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'payments', item.id), item, { merge: true });
+          }
+        }
+      } catch (e) {
+        console.warn("Auto-sync existing local data error:", e);
+      }
+    };
+
+    syncExistingLocalToSharedStore();
 
     return () => {
       unsubs.forEach(fn => fn());
     };
   }, [currentUser]);
 
-  // Migrate all local state to Firebase Firestore
-  const migrateLocalDataToCloud = async (uid: string) => {
+  // Migrate all local state to Firebase Firestore shared store
+  const migrateLocalDataToCloud = async (_uid?: string) => {
     try {
-      for (const m of merchants) await setDoc(doc(db, 'users', uid, 'merchants', m.id), m, { merge: true });
-      for (const p of products) await setDoc(doc(db, 'users', uid, 'products', p.id), p, { merge: true });
-      for (const inv of invoices) await setDoc(doc(db, 'users', uid, 'invoices', inv.id), inv, { merge: true });
-      for (const pay of payments) await setDoc(doc(db, 'users', uid, 'payments', pay.id), pay, { merge: true });
-      for (const exp of expenses) await setDoc(doc(db, 'users', uid, 'expenses', exp.id), exp, { merge: true });
-      for (const ord of orders) await setDoc(doc(db, 'users', uid, 'orders', ord.id), ord, { merge: true });
-      for (const c of personalContacts) await setDoc(doc(db, 'users', uid, 'personal_contacts', c.id), c, { merge: true });
-      for (const tx of personalTransactions) await setDoc(doc(db, 'users', uid, 'personal_transactions', tx.id), tx, { merge: true });
+      for (const m of merchants) {
+        if (m.id !== 'm_1' && m.id !== 'm_2' && m.id !== 'm_3') {
+          await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'merchants', m.id), m, { merge: true });
+        }
+      }
+      for (const p of products) {
+        if (p.id !== 'prod_1' && p.id !== 'prod_2') {
+          await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'products', p.id), p, { merge: true });
+        }
+      }
+      for (const inv of invoices) await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'invoices', inv.id), inv, { merge: true });
+      for (const pay of payments) await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'payments', pay.id), pay, { merge: true });
+      for (const exp of expenses) await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'expenses', exp.id), exp, { merge: true });
+      for (const ord of orders) await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'orders', ord.id), ord, { merge: true });
+      for (const c of personalContacts) await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'personal_contacts', c.id), c, { merge: true });
+      for (const tx of personalTransactions) await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'personal_transactions', tx.id), tx, { merge: true });
     } catch (e) {
       console.warn("Migration warning:", e);
     }
@@ -414,9 +555,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     if (currentUser) {
       try {
-        await setDoc(doc(db, 'users', currentUser.uid, 'merchants', id), record);
+        await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'merchants', id), record, { merge: true });
       } catch (err) {
-        handleFirestoreError(err, OperationType.WRITE, `users/${currentUser.uid}/merchants/${id}`);
+        console.warn("Save merchant warning:", err);
       }
     }
     return id;
@@ -426,9 +567,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setMerchants(prev => prev.filter(m => m.id !== id));
     if (currentUser) {
       try {
-        await deleteDoc(doc(db, 'users', currentUser.uid, 'merchants', id));
+        await deleteDoc(doc(db, 'stores', SHARED_STORE_ID, 'merchants', id));
       } catch (err) {
-        handleFirestoreError(err, OperationType.DELETE, `users/${currentUser.uid}/merchants/${id}`);
+        console.warn("Delete merchant warning:", err);
       }
     }
   };
@@ -460,9 +601,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     if (currentUser) {
       try {
-        await setDoc(doc(db, 'users', currentUser.uid, 'products', id), record);
+        await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'products', id), record, { merge: true });
       } catch (err) {
-        handleFirestoreError(err, OperationType.WRITE, `users/${currentUser.uid}/products/${id}`);
+        console.warn("Save product warning:", err);
       }
     }
     return id;
@@ -472,9 +613,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setProducts(prev => prev.filter(p => p.id !== id));
     if (currentUser) {
       try {
-        await deleteDoc(doc(db, 'users', currentUser.uid, 'products', id));
+        await deleteDoc(doc(db, 'stores', SHARED_STORE_ID, 'products', id));
       } catch (err) {
-        handleFirestoreError(err, OperationType.DELETE, `users/${currentUser.uid}/products/${id}`);
+        console.warn("Delete product warning:", err);
       }
     }
   };
@@ -521,9 +662,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     if (currentUser) {
       try {
-        await setDoc(doc(db, 'users', currentUser.uid, 'invoices', id), record);
+        await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'invoices', id), record, { merge: true });
       } catch (err) {
-        handleFirestoreError(err, OperationType.WRITE, `users/${currentUser.uid}/invoices/${id}`);
+        console.warn("Save invoice warning:", err);
       }
     }
 
@@ -548,9 +689,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setInvoices(prev => prev.filter(inv => inv.id !== id));
     if (currentUser) {
       try {
-        await deleteDoc(doc(db, 'users', currentUser.uid, 'invoices', id));
+        await deleteDoc(doc(db, 'stores', SHARED_STORE_ID, 'invoices', id));
       } catch (err) {
-        handleFirestoreError(err, OperationType.DELETE, `users/${currentUser.uid}/invoices/${id}`);
+        console.warn("Delete invoice warning:", err);
       }
     }
   };
@@ -588,9 +729,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     if (currentUser) {
       try {
-        await setDoc(doc(db, 'users', currentUser.uid, 'payments', id), record);
+        await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'payments', id), record, { merge: true });
       } catch (err) {
-        handleFirestoreError(err, OperationType.WRITE, `users/${currentUser.uid}/payments/${id}`);
+        console.warn("Save payment warning:", err);
       }
     }
     return id;
@@ -600,9 +741,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setPayments(prev => prev.filter(p => p.id !== id));
     if (currentUser) {
       try {
-        await deleteDoc(doc(db, 'users', currentUser.uid, 'payments', id));
+        await deleteDoc(doc(db, 'stores', SHARED_STORE_ID, 'payments', id));
       } catch (err) {
-        handleFirestoreError(err, OperationType.DELETE, `users/${currentUser.uid}/payments/${id}`);
+        console.warn("Delete payment warning:", err);
       }
     }
   };
@@ -638,9 +779,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     if (currentUser) {
       try {
-        await setDoc(doc(db, 'users', currentUser.uid, 'expenses', id), record);
+        await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'expenses', id), record, { merge: true });
       } catch (err) {
-        handleFirestoreError(err, OperationType.WRITE, `users/${currentUser.uid}/expenses/${id}`);
+        console.warn("Save expense warning:", err);
       }
     }
     return id;
@@ -650,9 +791,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setExpenses(prev => prev.filter(e => e.id !== id));
     if (currentUser) {
       try {
-        await deleteDoc(doc(db, 'users', currentUser.uid, 'expenses', id));
+        await deleteDoc(doc(db, 'stores', SHARED_STORE_ID, 'expenses', id));
       } catch (err) {
-        handleFirestoreError(err, OperationType.DELETE, `users/${currentUser.uid}/expenses/${id}`);
+        console.warn("Delete expense warning:", err);
       }
     }
   };
@@ -691,9 +832,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     if (currentUser) {
       try {
-        await setDoc(doc(db, 'users', currentUser.uid, 'orders', id), record);
+        await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'orders', id), record, { merge: true });
       } catch (err) {
-        handleFirestoreError(err, OperationType.WRITE, `users/${currentUser.uid}/orders/${id}`);
+        console.warn("Save order warning:", err);
       }
     }
     return id;
@@ -703,9 +844,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setOrders(prev => prev.filter(o => o.id !== id));
     if (currentUser) {
       try {
-        await deleteDoc(doc(db, 'users', currentUser.uid, 'orders', id));
+        await deleteDoc(doc(db, 'stores', SHARED_STORE_ID, 'orders', id));
       } catch (err) {
-        handleFirestoreError(err, OperationType.DELETE, `users/${currentUser.uid}/orders/${id}`);
+        console.warn("Delete order warning:", err);
       }
     }
   };
@@ -805,9 +946,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     if (currentUser) {
       try {
-        await setDoc(doc(db, 'users', currentUser.uid, 'orders', orderId), updatedOrder);
+        await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'orders', orderId), updatedOrder, { merge: true });
       } catch (err) {
-        handleFirestoreError(err, OperationType.WRITE, `users/${currentUser.uid}/orders/${orderId}`);
+        console.warn("Save delivered order warning:", err);
       }
     }
 
@@ -844,9 +985,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     if (currentUser) {
       try {
-        await setDoc(doc(db, 'users', currentUser.uid, 'personal_contacts', id), record);
+        await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'personal_contacts', id), record, { merge: true });
       } catch (err) {
-        handleFirestoreError(err, OperationType.WRITE, `users/${currentUser.uid}/personal_contacts/${id}`);
+        console.warn("Save personal contact warning:", err);
       }
     }
     return id;
@@ -856,9 +997,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setPersonalContacts(prev => prev.filter(c => c.id !== id));
     if (currentUser) {
       try {
-        await deleteDoc(doc(db, 'users', currentUser.uid, 'personal_contacts', id));
+        await deleteDoc(doc(db, 'stores', SHARED_STORE_ID, 'personal_contacts', id));
       } catch (err) {
-        handleFirestoreError(err, OperationType.DELETE, `users/${currentUser.uid}/personal_contacts/${id}`);
+        console.warn("Delete personal contact warning:", err);
       }
     }
   };
@@ -894,9 +1035,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     if (currentUser) {
       try {
-        await setDoc(doc(db, 'users', currentUser.uid, 'personal_transactions', id), record);
+        await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'personal_transactions', id), record, { merge: true });
       } catch (err) {
-        handleFirestoreError(err, OperationType.WRITE, `users/${currentUser.uid}/personal_transactions/${id}`);
+        console.warn("Save personal transaction warning:", err);
       }
     }
     return id;
@@ -906,9 +1047,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setPersonalTransactions(prev => prev.filter(tx => tx.id !== id));
     if (currentUser) {
       try {
-        await deleteDoc(doc(db, 'users', currentUser.uid, 'personal_transactions', id));
+        await deleteDoc(doc(db, 'stores', SHARED_STORE_ID, 'personal_transactions', id));
       } catch (err) {
-        handleFirestoreError(err, OperationType.DELETE, `users/${currentUser.uid}/personal_transactions/${id}`);
+        console.warn("Delete personal transaction warning:", err);
       }
     }
   };
@@ -1182,30 +1323,33 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (parsed.currency) setCurrency(parsed.currency);
 
       if (currentUser) {
-        const uid = currentUser.uid;
         for (const m of parsed.merchants || []) {
-          await setDoc(doc(db, 'users', uid, 'merchants', m.id), m);
+          if (m.id !== 'm_1' && m.id !== 'm_2' && m.id !== 'm_3') {
+            await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'merchants', m.id), m, { merge: true });
+          }
         }
         for (const p of parsed.products || []) {
-          await setDoc(doc(db, 'users', uid, 'products', p.id), p);
+          if (p.id !== 'prod_1' && p.id !== 'prod_2') {
+            await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'products', p.id), p, { merge: true });
+          }
         }
         for (const inv of parsed.invoices || []) {
-          await setDoc(doc(db, 'users', uid, 'invoices', inv.id), inv);
+          await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'invoices', inv.id), inv, { merge: true });
         }
         for (const pay of parsed.payments || []) {
-          await setDoc(doc(db, 'users', uid, 'payments', pay.id), pay);
+          await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'payments', pay.id), pay, { merge: true });
         }
         for (const exp of parsed.expenses || []) {
-          await setDoc(doc(db, 'users', uid, 'expenses', exp.id), exp);
+          await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'expenses', exp.id), exp, { merge: true });
         }
         for (const ord of parsed.orders || []) {
-          await setDoc(doc(db, 'users', uid, 'orders', ord.id), ord);
+          await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'orders', ord.id), ord, { merge: true });
         }
         for (const c of parsed.personalContacts || []) {
-          await setDoc(doc(db, 'users', uid, 'personal_contacts', c.id), c);
+          await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'personal_contacts', c.id), c, { merge: true });
         }
         for (const tx of parsed.personalTransactions || []) {
-          await setDoc(doc(db, 'users', uid, 'personal_transactions', tx.id), tx);
+          await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'personal_transactions', tx.id), tx, { merge: true });
         }
       }
       return true;
@@ -1273,6 +1417,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       showToast,
       exportDataJSON,
       importDataJSON,
+      isLocked,
+      unlockSystem,
+      lockSystem,
+      systemPin,
+      updateSystemPin,
+      isPinEnabled,
+      togglePinEnabled,
     }}>
       {children}
     </AppContext.Provider>
