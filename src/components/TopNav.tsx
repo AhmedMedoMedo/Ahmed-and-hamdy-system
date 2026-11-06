@@ -39,10 +39,10 @@ export const TopNav: React.FC = () => {
   }, [activeTab]);
 
   return (
-    <nav className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 shadow-2xs sticky top-[57px] z-20">
+    <nav className="bg-white dark:bg-slate-900">
       <div 
         ref={navContainerRef}
-        className="max-w-md mx-auto flex items-center gap-1.5 px-2.5 py-1.5 overflow-x-auto no-scrollbar scroll-smooth"
+        className="max-w-md mx-auto flex items-center gap-1.5 px-2.5 pt-0.5 pb-2 overflow-x-auto no-scrollbar scroll-smooth"
       >
         {tabs.map((tab) => {
           const Icon = tab.icon;

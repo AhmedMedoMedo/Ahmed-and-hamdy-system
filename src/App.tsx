@@ -92,11 +92,11 @@ const MainLayout: React.FC = () => {
           </div>
         )}
 
-        {/* Top Fixed Header with Month Switcher & Auth */}
-        <Header onOpenSettings={() => setIsSettingsOpen(true)} />
-
-        {/* Top Navigation Bar (Moved to Top for Fast Mobile Access) */}
-        <TopNav />
+        {/* Top Header & Navigation Bar (Seamlessly attached to Archive Date) */}
+        <div className="sticky top-0 z-30 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 shadow-2xs">
+          <Header onOpenSettings={() => setIsSettingsOpen(true)} />
+          <TopNav />
+        </div>
 
         {/* Main Content Area */}
         <main className="flex-1 px-3 pt-3 pb-8">
