@@ -263,24 +263,24 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   return (
     <div className="space-y-3 pb-8">
       
-      {/* Primary Mobile Action Buttons (3 Buttons: Invoices, Payments, Withdrawals/Expenses) */}
+      {/* Primary Mobile Action Buttons (3 Distinct Expressive Colors: Invoices=Blue, Payments=Emerald, Withdrawals/Expenses=Amber) */}
       <div className="grid grid-cols-3 gap-1.5">
         <button
           onClick={onOpenNewInvoice}
-          className="flex flex-col items-center justify-center p-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold shadow-2xs transition-all text-center"
+          className="flex flex-col items-center justify-center p-2.5 rounded-2xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold shadow-2xs shadow-blue-500/20 transition-all text-center"
         >
-          <Receipt className="w-5 h-5 mb-1 text-emerald-100" />
+          <Receipt className="w-5 h-5 mb-1 text-blue-100" />
           <span className="text-[11px] sm:text-xs leading-tight">فاتورة بيع</span>
-          <span className="text-[9px] text-emerald-200 mt-0.5">بيع بضاعة</span>
+          <span className="text-[9px] text-blue-200 mt-0.5">بيع بضاعة</span>
         </button>
 
         <button
           onClick={onOpenNewPayment}
-          className="flex flex-col items-center justify-center p-2.5 rounded-2xl bg-teal-600 hover:bg-teal-700 active:scale-95 text-white font-bold shadow-2xs transition-all text-center"
+          className="flex flex-col items-center justify-center p-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold shadow-2xs shadow-emerald-500/20 transition-all text-center"
         >
-          <HandCoins className="w-5 h-5 mb-1 text-teal-100" />
+          <HandCoins className="w-5 h-5 mb-1 text-emerald-100" />
           <span className="text-[11px] sm:text-xs leading-tight">دفعة تاجر</span>
-          <span className="text-[9px] text-teal-200 mt-0.5">تحصيل وتسديد</span>
+          <span className="text-[9px] text-emerald-200 mt-0.5">تحصيل وتسديد</span>
         </button>
 
         <button
@@ -288,11 +288,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             setEditingExpense(null);
             setIsExpenseModalOpen(true);
           }}
-          className="flex flex-col items-center justify-center p-2.5 rounded-2xl bg-rose-600 hover:bg-rose-700 active:scale-95 text-white font-bold shadow-2xs transition-all text-center"
+          className="flex flex-col items-center justify-center p-2.5 rounded-2xl bg-amber-600 hover:bg-amber-700 active:scale-95 text-white font-bold shadow-2xs shadow-amber-500/20 transition-all text-center"
         >
-          <ArrowDownCircle className="w-5 h-5 mb-1 text-rose-100" />
+          <ArrowDownCircle className="w-5 h-5 mb-1 text-amber-100" />
           <span className="text-[11px] sm:text-xs leading-tight">مسحوبات</span>
-          <span className="text-[9px] text-rose-200 mt-0.5">مصاريف وصيانة</span>
+          <span className="text-[9px] text-amber-200 mt-0.5">مصاريف وصيانة</span>
         </button>
       </div>
 
@@ -393,70 +393,70 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       {/* --- ALL FINANCIAL KPI CARDS WITH OPERATION COUNTS ON EVERY CARD --- */}
       <div className="grid grid-cols-2 gap-2">
         
-        {/* Card 1: Sales in selected period */}
-        <div className="bg-white dark:bg-slate-900 rounded-2xl p-3 border border-slate-200/80 dark:border-slate-800 shadow-2xs">
-          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs mb-1 font-semibold">
+        {/* Card 1: Sales in selected period (Blue for Invoices / Sales) */}
+        <div className="bg-white dark:bg-slate-900 rounded-2xl p-3 border border-blue-200/80 dark:border-blue-900/50 bg-blue-50/20 dark:bg-blue-950/20 shadow-2xs">
+          <div className="flex items-center justify-between text-blue-700 dark:text-blue-400 text-xs mb-1 font-bold">
             <span>
               {periodFilter === 'today' && 'مبيعات اليوم'}
               {periodFilter === 'week' && 'مبيعات الأسبوع'}
               {periodFilter === 'month' && 'مبيعات الشهر'}
               {periodFilter === 'all' && 'إجمالي المبيعات'}
             </span>
-            <TrendingUp className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+            <Receipt className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
           </div>
-          <div className="text-base sm:text-lg font-black text-slate-900 dark:text-white font-mono-num">
+          <div className="text-base sm:text-lg font-black text-blue-700 dark:text-blue-300 font-mono-num">
             {formatCurrency(
               periodFilter === 'month' ? currentMonthSummary.newSales : periodStats.sales, 
               currency
             )}
           </div>
-          <div className="text-[10px] text-emerald-700 dark:text-emerald-400 mt-0.5 font-bold font-mono-num flex items-center gap-1">
+          <div className="text-[10px] text-blue-600 dark:text-blue-400 mt-0.5 font-bold font-mono-num flex items-center gap-1">
             <span>{periodFilter === 'month' ? currentMonthSummary.invoicesCount : periodStats.invoiceCount}</span>
-            <span>عملية بيع مسجلة</span>
+            <span>فاتورة بيع مسجلة</span>
           </div>
         </div>
 
-        {/* Card 2: Collections in selected period */}
-        <div className="bg-white dark:bg-slate-900 rounded-2xl p-3 border border-slate-200/80 dark:border-slate-800 shadow-2xs">
-          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs mb-1 font-semibold">
+        {/* Card 2: Collections in selected period (Emerald Green for Cash In / Payments) */}
+        <div className="bg-white dark:bg-slate-900 rounded-2xl p-3 border border-emerald-200/80 dark:border-emerald-900/50 bg-emerald-50/20 dark:bg-emerald-950/20 shadow-2xs">
+          <div className="flex items-center justify-between text-emerald-700 dark:text-emerald-400 text-xs mb-1 font-bold">
             <span>
               {periodFilter === 'today' && 'تحصيل اليوم'}
               {periodFilter === 'week' && 'تحصيل الأسبوع'}
               {periodFilter === 'month' && 'تحصيل الشهر'}
               {periodFilter === 'all' && 'إجمالي التحصيل'}
             </span>
-            <HandCoins className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
+            <HandCoins className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
           </div>
-          <div className="text-base sm:text-lg font-black text-teal-700 dark:text-teal-400 font-mono-num">
+          <div className="text-base sm:text-lg font-black text-emerald-600 dark:text-emerald-400 font-mono-num">
             +{formatCurrency(
               periodFilter === 'month' ? currentMonthSummary.newCollections : periodStats.collections, 
               currency
             )}
           </div>
-          <div className="text-[10px] text-teal-700 dark:text-teal-400 mt-0.5 font-bold font-mono-num flex items-center gap-1">
+          <div className="text-[10px] text-emerald-600 dark:text-emerald-400 mt-0.5 font-bold font-mono-num flex items-center gap-1">
             <span>{periodFilter === 'month' ? currentMonthSummary.paymentsCount : periodStats.paymentCount}</span>
-            <span>عملية تحصيل مستلمة</span>
+            <span>دفعة تحصيل مستلمة</span>
           </div>
         </div>
 
-        {/* Card 3: Expenses / Withdrawals in selected period (User Requested) */}
-        <div className="bg-white dark:bg-slate-900 rounded-2xl p-3 border border-rose-200/80 dark:border-rose-900/40 bg-rose-50/20 dark:bg-rose-950/10 shadow-2xs">
-          <div className="flex items-center justify-between text-rose-600 dark:text-rose-400 text-xs mb-1 font-semibold">
+        {/* Card 3: Expenses / Withdrawals in selected period (Amber for Withdrawals / Expenses) */}
+        <div className="bg-white dark:bg-slate-900 rounded-2xl p-3 border border-amber-200/80 dark:border-amber-900/50 bg-amber-50/20 dark:bg-amber-950/20 shadow-2xs">
+          <div className="flex items-center justify-between text-amber-700 dark:text-amber-400 text-xs mb-1 font-bold">
             <span>
               {periodFilter === 'today' && 'مسحوبات اليوم'}
               {periodFilter === 'week' && 'مسحوبات الأسبوع'}
               {periodFilter === 'month' && 'مسحوبات الشهر'}
               {periodFilter === 'all' && 'إجمالي المسحوبات'}
             </span>
-            <ArrowDownCircle className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
+            <ArrowDownCircle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
           </div>
-          <div className="text-base sm:text-lg font-black text-rose-600 dark:text-rose-400 font-mono-num">
+          <div className="text-base sm:text-lg font-black text-amber-600 dark:text-amber-400 font-mono-num">
             -{formatCurrency(
               periodFilter === 'month' ? currentMonthSummary.newExpenses : periodStats.expensesSum, 
               currency
             )}
           </div>
-          <div className="text-[10px] text-rose-600 dark:text-rose-400 mt-0.5 font-bold font-mono-num flex items-center gap-1">
+          <div className="text-[10px] text-amber-600 dark:text-amber-400 mt-0.5 font-bold font-mono-num flex items-center gap-1">
             <span>{periodFilter === 'month' ? currentMonthSummary.expensesCount : periodStats.expenseCount}</span>
             <span>عملية سحب ومصروف</span>
           </div>
@@ -570,54 +570,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </button>
       </div>
 
-      {/* Outstanding Merchant Debts Section */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl p-3.5 border border-slate-200/80 dark:border-slate-800 shadow-2xs space-y-2.5">
-        <div className="flex items-center justify-between">
-          <h3 className="font-bold text-slate-900 dark:text-white text-xs sm:text-sm flex items-center gap-1.5">
-            <Users className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-            <span>ديون التجار المطلوب تحصيلها</span>
-          </h3>
-          <button
-            onClick={() => setActiveTab('debts')}
-            className="text-[11px] text-rose-600 dark:text-rose-400 hover:underline font-bold flex items-center gap-0.5"
-          >
-            عرض ديون التجار ({sortedDebtors.length})
-            <ChevronLeft className="w-3 h-3" />
-          </button>
-        </div>
-
-        {sortedDebtors.length === 0 ? (
-          <div className="text-center py-5 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-dashed border-slate-200 dark:border-slate-800">
-            <p className="text-xs font-bold text-slate-700 dark:text-slate-300">لا توجد ديون مستحقة على التجار!</p>
-            <p className="text-[11px] text-slate-400 mt-0.5">جميع الحسابات مسددة بالكامل.</p>
-          </div>
-        ) : (
-          <div className="space-y-1.5">
-            {sortedDebtors.slice(0, 4).map((debtor) => (
-              <div
-                key={debtor.merchantId}
-                onClick={() => onSelectMerchant(debtor.merchantId)}
-                className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 hover:bg-slate-100/80 dark:hover:bg-slate-700/80 border border-slate-200/60 dark:border-slate-700/60 cursor-pointer active:scale-99 transition-all"
-              >
-                <div className="min-w-0 pr-1">
-                  <h4 className="font-bold text-slate-900 dark:text-white text-xs truncate">{debtor.merchantName}</h4>
-                  <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
-                    مسحوبات: {formatCurrency(debtor.totalInvoicedAllTime, currency)}
-                  </div>
-                </div>
-                
-                <div className="text-left shrink-0 pl-1 font-mono-num">
-                  <span className="text-[10px] text-rose-600 dark:text-rose-400 font-semibold block">المتبقي دين</span>
-                  <span className="text-sm font-black text-rose-600 dark:text-rose-400">
-                    {formatCurrency(debtor.currentDebt, currency)}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
       {/* --- RECENT OPERATIONS WITH DIRECT DELETE & EDIT ACTIONS (INVOICES, PAYMENTS, EXPENSES) --- */}
       <div className="bg-white dark:bg-slate-900 rounded-2xl p-3.5 border border-slate-200/80 dark:border-slate-800 shadow-2xs space-y-2.5">
         <div className="flex items-center justify-between">
@@ -636,23 +588,23 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </span>
         </div>
 
-        {/* Totals Banner for Filtered Operations */}
+        {/* Totals Banner for Filtered Operations (Distinct Expressive Colors) */}
         <div className="grid grid-cols-3 gap-1.5 p-2 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700 text-xs font-mono-num text-center">
-          <div>
-            <span className="text-[9px] text-slate-400 block font-sans">المبيعات</span>
-            <span className="font-bold text-emerald-700 dark:text-emerald-400 text-[11px]">
+          <div className="bg-blue-50/70 dark:bg-blue-950/40 p-1.5 rounded-lg border border-blue-200/60 dark:border-blue-900/40">
+            <span className="text-[9px] text-blue-700 dark:text-blue-300 block font-sans font-bold">المبيعات</span>
+            <span className="font-black text-blue-700 dark:text-blue-300 text-[11px]">
               {formatCurrency(periodStats.sales, currency)}
             </span>
           </div>
-          <div>
-            <span className="text-[9px] text-slate-400 block font-sans">التحصيلات</span>
-            <span className="font-bold text-teal-700 dark:text-teal-400 text-[11px]">
+          <div className="bg-emerald-50/70 dark:bg-emerald-950/40 p-1.5 rounded-lg border border-emerald-200/60 dark:border-emerald-900/40">
+            <span className="text-[9px] text-emerald-700 dark:text-emerald-300 block font-sans font-bold">التحصيلات</span>
+            <span className="font-black text-emerald-600 dark:text-emerald-400 text-[11px]">
               +{formatCurrency(periodStats.collections, currency)}
             </span>
           </div>
-          <div>
-            <span className="text-[9px] text-slate-400 block font-sans">المسحوبات</span>
-            <span className="font-bold text-rose-600 dark:text-rose-400 text-[11px]">
+          <div className="bg-amber-50/70 dark:bg-amber-950/40 p-1.5 rounded-lg border border-amber-200/60 dark:border-amber-900/40">
+            <span className="text-[9px] text-amber-700 dark:text-amber-300 block font-sans font-bold">المسحوبات</span>
+            <span className="font-black text-amber-600 dark:text-amber-400 text-[11px]">
               -{formatCurrency(periodStats.expensesSum, currency)}
             </span>
           </div>
@@ -672,47 +624,58 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               <div 
                 key={op.type + '_' + op.id} 
                 onClick={() => handleOpenOperationDetail(op)}
-                className={`flex items-center justify-between p-2 rounded-xl text-xs border cursor-pointer hover:shadow-2xs transition-all ${
+                className={`flex items-center justify-between p-2.5 rounded-xl text-xs border cursor-pointer hover:shadow-2xs transition-all active:scale-99 ${
                   isInv 
-                    ? 'bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700' 
+                    ? 'bg-blue-50/40 dark:bg-blue-950/20 border-blue-200/80 dark:border-blue-900/50 hover:border-blue-300' 
                     : isPay
-                    ? 'bg-teal-50/40 dark:bg-teal-950/20 border-teal-100 dark:border-teal-900/40 hover:border-teal-200'
-                    : 'bg-rose-50/40 dark:bg-rose-950/20 border-rose-100 dark:border-rose-900/40 hover:border-rose-200'
+                    ? 'bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-200/80 dark:border-emerald-900/50 hover:border-emerald-300'
+                    : 'bg-amber-50/50 dark:bg-amber-950/20 border-amber-200/80 dark:border-amber-900/50 hover:border-amber-300'
                 }`}
               >
-                <div className="flex items-center gap-2 min-w-0 flex-1">
-                  <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
+                <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
                     isInv 
-                      ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400' 
+                      ? 'bg-blue-100 dark:bg-blue-900/60 text-blue-600 dark:text-blue-400' 
                       : isPay
-                      ? 'bg-teal-100 dark:bg-teal-950 text-teal-700 dark:text-teal-400'
-                      : 'bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-400'
+                      ? 'bg-emerald-100 dark:bg-emerald-900/60 text-emerald-600 dark:text-emerald-400'
+                      : 'bg-amber-100 dark:bg-amber-900/60 text-amber-600 dark:text-amber-400'
                   }`}>
                     {isInv ? (
-                      <ArrowUpRight className="w-4 h-4" />
+                      <Receipt className="w-4 h-4" />
                     ) : isPay ? (
-                      <ArrowDownLeft className="w-4 h-4" />
+                      <HandCoins className="w-4 h-4" />
                     ) : (
                       <ArrowDownCircle className="w-4 h-4" />
                     )}
                   </div>
                   <div className="min-w-0 pr-1">
-                    {op.merchantId ? (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onSelectMerchant(op.merchantId!);
-                        }}
-                        className="font-bold text-slate-900 dark:text-white block truncate text-right hover:text-emerald-600 dark:hover:text-emerald-400 hover:underline cursor-pointer"
-                        title="فتح صفحة وحساب التاجر"
-                      >
-                        {op.title}
-                      </button>
-                    ) : (
-                      <span className="font-bold text-slate-900 dark:text-white block truncate">{op.title}</span>
-                    )}
-                    <span className="text-[10px] text-slate-400 dark:text-slate-500 block font-mono-num truncate">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded-md ${
+                        isInv 
+                          ? 'bg-blue-100 dark:bg-blue-900/60 text-blue-800 dark:text-blue-300' 
+                          : isPay
+                          ? 'bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300'
+                          : 'bg-amber-100 dark:bg-amber-900/60 text-amber-800 dark:text-amber-300'
+                      }`}>
+                        {isInv ? 'فاتورة' : isPay ? 'تحصيل دفعة' : 'مسحوبات'}
+                      </span>
+                      {op.merchantId ? (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onSelectMerchant(op.merchantId!);
+                          }}
+                          className="font-bold text-slate-900 dark:text-white truncate text-right hover:text-emerald-600 dark:hover:text-emerald-400 hover:underline cursor-pointer"
+                          title="فتح صفحة وحساب التاجر"
+                        >
+                          {op.title}
+                        </button>
+                      ) : (
+                        <span className="font-bold text-slate-900 dark:text-white truncate">{op.title}</span>
+                      )}
+                    </div>
+                    <span className="text-[10px] text-slate-500 dark:text-slate-400 block font-mono-num truncate mt-0.5">
                       {op.subTitle} • {formatDateArabic(op.date)}
                     </span>
                   </div>
@@ -721,12 +684,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 {/* Amount + Action Buttons */}
                 <div className="flex items-center gap-2 shrink-0 pl-1">
                   <div className="text-left font-mono-num">
-                    <span className={`font-bold block text-xs ${
+                    <span className={`font-black block text-xs sm:text-sm ${
                       isInv 
-                        ? 'text-emerald-700 dark:text-emerald-400' 
+                        ? 'text-blue-700 dark:text-blue-300' 
                         : isPay
-                        ? 'text-teal-700 dark:text-teal-400'
-                        : 'text-rose-600 dark:text-rose-400'
+                        ? 'text-emerald-600 dark:text-emerald-400'
+                        : 'text-amber-600 dark:text-amber-400'
                     }`}>
                       {isInv 
                         ? formatCurrency(op.amount, currency) 
@@ -736,7 +699,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       }
                     </span>
                     {isInv && op.remainingAmount > 0 && (
-                      <span className="text-[10px] text-rose-600 dark:text-rose-400 block">
+                      <span className="text-[10px] text-rose-600 dark:text-rose-400 font-bold block">
                         متبقي: {formatCurrency(op.remainingAmount, currency)}
                       </span>
                     )}
@@ -839,13 +802,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               <div className="flex items-center gap-2">
                 <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${
                   selectedOperation.type === 'invoice' 
-                    ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400' 
+                    ? 'bg-blue-100 dark:bg-blue-900/60 text-blue-600 dark:text-blue-400' 
                     : selectedOperation.type === 'payment'
-                    ? 'bg-teal-100 dark:bg-teal-950 text-teal-700 dark:text-teal-400'
-                    : 'bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-400'
+                    ? 'bg-emerald-100 dark:bg-emerald-900/60 text-emerald-600 dark:text-emerald-400'
+                    : 'bg-amber-100 dark:bg-amber-900/60 text-amber-600 dark:text-amber-400'
                 }`}>
                   {selectedOperation.type === 'invoice' ? (
-                    <FileText className="w-4 h-4" />
+                    <Receipt className="w-4 h-4" />
                   ) : selectedOperation.type === 'payment' ? (
                     <HandCoins className="w-4 h-4" />
                   ) : (
@@ -885,18 +848,18 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       onSelectMerchant(selectedOperation.rawInvoice!.merchantId);
                       setSelectedOperation(null);
                     }}
-                    className="font-bold text-slate-900 dark:text-white hover:text-emerald-600 dark:hover:text-emerald-400 hover:underline cursor-pointer flex items-center gap-1"
+                    className="font-bold text-slate-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 hover:underline cursor-pointer flex items-center gap-1"
                     title="فتح صفحة التاجر"
                   >
                     <span>{selectedOperation.rawInvoice.merchantName}</span>
-                    <span className="text-[10px] text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-1.5 py-0.2 rounded-md font-bold">
+                    <span className="text-[10px] text-blue-700 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-1.5 py-0.2 rounded-md font-bold">
                       عرض الحساب ↗
                     </span>
                   </button>
                 </div>
                 <div className="flex justify-between py-1 border-b border-slate-50 dark:border-slate-800 font-mono-num">
                   <span className="text-slate-500 dark:text-slate-400">إجمالي الفاتورة:</span>
-                  <span className="font-bold text-emerald-700 dark:text-emerald-400 text-sm">
+                  <span className="font-bold text-blue-700 dark:text-blue-300 text-sm">
                     {formatCurrency(selectedOperation.rawInvoice.total, currency)}
                   </span>
                 </div>
@@ -908,7 +871,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 )}
                 <div className="flex justify-between py-1 border-b border-slate-50 dark:border-slate-800 font-mono-num">
                   <span className="text-slate-500 dark:text-slate-400">المدفوع نقداً:</span>
-                  <span className="font-bold text-teal-700 dark:text-teal-400">
+                  <span className="font-bold text-emerald-600 dark:text-emerald-400">
                     {formatCurrency(selectedOperation.rawInvoice.paidAmount, currency)}
                   </span>
                 </div>
@@ -950,19 +913,19 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       onSelectMerchant(selectedOperation.rawPayment!.merchantId);
                       setSelectedOperation(null);
                     }}
-                    className="font-bold text-slate-900 dark:text-white hover:text-teal-600 dark:hover:text-teal-400 hover:underline cursor-pointer flex items-center gap-1"
+                    className="font-bold text-slate-900 dark:text-white hover:text-emerald-600 dark:hover:text-emerald-400 hover:underline cursor-pointer flex items-center gap-1"
                     title="فتح صفحة التاجر"
                   >
                     <span>{selectedOperation.rawPayment.merchantName}</span>
-                    <span className="text-[10px] text-teal-700 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/60 px-1.5 py-0.2 rounded-md font-bold">
+                    <span className="text-[10px] text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-1.5 py-0.2 rounded-md font-bold">
                       عرض الحساب ↗
                     </span>
                   </button>
                 </div>
                 <div className="flex justify-between py-1 border-b border-slate-50 dark:border-slate-800 font-mono-num">
                   <span className="text-slate-500 dark:text-slate-400">المبلغ المستلم:</span>
-                  <span className="font-bold text-teal-700 dark:text-teal-400 text-sm">
-                    {formatCurrency(selectedOperation.rawPayment.amount, currency)}
+                  <span className="font-bold text-emerald-600 dark:text-emerald-400 text-sm">
+                    +{formatCurrency(selectedOperation.rawPayment.amount, currency)}
                   </span>
                 </div>
                 <div className="flex justify-between py-1 border-b border-slate-50 dark:border-slate-800">
@@ -989,8 +952,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 </div>
                 <div className="flex justify-between py-1 border-b border-slate-50 dark:border-slate-800 font-mono-num">
                   <span className="text-slate-500 dark:text-slate-400">المبلغ المسحوب:</span>
-                  <span className="font-bold text-rose-600 dark:text-rose-400 text-sm">
-                    {formatCurrency(selectedOperation.rawExpense.amount, currency)}
+                  <span className="font-bold text-amber-600 dark:text-amber-400 text-sm">
+                    -{formatCurrency(selectedOperation.rawExpense.amount, currency)}
                   </span>
                 </div>
                 <div className="flex justify-between py-1 border-b border-slate-50 dark:border-slate-800">

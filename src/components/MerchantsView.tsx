@@ -582,19 +582,24 @@ export const MerchantsView: React.FC<MerchantsViewProps> = ({
                     <div
                       key={tx.id + idx}
                       className={`p-2.5 rounded-xl border text-xs flex items-center justify-between gap-2 ${
-                        isInv ? 'bg-white border-slate-200' : 'bg-teal-50/40 border-teal-100'
+                        isInv ? 'bg-blue-50/40 border-blue-200/80' : 'bg-emerald-50/50 border-emerald-200/80'
                       }`}
                     >
                       <div className="min-w-0 flex-1">
                         <div className="font-bold text-slate-800 flex items-center gap-1.5">
-                          <span className={isInv ? 'text-emerald-700' : 'text-teal-700'}>{tx.title}</span>
+                          <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded ${
+                            isInv ? 'bg-blue-100 text-blue-800' : 'bg-emerald-100 text-emerald-800'
+                          }`}>
+                            {isInv ? 'فاتورة' : 'سند قبض'}
+                          </span>
+                          <span className={isInv ? 'text-blue-700 font-bold' : 'text-emerald-700 font-bold'}>{tx.title}</span>
                           <span className="text-[10px] text-slate-400 font-normal">({formatDateArabic(tx.date)})</span>
                         </div>
                         {tx.notes && <p className="text-[10px] text-slate-500 truncate mt-0.5">{tx.notes}</p>}
                       </div>
 
                       <div className="text-left shrink-0 pl-1">
-                        <div className={`font-mono-num font-bold ${isInv ? 'text-emerald-700' : 'text-teal-700'}`}>
+                        <div className={`font-mono-num font-black ${isInv ? 'text-blue-700' : 'text-emerald-600'}`}>
                           {isInv ? `+${formatCurrency(tx.debit, currency)}` : `-${formatCurrency(tx.credit, currency)}`}
                         </div>
                         <div className="text-[10px] text-slate-400">
@@ -623,7 +628,7 @@ export const MerchantsView: React.FC<MerchantsViewProps> = ({
                   if (onOpenNewInvoiceWithMerchant) onOpenNewInvoiceWithMerchant(activeMerchant.id);
                   setActiveMerchantId(null);
                 }}
-                className="flex-1 py-2 bg-emerald-600 text-white rounded-xl text-xs font-bold"
+                className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-xs transition-colors"
               >
                 + فاتورة بيع جديدة
               </button>
@@ -632,9 +637,9 @@ export const MerchantsView: React.FC<MerchantsViewProps> = ({
                   if (onOpenNewPaymentWithMerchant) onOpenNewPaymentWithMerchant(activeMerchant.id);
                   setActiveMerchantId(null);
                 }}
-                className="flex-1 py-2 bg-teal-600 text-white rounded-xl text-xs font-bold"
+                className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs transition-colors"
               >
-                + استلام دفعة
+                + استلام دفعة كاش
               </button>
             </div>
 
