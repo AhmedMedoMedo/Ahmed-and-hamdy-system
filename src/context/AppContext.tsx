@@ -3,6 +3,9 @@ import {
   auth, 
   db, 
   signInWithGoogle, 
+  signInWithGoogleRedirect,
+  signInAnonymouslyUser,
+  checkRedirectResult,
   logOut, 
   onAuthStateChanged, 
   type User,
@@ -90,6 +93,8 @@ interface AppContextType {
 
   // Actions
   loginWithGoogle: () => Promise<void>;
+  loginWithGoogleRedirect: () => Promise<void>;
+  loginAnonymously: () => Promise<void>;
   logoutUser: () => Promise<void>;
   
   // Merchants CRUD
@@ -329,40 +334,51 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
   }, [currentUser]);
 
+  // Migrate all local state to Firebase Firestore
+  const migrateLocalDataToCloud = async (uid: string) => {
+    try {
+      for (const m of merchants) await setDoc(doc(db, 'users', uid, 'merchants', m.id), m, { merge: true });
+      for (const p of products) await setDoc(doc(db, 'users', uid, 'products', p.id), p, { merge: true });
+      for (const inv of invoices) await setDoc(doc(db, 'users', uid, 'invoices', inv.id), inv, { merge: true });
+      for (const pay of payments) await setDoc(doc(db, 'users', uid, 'payments', pay.id), pay, { merge: true });
+      for (const exp of expenses) await setDoc(doc(db, 'users', uid, 'expenses', exp.id), exp, { merge: true });
+      for (const ord of orders) await setDoc(doc(db, 'users', uid, 'orders', ord.id), ord, { merge: true });
+      for (const c of personalContacts) await setDoc(doc(db, 'users', uid, 'personal_contacts', c.id), c, { merge: true });
+      for (const tx of personalTransactions) await setDoc(doc(db, 'users', uid, 'personal_transactions', tx.id), tx, { merge: true });
+    } catch (e) {
+      console.warn("Migration warning:", e);
+    }
+  };
+
   // Auth actions
   const loginWithGoogle = async () => {
     try {
       const user = await signInWithGoogle();
       setCurrentUser(user);
       setCloudConnected(true);
-
-      // Auto migrate existing local items to Firestore if new in Firestore
       if (user) {
-        const uid = user.uid;
-        for (const m of merchants) {
-          await setDoc(doc(db, 'users', uid, 'merchants', m.id), m, { merge: true });
-        }
-        for (const p of products) {
-          await setDoc(doc(db, 'users', uid, 'products', p.id), p, { merge: true });
-        }
-        for (const inv of invoices) {
-          await setDoc(doc(db, 'users', uid, 'invoices', inv.id), inv, { merge: true });
-        }
-        for (const pay of payments) {
-          await setDoc(doc(db, 'users', uid, 'payments', pay.id), pay, { merge: true });
-        }
-        for (const ord of orders) {
-          await setDoc(doc(db, 'users', uid, 'orders', ord.id), ord, { merge: true });
-        }
-        for (const c of personalContacts) {
-          await setDoc(doc(db, 'users', uid, 'personal_contacts', c.id), c, { merge: true });
-        }
-        for (const tx of personalTransactions) {
-          await setDoc(doc(db, 'users', uid, 'personal_transactions', tx.id), tx, { merge: true });
-        }
+        await migrateLocalDataToCloud(user.uid);
       }
     } catch (e) {
-      console.error("Login failed:", e);
+      console.error("Login with Google failed:", e);
+      throw e;
+    }
+  };
+
+  const loginWithGoogleRedirect = async () => {
+    await signInWithGoogleRedirect();
+  };
+
+  const loginAnonymously = async () => {
+    try {
+      const user = await signInAnonymouslyUser();
+      setCurrentUser(user);
+      setCloudConnected(true);
+      if (user) {
+        await migrateLocalDataToCloud(user.uid);
+      }
+    } catch (e) {
+      console.error("Anonymous cloud login failed:", e);
       throw e;
     }
   };
@@ -1233,6 +1249,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       totalAllTimeNetCollections,
       personalStats,
       loginWithGoogle,
+      loginWithGoogleRedirect,
+      loginAnonymously,
       logoutUser,
       saveMerchant,
       removeMerchant,

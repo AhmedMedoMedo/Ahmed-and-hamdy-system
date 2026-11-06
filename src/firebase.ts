@@ -8,6 +8,9 @@ import {
   getAuth, 
   GoogleAuthProvider, 
   signInWithPopup, 
+  signInWithRedirect,
+  getRedirectResult,
+  signInAnonymously,
   signOut as fbSignOut, 
   onAuthStateChanged,
   type User 
@@ -84,9 +87,39 @@ export async function signInWithGoogle(): Promise<User> {
   try {
     const result = await signInWithPopup(auth, googleProvider);
     return result.user;
-  } catch (err) {
+  } catch (err: unknown) {
+    const error = err as { code?: string; message?: string };
+    if (error?.code === 'auth/popup-blocked') {
+      console.warn("Popup blocked, initiating redirect sign-in...");
+      await signInWithRedirect(auth, googleProvider);
+      throw new Error('REDIRECT_INITIATED');
+    }
     console.error("Sign in error:", err);
     throw err;
+  }
+}
+
+export async function signInWithGoogleRedirect(): Promise<void> {
+  await signInWithRedirect(auth, googleProvider);
+}
+
+export async function signInAnonymouslyUser(): Promise<User> {
+  try {
+    const result = await signInAnonymously(auth);
+    return result.user;
+  } catch (err) {
+    console.error("Anonymous sign in error:", err);
+    throw err;
+  }
+}
+
+export async function checkRedirectResult(): Promise<User | null> {
+  try {
+    const result = await getRedirectResult(auth);
+    return result?.user || null;
+  } catch (err) {
+    console.error("Redirect result error:", err);
+    return null;
   }
 }
 
