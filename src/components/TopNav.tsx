@@ -9,7 +9,8 @@ import {
   UserCheck, 
   Archive,
   Truck,
-  AlertCircle
+  AlertCircle,
+  Trash2
 } from 'lucide-react';
 
 export const TopNav: React.FC = () => {
@@ -26,6 +27,7 @@ export const TopNav: React.FC = () => {
     { id: 'products', label: 'المنتجات', icon: Package },
     { id: 'personal', label: 'شخصي', icon: UserCheck },
     { id: 'archive', label: 'الأرشيف', icon: Archive },
+    { id: 'recycle_bin', label: 'المحذوفات', icon: Trash2 },
   ];
 
   // Auto-scroll active tab into view horizontally
@@ -65,6 +67,8 @@ export const TopNav: React.FC = () => {
                     ? 'bg-emerald-600 text-white shadow-2xs'
                     : tab.id === 'personal'
                     ? 'bg-violet-600 text-white shadow-2xs'
+                    : tab.id === 'recycle_bin'
+                    ? 'bg-rose-600 text-white shadow-2xs'
                     : 'bg-emerald-600 text-white shadow-2xs'
                   : tab.id === 'debts' && debtorMerchantsCount > 0
                   ? 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 hover:bg-rose-100 dark:hover:bg-rose-900/60'

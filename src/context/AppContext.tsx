@@ -36,7 +36,9 @@ import type {
   MerchantBalance,
   MonthSummary,
   Expense,
-  ExpenseCategory
+  ExpenseCategory,
+  TrashItem,
+  TrashCollectionType
 } from '../types';
 import { 
   getCurrentMonthKey, 
@@ -155,6 +157,11 @@ interface AppContextType {
   updateSystemPin: (newPin: string) => Promise<void>;
   isPinEnabled: boolean;
   togglePinEnabled: (enabled: boolean) => Promise<void>;
+
+  // Recycle Bin / Soft Delete
+  fetchTrashItems: () => Promise<TrashItem[]>;
+  restoreItem: (collectionName: TrashCollectionType | string, id: string) => Promise<void>;
+  permanentDelete: (collectionName: TrashCollectionType | string, id: string) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -320,8 +327,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const m = localStorage.getItem(STORAGE_KEYS.merchants);
       if (m) {
         const parsed: Merchant[] = JSON.parse(m);
-        // Exclude fake sample merchants (الحاج محمود, أبو كريم, محلات النور)
+        // Exclude fake sample merchants & deleted items
         const clean = parsed.filter(item => 
+          !item.isDeleted &&
           item.id !== 'm_1' && item.id !== 'm_2' && item.id !== 'm_3' &&
           !item.name.includes('الحاج محمود') && !item.name.includes('التاجر أبو كريم')
         );
@@ -333,35 +341,60 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const p = localStorage.getItem(STORAGE_KEYS.products);
       if (p) {
         const parsed: Product[] = JSON.parse(p);
-        const clean = parsed.filter(item => item.id !== 'prod_1' && item.id !== 'prod_2' && item.id !== 'prod_3' && item.id !== 'prod_4');
+        const clean = parsed.filter(item => !item.isDeleted && item.id !== 'prod_1' && item.id !== 'prod_2' && item.id !== 'prod_3' && item.id !== 'prod_4');
         setProducts(clean);
       } else {
         setProducts([]);
       }
 
       const inv = localStorage.getItem(STORAGE_KEYS.invoices);
-      setInvoices(inv ? JSON.parse(inv) : []);
+      if (inv) {
+        const parsed: Invoice[] = JSON.parse(inv);
+        setInvoices(parsed.filter(item => !item.isDeleted));
+      } else {
+        setInvoices([]);
+      }
 
       const pay = localStorage.getItem(STORAGE_KEYS.payments);
-      setPayments(pay ? JSON.parse(pay) : []);
+      if (pay) {
+        const parsed: Payment[] = JSON.parse(pay);
+        setPayments(parsed.filter(item => !item.isDeleted));
+      } else {
+        setPayments([]);
+      }
 
       const exp = localStorage.getItem(STORAGE_KEYS.expenses);
-      setExpenses(exp ? JSON.parse(exp) : []);
+      if (exp) {
+        const parsed: Expense[] = JSON.parse(exp);
+        setExpenses(parsed.filter(item => !item.isDeleted));
+      } else {
+        setExpenses([]);
+      }
 
       const ord = localStorage.getItem(STORAGE_KEYS.orders);
-      setOrders(ord ? JSON.parse(ord) : []);
+      if (ord) {
+        const parsed: WorkOrder[] = JSON.parse(ord);
+        setOrders(parsed.filter(item => !item.isDeleted));
+      } else {
+        setOrders([]);
+      }
 
       const pc = localStorage.getItem(STORAGE_KEYS.personalContacts);
       if (pc) {
         const parsed: PersonalContact[] = JSON.parse(pc);
-        const clean = parsed.filter(item => item.id !== 'pc_1');
+        const clean = parsed.filter(item => !item.isDeleted && item.id !== 'pc_1');
         setPersonalContacts(clean);
       } else {
         setPersonalContacts([]);
       }
 
       const pt = localStorage.getItem(STORAGE_KEYS.personalTransactions);
-      setPersonalTransactions(pt ? JSON.parse(pt) : []);
+      if (pt) {
+        const parsed: PersonalTransaction[] = JSON.parse(pt);
+        setPersonalTransactions(parsed.filter(item => !item.isDeleted));
+      } else {
+        setPersonalTransactions([]);
+      }
     } catch (e) {
       console.error("Local storage load error:", e);
     }
@@ -411,7 +444,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => {
     const unsubs: (() => void)[] = [];
 
-    const setupStoreListener = <T extends { id: string }>(
+    const setupStoreListener = <T extends { id: string; isDeleted?: boolean }>(
       subcoll: string, 
       setter: React.Dispatch<React.SetStateAction<T[]>>, 
       storageKey: string,
@@ -421,7 +454,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const unsub = onSnapshot(colRef, (snapshot) => {
         let items: T[] = [];
         snapshot.forEach((docSnap) => {
-          items.push({ id: docSnap.id, ...docSnap.data() } as T);
+          const data = docSnap.data();
+          if (!data.isDeleted) {
+            items.push({ id: docSnap.id, ...data } as T);
+          }
         });
         if (filterClean) {
           items = filterClean(items);
@@ -569,39 +605,57 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       showToast('جاري سحب وتحديث البيانات من السحابة... ⏳');
       const mSnap = await getDocs(collection(db, 'stores', SHARED_STORE_ID, 'merchants'));
       const mItems: Merchant[] = [];
-      mSnap.forEach(d => mItems.push({ id: d.id, ...d.data() } as Merchant));
+      mSnap.forEach(d => {
+        const data = d.data();
+        if (!data.isDeleted) mItems.push({ id: d.id, ...data } as Merchant);
+      });
       const cleanM = mItems.filter(m => m.id !== 'm_1' && m.id !== 'm_2' && m.id !== 'm_3');
       setMerchants(cleanM);
       localStorage.setItem(STORAGE_KEYS.merchants, JSON.stringify(cleanM));
 
       const invSnap = await getDocs(collection(db, 'stores', SHARED_STORE_ID, 'invoices'));
       const invItems: Invoice[] = [];
-      invSnap.forEach(d => invItems.push({ id: d.id, ...d.data() } as Invoice));
+      invSnap.forEach(d => {
+        const data = d.data();
+        if (!data.isDeleted) invItems.push({ id: d.id, ...data } as Invoice);
+      });
       setInvoices(invItems);
       localStorage.setItem(STORAGE_KEYS.invoices, JSON.stringify(invItems));
 
       const paySnap = await getDocs(collection(db, 'stores', SHARED_STORE_ID, 'payments'));
       const payItems: Payment[] = [];
-      paySnap.forEach(d => payItems.push({ id: d.id, ...d.data() } as Payment));
+      paySnap.forEach(d => {
+        const data = d.data();
+        if (!data.isDeleted) payItems.push({ id: d.id, ...data } as Payment);
+      });
       setPayments(payItems);
       localStorage.setItem(STORAGE_KEYS.payments, JSON.stringify(payItems));
 
       const pSnap = await getDocs(collection(db, 'stores', SHARED_STORE_ID, 'products'));
       const pItems: Product[] = [];
-      pSnap.forEach(d => pItems.push({ id: d.id, ...d.data() } as Product));
+      pSnap.forEach(d => {
+        const data = d.data();
+        if (!data.isDeleted) pItems.push({ id: d.id, ...data } as Product);
+      });
       const cleanP = pItems.filter(p => p.id !== 'prod_1' && p.id !== 'prod_2' && p.id !== 'prod_3' && p.id !== 'prod_4');
       setProducts(cleanP);
       localStorage.setItem(STORAGE_KEYS.products, JSON.stringify(cleanP));
 
       const expSnap = await getDocs(collection(db, 'stores', SHARED_STORE_ID, 'expenses'));
       const expItems: Expense[] = [];
-      expSnap.forEach(d => expItems.push({ id: d.id, ...d.data() } as Expense));
+      expSnap.forEach(d => {
+        const data = d.data();
+        if (!data.isDeleted) expItems.push({ id: d.id, ...data } as Expense);
+      });
       setExpenses(expItems);
       localStorage.setItem(STORAGE_KEYS.expenses, JSON.stringify(expItems));
 
       const ordSnap = await getDocs(collection(db, 'stores', SHARED_STORE_ID, 'orders'));
       const ordItems: WorkOrder[] = [];
-      ordSnap.forEach(d => ordItems.push({ id: d.id, ...d.data() } as WorkOrder));
+      ordSnap.forEach(d => {
+        const data = d.data();
+        if (!data.isDeleted) ordItems.push({ id: d.id, ...data } as WorkOrder);
+      });
       setOrders(ordItems);
       localStorage.setItem(STORAGE_KEYS.orders, JSON.stringify(ordItems));
 
@@ -665,7 +719,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const removeMerchant = async (id: string) => {
     setMerchants(prev => prev.filter(m => m.id !== id));
     try {
-      await deleteDoc(doc(db, 'stores', SHARED_STORE_ID, 'merchants', id));
+      await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'merchants', id), {
+        isDeleted: true,
+        deletedAt: new Date().toISOString()
+      }, { merge: true });
     } catch (err) {
       console.warn("Delete merchant warning:", err);
     }
@@ -707,7 +764,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const removeProduct = async (id: string) => {
     setProducts(prev => prev.filter(p => p.id !== id));
     try {
-      await deleteDoc(doc(db, 'stores', SHARED_STORE_ID, 'products', id));
+      await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'products', id), {
+        isDeleted: true,
+        deletedAt: new Date().toISOString()
+      }, { merge: true });
     } catch (err) {
       console.warn("Delete product warning:", err);
     }
@@ -793,21 +853,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const removeInvoice = async (id: string) => {
     const inv = invoices.find(item => item.id === id);
 
-    // 1. Remove the invoice from state and Firestore
+    // 1. Remove the invoice from state and Firestore (Soft Delete)
     setInvoices(prev => prev.filter(item => item.id !== id));
     try {
-      await deleteDoc(doc(db, 'stores', SHARED_STORE_ID, 'invoices', id));
+      await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'invoices', id), {
+        isDeleted: true,
+        deletedAt: new Date().toISOString()
+      }, { merge: true });
     } catch (err) {
       console.warn("Delete invoice warning:", err);
     }
 
-    // 2. Remove any linked payment created alongside this invoice
+    // 2. Remove any linked payment created alongside this invoice (Soft Delete)
     const linkedPayments = payments.filter(p => p.invoiceId === id);
     if (linkedPayments.length > 0) {
       setPayments(prev => prev.filter(p => p.invoiceId !== id));
       for (const lp of linkedPayments) {
         try {
-          await deleteDoc(doc(db, 'stores', SHARED_STORE_ID, 'payments', lp.id));
+          await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'payments', lp.id), {
+            isDeleted: true,
+            deletedAt: new Date().toISOString()
+          }, { merge: true });
         } catch (e) {
           console.warn("Delete linked payment error:", e);
         }
@@ -893,7 +959,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const removePayment = async (id: string) => {
     setPayments(prev => prev.filter(p => p.id !== id));
     try {
-      await deleteDoc(doc(db, 'stores', SHARED_STORE_ID, 'payments', id));
+      await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'payments', id), {
+        isDeleted: true,
+        deletedAt: new Date().toISOString()
+      }, { merge: true });
     } catch (err) {
       console.warn("Delete payment warning:", err);
     }
@@ -939,7 +1008,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const removeExpense = async (id: string) => {
     setExpenses(prev => prev.filter(e => e.id !== id));
     try {
-      await deleteDoc(doc(db, 'stores', SHARED_STORE_ID, 'expenses', id));
+      await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'expenses', id), {
+        isDeleted: true,
+        deletedAt: new Date().toISOString()
+      }, { merge: true });
     } catch (err) {
       console.warn("Delete expense warning:", err);
     }
@@ -999,7 +1071,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const removeWorkOrder = async (id: string) => {
     setOrders(prev => prev.filter(o => o.id !== id));
     try {
-      await deleteDoc(doc(db, 'stores', SHARED_STORE_ID, 'orders', id));
+      await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'orders', id), {
+        isDeleted: true,
+        deletedAt: new Date().toISOString()
+      }, { merge: true });
     } catch (err) {
       console.warn("Delete order warning:", err);
     }
@@ -1158,7 +1233,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const removePersonalContact = async (id: string) => {
     setPersonalContacts(prev => prev.filter(c => c.id !== id));
     try {
-      await deleteDoc(doc(db, 'stores', SHARED_STORE_ID, 'personal_contacts', id));
+      await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'personal_contacts', id), {
+        isDeleted: true,
+        deletedAt: new Date().toISOString()
+      }, { merge: true });
     } catch (err) {
       console.warn("Delete personal contact warning:", err);
     }
@@ -1204,7 +1282,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const removePersonalTransaction = async (id: string) => {
     setPersonalTransactions(prev => prev.filter(tx => tx.id !== id));
     try {
-      await deleteDoc(doc(db, 'stores', SHARED_STORE_ID, 'personal_transactions', id));
+      await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'personal_transactions', id), {
+        isDeleted: true,
+        deletedAt: new Date().toISOString()
+      }, { merge: true });
     } catch (err) {
       console.warn("Delete personal transaction warning:", err);
     }
@@ -1555,6 +1636,115 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [currentUser]);
 
+  // --- RECYCLE BIN / SOFT DELETE CRUD ---
+  const fetchTrashItems = useCallback(async (): Promise<TrashItem[]> => {
+    const subcollections: { coll: TrashCollectionType; label: string }[] = [
+      { coll: 'invoices', label: 'فاتورة بيع' },
+      { coll: 'payments', label: 'سند دفع' },
+      { coll: 'orders', label: 'طلب شغل' },
+      { coll: 'expenses', label: 'مصروف / سحب' },
+      { coll: 'merchants', label: 'تاجر' },
+      { coll: 'products', label: 'صنف / منتج' },
+      { coll: 'personal_contacts', label: 'جهة اتصال شخصية' },
+      { coll: 'personal_transactions', label: 'حركة شخصية' },
+    ];
+
+    const trashList: TrashItem[] = [];
+
+    await Promise.all(
+      subcollections.map(async ({ coll, label }) => {
+        try {
+          const colRef = collection(db, 'stores', SHARED_STORE_ID, coll);
+          const snap = await getDocs(colRef);
+          snap.forEach(docSnap => {
+            const data = docSnap.data();
+            if (data.isDeleted) {
+              let title = '';
+              let subtitle = '';
+              let amount: number | undefined;
+              let date = data.date;
+
+              if (coll === 'invoices') {
+                title = data.invoiceNumber || `فاتورة #${docSnap.id.slice(-4)}`;
+                subtitle = data.merchantName ? `التاجر: ${data.merchantName}` : 'فاتورة نقدية';
+                amount = data.total;
+              } else if (coll === 'payments') {
+                title = data.receiptNumber || `سند قبض #${docSnap.id.slice(-4)}`;
+                subtitle = data.merchantName ? `من: ${data.merchantName}` : 'دفعة نقدية';
+                amount = data.amount;
+              } else if (coll === 'orders') {
+                title = data.orderNumber || `طلب #${docSnap.id.slice(-4)}`;
+                subtitle = data.merchantName ? `للتاجر: ${data.merchantName}` : 'طلب بدون تاجر';
+                amount = data.totalEstimatedAmount;
+              } else if (coll === 'expenses') {
+                title = data.title || 'مصروف';
+                subtitle = data.category || 'عام';
+                amount = data.amount;
+              } else if (coll === 'merchants') {
+                title = data.name || 'تاجر';
+                subtitle = data.phone || data.address || '';
+              } else if (coll === 'products') {
+                title = data.name || 'منتج';
+                subtitle = `${data.price || 0} ج.م / ${data.unit || 'قطعة'}`;
+                amount = data.price;
+              } else if (coll === 'personal_contacts') {
+                title = data.name || 'جهة اتصال';
+                subtitle = data.phone || data.relationship || '';
+              } else if (coll === 'personal_transactions') {
+                title = data.contactName || 'حركة شخصية';
+                subtitle = data.type === 'withdrawal' ? 'سحب فلوس' : 'إضافة فلوس';
+                amount = data.amount;
+              }
+
+              trashList.push({
+                id: docSnap.id,
+                collectionName: coll,
+                typeLabel: label,
+                title,
+                subtitle,
+                amount,
+                date,
+                deletedAt: data.deletedAt || data.updatedAt || '',
+                rawData: data
+              });
+            }
+          });
+        } catch (e) {
+          console.warn(`Error fetching trash items for ${coll}:`, e);
+        }
+      })
+    );
+
+    // Sort descending by deletedAt
+    trashList.sort((a, b) => (b.deletedAt || '').localeCompare(a.deletedAt || ''));
+    return trashList;
+  }, []);
+
+  const restoreItem = useCallback(async (collectionName: TrashCollectionType | string, id: string) => {
+    try {
+      await setDoc(doc(db, 'stores', SHARED_STORE_ID, collectionName, id), {
+        isDeleted: false,
+        restoredAt: new Date().toISOString()
+      }, { merge: true });
+      showToast('تمت استعادة العنصر بنجاح');
+    } catch (err) {
+      console.error("Restore item error:", err);
+      showToast('فشل استعادة العنصر');
+      throw err;
+    }
+  }, [showToast]);
+
+  const permanentDelete = useCallback(async (collectionName: TrashCollectionType | string, id: string) => {
+    try {
+      await deleteDoc(doc(db, 'stores', SHARED_STORE_ID, collectionName, id));
+      showToast('تم حذف العنصر نهائياً بنجاح');
+    } catch (err) {
+      console.error("Permanent delete error:", err);
+      showToast('فشل الحذف النهائي');
+      throw err;
+    }
+  }, [showToast]);
+
   return (
     <AppContext.Provider value={{
       currentUser,
@@ -1622,6 +1812,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       updateSystemPin,
       isPinEnabled,
       togglePinEnabled,
+      fetchTrashItems,
+      restoreItem,
+      permanentDelete,
     }}>
       {children}
     </AppContext.Provider>

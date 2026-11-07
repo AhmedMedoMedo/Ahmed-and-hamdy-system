@@ -10,6 +10,8 @@ export interface Merchant {
   phone: string;
   address: string;
   notes: string;
+  isDeleted?: boolean;
+  deletedAt?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -21,6 +23,8 @@ export interface Product {
   costPrice?: number | null;
   unit: string;
   notes?: string;
+  isDeleted?: boolean;
+  deletedAt?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -51,6 +55,8 @@ export interface Invoice {
   remainingAmount: number; // remaining to be added to merchant debt
   notes?: string;
   orderId?: string;     // Reference to originating work order if created upon delivery
+  isDeleted?: boolean;
+  deletedAt?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -66,6 +72,8 @@ export interface Payment {
   notes?: string;
   invoiceId?: string;
   receiptNumber?: string;
+  isDeleted?: boolean;
+  deletedAt?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -96,6 +104,8 @@ export interface WorkOrder {
   totalEstimatedAmount: number;  // إجمالي قيمة الطلب الكامل
   deliveredTotalAmount: number;  // قيمة ما تم تسليمه فعلياً حتى الآن
   notes?: string;
+  isDeleted?: boolean;
+  deletedAt?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -106,6 +116,8 @@ export interface PersonalContact {
   phone: string;
   relationship?: string;
   notes?: string;
+  isDeleted?: boolean;
+  deletedAt?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -119,6 +131,8 @@ export interface PersonalTransaction {
   date: string;         // YYYY-MM-DD
   monthKey: string;     // YYYY-MM
   notes?: string;
+  isDeleted?: boolean;
+  deletedAt?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -154,8 +168,32 @@ export interface Expense {
   monthKey: string;     // YYYY-MM
   paymentMethod: PaymentMethod;
   notes?: string;
+  isDeleted?: boolean;
+  deletedAt?: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export type TrashCollectionType = 
+  | 'merchants' 
+  | 'products' 
+  | 'invoices' 
+  | 'payments' 
+  | 'expenses' 
+  | 'orders' 
+  | 'personal_contacts' 
+  | 'personal_transactions';
+
+export interface TrashItem {
+  id: string;
+  collectionName: TrashCollectionType;
+  typeLabel: string;
+  title: string;
+  subtitle?: string;
+  amount?: number;
+  date?: string;
+  deletedAt?: string;
+  rawData?: any;
 }
 
 export interface MonthSummary {

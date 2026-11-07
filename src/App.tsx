@@ -11,6 +11,7 @@ import { WorkOrdersView } from './components/WorkOrdersView';
 import { PersonalLedgerView } from './components/PersonalLedgerView';
 import { MonthlyArchiveView } from './components/MonthlyArchiveView';
 import { MerchantDebtsView } from './components/MerchantDebtsView';
+import { RecycleBinView } from './components/RecycleBinView';
 import { PrintModal } from './components/PrintModal';
 import { SettingsModal } from './components/SettingsModal';
 import { SecurityLockModal } from './components/SecurityLockModal';
@@ -195,6 +196,10 @@ const MainLayout: React.FC = () => {
 
           {activeTab === 'archive' && (
             <MonthlyArchiveView />
+          )}
+
+          {activeTab === 'recycle_bin' && (
+            <RecycleBinView />
           )}
         </main>
 
