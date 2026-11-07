@@ -8,7 +8,8 @@ import {
   getTodayDateString,
   isDateToday,
   isDateWithinDays,
-  isDateInCurrentMonth 
+  isDateInCurrentMonth,
+  getMonthKeyFromDate
 } from '../utils/formatters';
 import { ConfirmModal } from './ConfirmModal';
 import { ExpenseModal } from './ExpenseModal';
@@ -35,7 +36,8 @@ import {
   ArrowRightLeft,
   ArrowDownCircle,
   Coins,
-  Search
+  Search,
+  Wallet
 } from 'lucide-react';
 
 interface DashboardViewProps {
@@ -82,6 +84,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     orders,
     pendingOrdersCount,
     setActiveTab,
+    savePayment,
     removeInvoice,
     removePayment,
     removeExpense,
@@ -99,6 +102,41 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   // Expense modal state
   const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+
+  // Cash Deposit modal state
+  const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
+  const [depositAmount, setDepositAmount] = useState('');
+  const [depositNotes, setDepositNotes] = useState('');
+
+  // Handle saving general cash deposit
+  const handleSaveDeposit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const amt = Number(depositAmount);
+    if (!amt || amt <= 0) {
+      showToast('يرجى إدخال مبلغ صحيح للإيداع');
+      return;
+    }
+
+    const today = getTodayDateString();
+    try {
+      await savePayment({
+        merchantId: 'general_deposit',
+        merchantName: 'إيداع نقدي / إيراد عام',
+        amount: amt,
+        paymentMethod: 'كاش',
+        date: today,
+        monthKey: getMonthKeyFromDate(today),
+        notes: depositNotes.trim() || 'إيداع نقدي / إيراد عام',
+      });
+      showToast('تم تسجيل الإيداع النقدي بنجاح');
+      setIsDepositModalOpen(false);
+      setDepositAmount('');
+      setDepositNotes('');
+    } catch (err) {
+      console.error('Error saving deposit:', err);
+      showToast('حدث خطأ أثناء حفظ الإيداع النقدي');
+    }
+  };
 
   // Deletion confirm modal state
   const [itemToDelete, setItemToDelete] = useState<{
@@ -388,8 +426,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   return (
     <div className="space-y-3 pb-8">
       
-      {/* Primary Mobile Action Buttons (3 Distinct Expressive Colors: Invoices=Blue, Payments=Emerald, Withdrawals/Expenses=Amber) */}
-      <div className="grid grid-cols-3 gap-1.5">
+      {/* Primary Mobile Action Buttons (Invoices=Blue, Payments=Emerald, Withdrawals/Expenses=Amber, Cash Deposit=Teal) */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-1.5">
         <button
           onClick={onOpenNewInvoice}
           className="flex flex-col items-center justify-center p-2.5 rounded-2xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold shadow-2xs shadow-blue-500/20 transition-all text-center"
@@ -418,6 +456,19 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <ArrowDownCircle className="w-5 h-5 mb-1 text-amber-100" />
           <span className="text-[11px] sm:text-xs leading-tight">مسحوبات</span>
           <span className="text-[9px] text-amber-200 mt-0.5">مصاريف وصيانة</span>
+        </button>
+
+        <button
+          onClick={() => {
+            setDepositAmount('');
+            setDepositNotes('');
+            setIsDepositModalOpen(true);
+          }}
+          className="flex flex-col items-center justify-center p-2.5 rounded-2xl bg-teal-600 hover:bg-teal-700 active:scale-95 text-white font-bold shadow-2xs shadow-teal-500/20 transition-all text-center"
+        >
+          <Wallet className="w-5 h-5 mb-1 text-teal-100" />
+          <span className="text-[11px] sm:text-xs leading-tight">إيداع نقدي</span>
+          <span className="text-[9px] text-teal-200 mt-0.5">إيراد وسيولة</span>
         </button>
       </div>
 
@@ -1494,6 +1545,82 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             setEditingExpense(null);
           }}
         />
+      )}
+
+      {/* Modal for General Cash Deposit */}
+      {isDepositModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-3xl max-w-md w-full p-4 sm:p-5 shadow-2xl border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white max-h-[90vh] flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-200">
+            {/* Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800 mb-3 shrink-0">
+              <h3 className="font-bold text-base text-slate-900 dark:text-white flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-teal-50 dark:bg-teal-950/60 text-teal-600 dark:text-teal-400 flex items-center justify-center">
+                  <Wallet className="w-4 h-4" />
+                </div>
+                <span>إيداع نقدي / إيراد عام</span>
+              </h3>
+              <button
+                type="button"
+                onClick={() => setIsDepositModalOpen(false)}
+                className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Form */}
+            <form onSubmit={handleSaveDeposit} className="flex-1 overflow-y-auto overscroll-contain space-y-3.5 text-xs sm:text-sm pr-0.5">
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  مبلغ الإيداع ({currency}) *
+                </label>
+                <input
+                  type="number"
+                  step="any"
+                  min="0.01"
+                  required
+                  autoFocus
+                  placeholder="0.00"
+                  value={depositAmount}
+                  onChange={(e) => setDepositAmount(e.target.value)}
+                  className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:border-teal-500 text-base font-bold text-left placeholder:text-slate-400"
+                  dir="ltr"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  ملاحظات (اختياري)
+                </label>
+                <textarea
+                  rows={3}
+                  placeholder="مثال: إيراد يومي، تمويل خارجي، سيولة نقدية..."
+                  value={depositNotes}
+                  onChange={(e) => setDepositNotes(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:border-teal-500 text-xs placeholder:text-slate-400"
+                />
+              </div>
+
+              {/* Action Buttons */}
+              <div className="pt-3 pb-8 sm:pb-3 border-t border-slate-100 dark:border-slate-800 grid grid-cols-2 gap-2 mb-2 sm:mb-0 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setIsDepositModalOpen(false)}
+                  className="py-3 sm:py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs active:scale-95 transition-all"
+                >
+                  إلغاء
+                </button>
+                <button
+                  type="submit"
+                  className="py-3 sm:py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs shadow-md active:scale-95 transition-all flex items-center justify-center gap-1.5"
+                >
+                  <Wallet className="w-4 h-4" />
+                  <span>حفظ الإيداع</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
 
     </div>
