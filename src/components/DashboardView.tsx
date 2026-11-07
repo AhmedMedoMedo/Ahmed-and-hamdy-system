@@ -34,7 +34,8 @@ import {
   Percent,
   ArrowRightLeft,
   ArrowDownCircle,
-  Coins
+  Coins,
+  Search
 } from 'lucide-react';
 
 interface DashboardViewProps {
@@ -53,6 +54,7 @@ interface DashboardViewProps {
 }
 
 type PeriodFilter = 'today' | 'week' | 'month' | 'all';
+type TransactionFilter = 'all' | 'invoices' | 'payments' | 'expenses';
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
   onOpenNewInvoice,
@@ -89,6 +91,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
   // Period filter applied to BOTH top statistics cards AND recent operations
   const [periodFilter, setPeriodFilter] = useState<PeriodFilter>('month');
+
+  // Search and Transaction type filters for Recent Operations
+  const [searchTerm, setSearchTerm] = useState('');
+  const [transactionFilter, setTransactionFilter] = useState<TransactionFilter>('all');
 
   // Expense modal state
   const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
@@ -130,10 +136,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       return {
         id: inv.id,
         merchantId: inv.merchantId,
+        merchantName: inv.merchantName,
         type: 'invoice' as const,
         date: inv.date,
         createdAt: inv.createdAt,
         title: inv.merchantName,
+        referenceNumber: inv.invoiceNumber,
         subTitle: isFromOrder 
           ? `فاتورة تسليم طلب #${inv.invoiceNumber} (${isCash ? 'كاش فوري' : 'دين آجل'})` 
           : `فاتورة #${inv.invoiceNumber} (${isCash ? 'سداد كاش' : 'على الحساب'})`,
@@ -149,10 +157,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     const payOps = payments.map(pay => ({
       id: pay.id,
       merchantId: pay.merchantId,
+      merchantName: pay.merchantName,
       type: 'payment' as const,
       date: pay.date,
       createdAt: pay.createdAt,
       title: pay.merchantName,
+      referenceNumber: pay.receiptNumber || '',
       subTitle: `دفعة (${pay.paymentMethod}) #${pay.receiptNumber || ''}`,
       amount: pay.amount,
       remainingAmount: 0,
@@ -164,10 +174,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     const expOps = expenses.map(exp => ({
       id: exp.id,
       merchantId: undefined as string | undefined,
+      merchantName: exp.category,
       type: 'expense' as const,
       date: exp.date,
       createdAt: exp.createdAt,
       title: exp.title,
+      referenceNumber: exp.category,
       subTitle: `مسحوبات (${exp.category}) • ${exp.paymentMethod}`,
       amount: exp.amount,
       remainingAmount: 0,
@@ -189,10 +201,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         return {
           id: ord.id,
           merchantId: ord.merchantId,
+          merchantName: ord.merchantName,
           type: 'order' as const,
           date: ord.date,
           createdAt: ord.createdAt,
           title: ord.merchantName,
+          referenceNumber: ord.orderNumber,
           subTitle: `طلب شغل #${ord.orderNumber} • ${statusLabel}`,
           amount: ord.totalEstimatedAmount,
           remainingAmount: Math.max(0, (ord.totalEstimatedAmount || 0) - (ord.deliveredTotalAmount || 0)),
@@ -209,8 +223,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     });
   }, [invoices, payments, expenses, orders]);
 
-  // Filtered Operations based on the period selector
-  const filteredOperations = useMemo(() => {
+  // Operations filtered by the period selector
+  const periodOperations = useMemo(() => {
     return allCombinedOperations.filter(op => {
       if (periodFilter === 'today') {
         return isDateToday(op.date);
@@ -225,7 +239,52 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     });
   }, [allCombinedOperations, periodFilter, selectedMonth]);
 
-  // Statistics for the chosen filter period
+  // Filtered Operations based on transactionFilter and searchTerm
+  const filteredOperations = useMemo(() => {
+    return periodOperations.filter(op => {
+      // 1. Transaction type filter
+      if (transactionFilter === 'invoices') {
+        if (op.type !== 'invoice') return false;
+      } else if (transactionFilter === 'payments') {
+        if (op.type !== 'payment') return false;
+      } else if (transactionFilter === 'expenses') {
+        if (op.type !== 'expense') return false;
+      }
+
+      // 2. Search term filter (searches merchant name, title, reference number, subtitle, notes)
+      if (searchTerm.trim()) {
+        const term = searchTerm.trim().toLowerCase();
+        const merchantName = (op.merchantName || '').toLowerCase();
+        const title = (op.title || '').toLowerCase();
+        const refNumber = (op.referenceNumber || '').toLowerCase();
+        const subTitle = (op.subTitle || '').toLowerCase();
+        const notes = (op.notes || '').toLowerCase();
+
+        const matches = 
+          merchantName.includes(term) ||
+          title.includes(term) ||
+          refNumber.includes(term) ||
+          subTitle.includes(term) ||
+          notes.includes(term);
+
+        if (!matches) return false;
+      }
+
+      return true;
+    });
+  }, [periodOperations, transactionFilter, searchTerm]);
+
+  // Counts for transaction filter toggle buttons within current period
+  const filterCounts = useMemo(() => {
+    return {
+      all: periodOperations.length,
+      invoices: periodOperations.filter(op => op.type === 'invoice').length,
+      payments: periodOperations.filter(op => op.type === 'payment').length,
+      expenses: periodOperations.filter(op => op.type === 'expense').length,
+    };
+  }, [periodOperations]);
+
+  // Statistics for the chosen filter period (powers top dashboard cards)
   const periodStats = useMemo(() => {
     let sales = 0;
     let collections = 0;
@@ -234,7 +293,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     let paymentCount = 0;
     let expenseCount = 0;
 
-    filteredOperations.forEach(op => {
+    periodOperations.forEach(op => {
       if (op.type === 'invoice') {
         sales += op.amount;
         invoiceCount++;
@@ -259,10 +318,29 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       invoiceCount,
       paymentCount,
       expenseCount,
-      count: filteredOperations.length,
+      count: periodOperations.length,
       netChange,
       collectionRate,
     };
+  }, [periodOperations]);
+
+  // Totals for filtered operations (powers the mini summary banner inside the recent operations card)
+  const recentTotals = useMemo(() => {
+    let sales = 0;
+    let collections = 0;
+    let expensesSum = 0;
+
+    filteredOperations.forEach(op => {
+      if (op.type === 'invoice') {
+        sales += op.amount;
+      } else if (op.type === 'payment') {
+        collections += op.amount;
+      } else if (op.type === 'expense') {
+        expensesSum += op.amount;
+      }
+    });
+
+    return { sales, collections, expensesSum };
   }, [filteredOperations]);
 
   // Handle operation deletion
@@ -635,31 +713,135 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </span>
         </div>
 
+        {/* Search & Transaction Filter UI */}
+        <div className="space-y-2 pt-0.5">
+          {/* Search Input with Search Icon */}
+          <div className="relative">
+            <Search className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="بحث باسم التاجر أو رقم الفاتورة أو السند..."
+              className="w-full pr-9 pl-8 py-2 text-xs bg-slate-50 dark:bg-slate-850/90 border border-slate-200 dark:border-slate-700/80 rounded-xl text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all shadow-2xs"
+            />
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={() => setSearchTerm('')}
+                className="absolute left-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+                title="مسح البحث"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
+          {/* Toggle Buttons: (الكل، مبيعات، تحصيلات، مسحوبات) */}
+          <div className="grid grid-cols-4 gap-1.5 p-1 bg-slate-100/90 dark:bg-slate-800/90 rounded-xl border border-slate-200/50 dark:border-slate-700/50">
+            <button
+              type="button"
+              onClick={() => setTransactionFilter('all')}
+              className={`py-1.5 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1 ${
+                transactionFilter === 'all'
+                  ? 'bg-indigo-600 text-white shadow-xs'
+                  : 'text-slate-600 dark:text-slate-300 hover:bg-white/70 dark:hover:bg-slate-700/70'
+              }`}
+            >
+              <span>الكل</span>
+              <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono-num ${
+                transactionFilter === 'all'
+                  ? 'bg-indigo-700/90 text-white'
+                  : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+              }`}>
+                {filterCounts.all}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setTransactionFilter('invoices')}
+              className={`py-1.5 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1 ${
+                transactionFilter === 'invoices'
+                  ? 'bg-blue-600 text-white shadow-xs'
+                  : 'text-slate-600 dark:text-slate-300 hover:bg-white/70 dark:hover:bg-slate-700/70'
+              }`}
+            >
+              <span>مبيعات</span>
+              <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono-num ${
+                transactionFilter === 'invoices'
+                  ? 'bg-blue-700/90 text-white'
+                  : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+              }`}>
+                {filterCounts.invoices}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setTransactionFilter('payments')}
+              className={`py-1.5 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1 ${
+                transactionFilter === 'payments'
+                  ? 'bg-emerald-600 text-white shadow-xs'
+                  : 'text-slate-600 dark:text-slate-300 hover:bg-white/70 dark:hover:bg-slate-700/70'
+              }`}
+            >
+              <span>تحصيلات</span>
+              <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono-num ${
+                transactionFilter === 'payments'
+                  ? 'bg-emerald-700/90 text-white'
+                  : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+              }`}>
+                {filterCounts.payments}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setTransactionFilter('expenses')}
+              className={`py-1.5 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1 ${
+                transactionFilter === 'expenses'
+                  ? 'bg-amber-600 text-white shadow-xs'
+                  : 'text-slate-600 dark:text-slate-300 hover:bg-white/70 dark:hover:bg-slate-700/70'
+              }`}
+            >
+              <span>مسحوبات</span>
+              <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono-num ${
+                transactionFilter === 'expenses'
+                  ? 'bg-amber-700/90 text-white'
+                  : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+              }`}>
+                {filterCounts.expenses}
+              </span>
+            </button>
+          </div>
+        </div>
+
         {/* Totals Banner for Filtered Operations (Distinct Expressive Colors) */}
         <div className="grid grid-cols-3 gap-1.5 p-2 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700 text-xs font-mono-num text-center">
           <div className="bg-blue-50/70 dark:bg-blue-950/40 p-1.5 rounded-lg border border-blue-200/60 dark:border-blue-900/40">
             <span className="text-[9px] text-blue-700 dark:text-blue-300 block font-sans font-bold">المبيعات</span>
             <span className="font-black text-blue-700 dark:text-blue-300 text-[11px]">
-              {formatCurrency(periodStats.sales, currency)}
+              {formatCurrency(recentTotals.sales, currency)}
             </span>
           </div>
           <div className="bg-emerald-50/70 dark:bg-emerald-950/40 p-1.5 rounded-lg border border-emerald-200/60 dark:border-emerald-900/40">
             <span className="text-[9px] text-emerald-700 dark:text-emerald-300 block font-sans font-bold">التحصيلات</span>
             <span className="font-black text-emerald-600 dark:text-emerald-400 text-[11px]">
-              +{formatCurrency(periodStats.collections, currency)}
+              +{formatCurrency(recentTotals.collections, currency)}
             </span>
           </div>
           <div className="bg-amber-50/70 dark:bg-amber-950/40 p-1.5 rounded-lg border border-amber-200/60 dark:border-amber-900/40">
             <span className="text-[9px] text-amber-700 dark:text-amber-300 block font-sans font-bold">المسحوبات</span>
             <span className="font-black text-amber-600 dark:text-amber-400 text-[11px]">
-              -{formatCurrency(periodStats.expensesSum, currency)}
+              -{formatCurrency(recentTotals.expensesSum, currency)}
             </span>
           </div>
         </div>
 
         {/* List of operations with expressive colors, clean 2-row layout, and print for all types */}
         <div className="space-y-2">
-          {filteredOperations.slice(0, 25).map((op) => {
+          {filteredOperations.slice(0, searchTerm.trim() || transactionFilter !== 'all' ? 50 : 25).map((op) => {
             const isInv = op.type === 'invoice';
             const isPay = op.type === 'payment';
             const isExp = op.type === 'expense';
@@ -921,8 +1103,24 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           })}
 
           {filteredOperations.length === 0 && (
-            <div className="text-center py-6 text-xs text-slate-400 bg-slate-50 dark:bg-slate-800 rounded-xl border border-dashed border-slate-200 dark:border-slate-700">
-              لا توجد عمليات مسجلة في هذه الفترة ({periodFilter === 'today' ? 'اليوم' : periodFilter === 'week' ? 'هذا الأسبوع' : periodFilter === 'month' ? 'هذا الشهر' : 'كل الوقت'})
+            <div className="text-center py-6 text-xs text-slate-400 bg-slate-50 dark:bg-slate-800 rounded-xl border border-dashed border-slate-200 dark:border-slate-700 space-y-1.5">
+              <p>
+                {searchTerm || transactionFilter !== 'all'
+                  ? 'لا توجد عمليات مطابقة لمعايير البحث أو الفلترة المحددة'
+                  : `لا توجد عمليات مسجلة في هذه الفترة (${periodFilter === 'today' ? 'اليوم' : periodFilter === 'week' ? 'هذا الأسبوع' : periodFilter === 'month' ? 'هذا الشهر' : 'كل الوقت'})`}
+              </p>
+              {(searchTerm || transactionFilter !== 'all') && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchTerm('');
+                    setTransactionFilter('all');
+                  }}
+                  className="text-indigo-600 dark:text-indigo-400 hover:underline font-bold text-xs inline-block"
+                >
+                  إعادة ضبط البحث والفلتر
+                </button>
+              )}
             </div>
           )}
         </div>
