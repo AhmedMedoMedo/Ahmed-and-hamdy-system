@@ -46,7 +46,7 @@ export const PersonalLedgerView: React.FC = () => {
   const [editingTx, setEditingTx] = useState<PersonalTransaction | null>(null);
   const [txForm, setTxForm] = useState({
     contactId: '',
-    type: 'loan_given' as PersonalTransactionType,
+    type: 'withdrawal' as PersonalTransactionType,
     amount: '',
     date: getTodayDateString(),
     notes: '',
@@ -60,28 +60,27 @@ export const PersonalLedgerView: React.FC = () => {
     message: string;
   } | null>(null);
 
-  // Calculate per-contact personal balance
+  // Calculate per-contact personal balance using Reduce
   const contactBalances = useMemo(() => {
-    const map: Record<string, { lent: number; borrowed: number; net: number }> = {};
-    personalContacts.forEach(c => {
-      map[c.id] = { lent: 0, borrowed: 0, net: 0 };
-    });
-
-    personalTransactions.forEach(tx => {
-      if (!tx.contactId) return;
-      if (!map[tx.contactId]) {
-        map[tx.contactId] = { lent: 0, borrowed: 0, net: 0 };
+    return personalTransactions.reduce((acc, tx) => {
+      if (!tx.contactId) return acc;
+      if (!acc[tx.contactId]) {
+        acc[tx.contactId] = { withdrawals: 0, deposits: 0, balance: 0 };
       }
-      const b = map[tx.contactId];
       const amt = Number(tx.amount) || 0;
-      if (tx.type === 'loan_given') b.lent += amt;
-      if (tx.type === 'loan_repaid') b.lent -= amt;
-      if (tx.type === 'loan_taken') b.borrowed += amt;
-      if (tx.type === 'debt_paid') b.borrowed -= amt;
-      b.net = b.lent - b.borrowed;
-    });
-
-    return map;
+      const isWithdrawal = tx.type === 'withdrawal' || (tx.type as string) === 'loan_given' || (tx.type as string) === 'loan_taken' || (tx.type as string) === 'personal_expense';
+      
+      if (isWithdrawal) {
+        acc[tx.contactId].withdrawals += amt;
+      } else {
+        acc[tx.contactId].deposits += amt;
+      }
+      acc[tx.contactId].balance = acc[tx.contactId].withdrawals - acc[tx.contactId].deposits;
+      return acc;
+    }, personalContacts.reduce((init, c) => {
+      init[c.id] = { withdrawals: 0, deposits: 0, balance: 0 };
+      return init;
+    }, {} as Record<string, { withdrawals: number; deposits: number; balance: number }>));
   }, [personalContacts, personalTransactions]);
 
   // Open Contact Modal
@@ -122,9 +121,10 @@ export const PersonalLedgerView: React.FC = () => {
   const handleOpenTxModal = (tx?: PersonalTransaction, preselectedContactId?: string) => {
     if (tx) {
       setEditingTx(tx);
+      const isDeposit = tx.type === 'deposit' || (tx.type as string) === 'loan_repaid' || (tx.type as string) === 'debt_paid' || (tx.type as string) === 'personal_income';
       setTxForm({
         contactId: tx.contactId || '',
-        type: tx.type,
+        type: isDeposit ? 'deposit' : 'withdrawal',
         amount: String(tx.amount),
         date: tx.date,
         notes: tx.notes || '',
@@ -133,7 +133,7 @@ export const PersonalLedgerView: React.FC = () => {
       setEditingTx(null);
       setTxForm({
         contactId: preselectedContactId || (personalContacts[0]?.id || ''),
-        type: 'loan_given',
+        type: 'withdrawal',
         amount: '',
         date: getTodayDateString(),
         notes: '',
@@ -187,7 +187,11 @@ export const PersonalLedgerView: React.FC = () => {
   const filteredTxs = useMemo(() => {
     return personalTransactions
       .filter(tx => {
-        if (filterType !== 'all' && tx.type !== filterType) return false;
+        if (filterType !== 'all') {
+          const isWithdrawal = tx.type === 'withdrawal' || (tx.type as string) === 'loan_given' || (tx.type as string) === 'loan_taken' || (tx.type as string) === 'personal_expense';
+          if (filterType === 'withdrawal' && !isWithdrawal) return false;
+          if (filterType === 'deposit' && isWithdrawal) return false;
+        }
         if (!searchTerm) return true;
         const q = searchTerm.toLowerCase();
         return (
@@ -199,22 +203,17 @@ export const PersonalLedgerView: React.FC = () => {
   }, [personalTransactions, filterType, searchTerm]);
 
   const getTypeInfo = (type: PersonalTransactionType) => {
-    switch (type) {
-      case 'loan_given':
-        return { label: 'سلفية له (أطلبها منه)', color: 'text-amber-800 bg-amber-50 border-amber-200 dark:text-amber-300 dark:bg-amber-950/40 dark:border-amber-900/60' };
-      case 'loan_repaid':
-        return { label: 'استرداد سلفية', color: 'text-emerald-800 bg-emerald-50 border-emerald-200 dark:text-emerald-300 dark:bg-emerald-950/40 dark:border-emerald-900/60' };
-      case 'loan_taken':
-        return { label: 'استلفت منه (دين عليّ)', color: 'text-rose-800 bg-rose-50 border-rose-200 dark:text-rose-300 dark:bg-rose-950/40 dark:border-rose-900/60' };
-      case 'debt_paid':
-        return { label: 'سداد دين عليّ', color: 'text-teal-800 bg-teal-50 border-teal-200 dark:text-teal-300 dark:bg-teal-950/40 dark:border-teal-900/60' };
-      case 'expense':
-      case 'personal_expense':
-        return { label: 'مصروف شخصي', color: 'text-red-800 bg-red-50 border-red-200 dark:text-red-300 dark:bg-red-950/40 dark:border-red-900/60' };
-      case 'income':
-      case 'personal_income':
-        return { label: 'دخل شخصي', color: 'text-green-800 bg-green-50 border-green-200 dark:text-green-300 dark:bg-green-950/40 dark:border-green-900/60' };
+    const isWithdrawal = type === 'withdrawal' || (type as string) === 'loan_given' || (type as string) === 'loan_taken' || (type as string) === 'personal_expense';
+    if (isWithdrawal) {
+      return { 
+        label: 'سحب فلوس (زيادة دين)', 
+        color: 'text-rose-800 bg-rose-50 border-rose-200 dark:text-rose-300 dark:bg-rose-950/40 dark:border-rose-900/60' 
+      };
     }
+    return { 
+      label: 'إضافة فلوس (تنقيص دين)', 
+      color: 'text-emerald-800 bg-emerald-50 border-emerald-200 dark:text-emerald-300 dark:bg-emerald-950/40 dark:border-emerald-900/60' 
+    };
   };
 
   return (
@@ -251,32 +250,31 @@ export const PersonalLedgerView: React.FC = () => {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+      <div className="grid grid-cols-3 gap-2">
         <div className="bg-white dark:bg-slate-800/95 rounded-2xl p-3 border border-slate-200 dark:border-slate-700 shadow-2xs">
-          <span className="text-[10px] text-slate-500 dark:text-slate-300 block font-semibold">سلفيات مستحقة لي (أطلبها)</span>
-          <span className="text-base font-black text-amber-700 dark:text-amber-400 font-mono-num">
-            {formatCurrency(personalStats.totalLoansGiven, currency)}
-          </span>
-        </div>
-
-        <div className="bg-white dark:bg-slate-800/95 rounded-2xl p-3 border border-slate-200 dark:border-slate-700 shadow-2xs">
-          <span className="text-[10px] text-slate-500 dark:text-slate-300 block font-semibold">ديون عليّ للغير (مطلوبة مني)</span>
+          <span className="text-[10px] text-slate-500 dark:text-slate-300 block font-semibold">إجمالي المسحوبات (سحب)</span>
           <span className="text-base font-black text-rose-600 dark:text-rose-400 font-mono-num">
-            {formatCurrency(personalStats.totalLoansTaken, currency)}
+            {formatCurrency(personalStats.totalWithdrawals, currency)}
           </span>
         </div>
 
         <div className="bg-white dark:bg-slate-800/95 rounded-2xl p-3 border border-slate-200 dark:border-slate-700 shadow-2xs">
-          <span className="text-[10px] text-slate-500 dark:text-slate-300 block font-semibold">المصاريف الشخصية</span>
-          <span className="text-base font-black text-red-600 dark:text-red-400 font-mono-num">
-            {formatCurrency(personalStats.totalPersonalExpenses, currency)}
-          </span>
-        </div>
-
-        <div className="bg-white dark:bg-slate-800/95 rounded-2xl p-3 border border-slate-200 dark:border-slate-700 shadow-2xs">
-          <span className="text-[10px] text-slate-500 dark:text-slate-300 block font-semibold">الدخل والإيرادات الشخصية</span>
+          <span className="text-[10px] text-slate-500 dark:text-slate-300 block font-semibold">إجمالي الإضافات (إيداع)</span>
           <span className="text-base font-black text-emerald-600 dark:text-emerald-400 font-mono-num">
-            {formatCurrency(personalStats.totalPersonalIncome, currency)}
+            {formatCurrency(personalStats.totalDeposits, currency)}
+          </span>
+        </div>
+
+        <div className="bg-white dark:bg-slate-800/95 rounded-2xl p-3 border border-slate-200 dark:border-slate-700 shadow-2xs">
+          <span className="text-[10px] text-slate-500 dark:text-slate-300 block font-semibold">صافي الرصيد</span>
+          <span className={`text-base font-black font-mono-num ${
+            personalStats.netBalance > 0 
+              ? 'text-rose-600 dark:text-rose-400' 
+              : personalStats.netBalance < 0 
+              ? 'text-emerald-600 dark:text-emerald-400' 
+              : 'text-slate-700 dark:text-slate-300'
+          }`}>
+            {formatCurrency(personalStats.netBalance, currency)}
           </span>
         </div>
       </div>
@@ -328,12 +326,8 @@ export const PersonalLedgerView: React.FC = () => {
               className="px-2.5 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 transition-colors"
             >
               <option value="all">كل الحركات</option>
-              <option value="loan_given">سلفيات لي</option>
-              <option value="loan_repaid">استرداد سلفيات</option>
-              <option value="loan_taken">ديون عليّ</option>
-              <option value="debt_paid">سداد ديون</option>
-              <option value="personal_expense">مصاريف خاصة</option>
-              <option value="personal_income">دخل شخصي</option>
+              <option value="withdrawal">سحب فلوس (زيادة دين)</option>
+              <option value="deposit">إضافة فلوس (تنقيص دين)</option>
             </select>
           </div>
 
@@ -408,9 +402,7 @@ export const PersonalLedgerView: React.FC = () => {
       {subTab === 'contacts' && (
         <div className="space-y-2.5">
           {personalContacts.map((contact) => {
-            const b = contactBalances[contact.id] || { lent: 0, borrowed: 0, net: 0 };
-            const isOwed = b.net > 0;
-            const owesThem = b.net < 0;
+            const b = contactBalances[contact.id] || { withdrawals: 0, deposits: 0, balance: 0 };
 
             return (
               <div
@@ -451,17 +443,17 @@ export const PersonalLedgerView: React.FC = () => {
                 {/* Balances */}
                 <div className="bg-slate-50 dark:bg-slate-900/60 rounded-xl p-2.5 border border-slate-100 dark:border-slate-700/60 flex items-center justify-between text-xs my-2">
                   <div>
-                    <span className="text-[10px] text-slate-500 dark:text-slate-400 block">سلفيات له</span>
-                    <span className="font-bold font-mono-num text-amber-700 dark:text-amber-400">{formatCurrency(b.lent, currency)}</span>
+                    <span className="text-[10px] text-slate-500 dark:text-slate-400 block">إجمالي المسحوبات</span>
+                    <span className="font-bold font-mono-num text-rose-600 dark:text-rose-400">{formatCurrency(b.withdrawals, currency)}</span>
                   </div>
                   <div>
-                    <span className="text-[10px] text-slate-500 dark:text-slate-400 block">ديون عليّ له</span>
-                    <span className="font-bold font-mono-num text-rose-600 dark:text-rose-400">{formatCurrency(b.borrowed, currency)}</span>
+                    <span className="text-[10px] text-slate-500 dark:text-slate-400 block">إجمالي الإضافات</span>
+                    <span className="font-bold font-mono-num text-emerald-600 dark:text-emerald-400">{formatCurrency(b.deposits, currency)}</span>
                   </div>
                   <div>
-                    <span className="text-[10px] text-slate-500 dark:text-slate-400 block">الصافي</span>
-                    <span className={`font-black font-mono-num ${isOwed ? 'text-amber-700 dark:text-amber-400' : owesThem ? 'text-rose-600 dark:text-rose-400' : 'text-slate-700 dark:text-slate-300'}`}>
-                      {isOwed ? `له عليّ دين: ${formatCurrency(b.net, currency)}` : owesThem ? `عليّ له: ${formatCurrency(Math.abs(b.net), currency)}` : 'خالص'}
+                    <span className="text-[10px] text-slate-500 dark:text-slate-400 block">الرصيد النهائي</span>
+                    <span className={`font-black font-mono-num ${b.balance > 0 ? 'text-rose-600 dark:text-rose-400' : b.balance < 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-700 dark:text-slate-300'}`}>
+                      {b.balance > 0 ? `عليه: ${formatCurrency(b.balance, currency)}` : b.balance < 0 ? `له: ${formatCurrency(Math.abs(b.balance), currency)}` : 'خالص'}
                     </span>
                   </div>
                 </div>
@@ -578,12 +570,8 @@ export const PersonalLedgerView: React.FC = () => {
                   onChange={(e) => setTxForm({ ...txForm, type: e.target.value as PersonalTransactionType })}
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-indigo-500 bg-white dark:bg-slate-800 text-slate-900 dark:text-white transition-colors"
                 >
-                  <option value="loan_given">سلفية له (أسلفت مالاً لشخص)</option>
-                  <option value="loan_repaid">استرداد سلفية (استرددت مالاً)</option>
-                  <option value="loan_taken">استلفت منه (دين شخصي عليّ للغير)</option>
-                  <option value="debt_paid">سداد دين عليّ (سددت للغير)</option>
-                  <option value="personal_expense">مصروف شخصي (مصاريف خاصة)</option>
-                  <option value="personal_income">دخل شخصي (إيراد خاص)</option>
+                  <option value="withdrawal">سحب فلوس (يزيد الدين على الشخص)</option>
+                  <option value="deposit">إضافة فلوس (تنقص الدين من الشخص)</option>
                 </select>
               </div>
 

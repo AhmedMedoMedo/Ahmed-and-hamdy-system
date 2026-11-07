@@ -1,14 +1,8 @@
 export type PaymentMethod = 'كاش' | 'تحويل بنكي' | 'فودافون كاش / إنستاباي' | 'شيك' | 'أخرى';
 
 export type PersonalTransactionType = 
-  | 'loan_given'       // أسلفت له (سلفية له - يطلب منه)
-  | 'loan_repaid'      // استرداد سلفية
-  | 'loan_taken'       // استلفت منه (دين عليّ)
-  | 'debt_paid'        // سداد دين عليّ
-  | 'personal_expense' // مصروف شخصي
-  | 'expense'
-  | 'personal_income'  // دخل شخصي
-  | 'income';
+  | 'withdrawal'  // سحب فلوس (يزيد الدين)
+  | 'deposit';    // إضافة فلوس (ينقص الدين)
 
 export interface Merchant {
   id: string;

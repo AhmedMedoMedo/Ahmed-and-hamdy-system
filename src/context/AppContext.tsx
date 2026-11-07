@@ -87,10 +87,8 @@ interface AppContextType {
   
   // Personal finance stats
   personalStats: {
-    totalLoansGiven: number;
-    totalLoansTaken: number;
-    totalPersonalExpenses: number;
-    totalPersonalIncome: number;
+    totalWithdrawals: number;
+    totalDeposits: number;
     netBalance: number;
   };
 
@@ -1471,43 +1469,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Personal finance statistics
   const personalStats = useMemo(() => {
-    let totalLoansGiven = 0;
-    let totalLoansTaken = 0;
-    let totalPersonalExpenses = 0;
-    let totalPersonalIncome = 0;
+    let totalWithdrawals = 0;
+    let totalDeposits = 0;
 
     personalTransactions.forEach(tx => {
       const amt = Number(tx.amount) || 0;
-      switch (tx.type) {
-        case 'loan_given':
-          totalLoansGiven += amt;
-          break;
-        case 'loan_repaid':
-          totalLoansGiven -= amt;
-          break;
-        case 'loan_taken':
-          totalLoansTaken += amt;
-          break;
-        case 'debt_paid':
-          totalLoansTaken -= amt;
-          break;
-        case 'expense':
-        case 'personal_expense':
-          totalPersonalExpenses += amt;
-          break;
-        case 'income':
-        case 'personal_income':
-          totalPersonalIncome += amt;
-          break;
+      const isWithdrawal = tx.type === 'withdrawal' || (tx.type as string) === 'loan_given' || (tx.type as string) === 'loan_taken' || (tx.type as string) === 'personal_expense';
+      if (isWithdrawal) {
+        totalWithdrawals += amt;
+      } else {
+        totalDeposits += amt;
       }
     });
 
     return {
-      totalLoansGiven,
-      totalLoansTaken,
-      totalPersonalExpenses,
-      totalPersonalIncome,
-      netBalance: (totalPersonalIncome + totalLoansTaken) - (totalPersonalExpenses + totalLoansGiven)
+      totalWithdrawals,
+      totalDeposits,
+      netBalance: totalWithdrawals - totalDeposits,
     };
   }, [personalTransactions]);
 
