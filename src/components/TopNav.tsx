@@ -17,6 +17,12 @@ export const TopNav: React.FC = () => {
   const { activeTab, setActiveTab, pendingOrdersCount, debtorMerchantsCount } = useApp();
   const navContainerRef = useRef<HTMLDivElement>(null);
 
+  // Drag-to-scroll state refs
+  const isDragging = useRef(false);
+  const startX = useRef(0);
+  const scrollLeft = useRef(0);
+  const hasDragged = useRef(false);
+
   const tabs = [
     { id: 'dashboard', label: 'الرئيسية', icon: LayoutDashboard },
     { id: 'orders', label: 'الطلبات', icon: Truck, badge: pendingOrdersCount > 0 ? pendingOrdersCount : undefined },
@@ -40,11 +46,73 @@ export const TopNav: React.FC = () => {
     }
   }, [activeTab]);
 
+  // Pointer drag event handlers with pointer capture
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0 && e.pointerType === 'mouse') return;
+    const container = navContainerRef.current;
+    if (!container) return;
+
+    isDragging.current = true;
+    hasDragged.current = false;
+    startX.current = e.clientX;
+    scrollLeft.current = container.scrollLeft;
+
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {}
+  };
+
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isDragging.current) return;
+    const container = navContainerRef.current;
+    if (!container) return;
+
+    const dx = e.clientX - startX.current;
+    if (Math.abs(dx) > 5) {
+      hasDragged.current = true;
+    }
+
+    container.scrollLeft = scrollLeft.current - dx;
+  };
+
+  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isDragging.current) return;
+    isDragging.current = false;
+
+    try {
+      if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+        e.currentTarget.releasePointerCapture(e.pointerId);
+      }
+    } catch {}
+
+    setTimeout(() => {
+      hasDragged.current = false;
+    }, 50);
+  };
+
+  const handlePointerCancel = (e: React.PointerEvent<HTMLDivElement>) => {
+    isDragging.current = false;
+
+    try {
+      if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+        e.currentTarget.releasePointerCapture(e.pointerId);
+      }
+    } catch {}
+
+    setTimeout(() => {
+      hasDragged.current = false;
+    }, 50);
+  };
+
   return (
     <nav className="bg-white dark:bg-slate-900">
       <div 
         ref={navContainerRef}
-        className="max-w-md mx-auto flex items-center gap-1.5 px-2.5 pt-0.5 pb-2 overflow-x-auto no-scrollbar scroll-smooth"
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerCancel}
+        className="max-w-md mx-auto flex items-center gap-1.5 px-2.5 pt-0.5 pb-2 overflow-x-auto no-scrollbar cursor-grab active:cursor-grabbing select-none"
       >
         {tabs.map((tab) => {
           const Icon = tab.icon;
@@ -54,7 +122,13 @@ export const TopNav: React.FC = () => {
             <button
               key={tab.id}
               data-active={isActive ? 'true' : 'false'}
-              onClick={() => setActiveTab(tab.id)}
+              onClick={(e) => {
+                if (hasDragged.current) {
+                  e.preventDefault();
+                  return;
+                }
+                setActiveTab(tab.id);
+              }}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap shrink-0 transition-all active:scale-95 ${
                 isActive
                   ? tab.id === 'orders'
