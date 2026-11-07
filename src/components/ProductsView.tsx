@@ -31,7 +31,7 @@ export const ProductsView: React.FC<ProductsViewProps> = ({ onSellProduct }) => 
     name: '',
     price: '',
     costPrice: '',
-    unit: 'كرتونة',
+    unit: 'قطعة',
     notes: '',
   });
 
@@ -52,8 +52,8 @@ export const ProductsView: React.FC<ProductsViewProps> = ({ onSellProduct }) => 
       setFormData({
         name: product.name,
         price: String(product.price),
-        costPrice: product.costPrice !== undefined ? String(product.costPrice) : '',
-        unit: product.unit || 'كرتونة',
+        costPrice: product.costPrice !== undefined && product.costPrice !== null ? String(product.costPrice) : '',
+        unit: product.unit || 'قطعة',
         notes: product.notes || '',
       });
     } else {
@@ -62,7 +62,7 @@ export const ProductsView: React.FC<ProductsViewProps> = ({ onSellProduct }) => 
         name: '',
         price: '',
         costPrice: '',
-        unit: 'كرتونة',
+        unit: 'قطعة',
         notes: '',
       });
     }
@@ -77,7 +77,7 @@ export const ProductsView: React.FC<ProductsViewProps> = ({ onSellProduct }) => 
       ...(editingProduct ? { id: editingProduct.id } : {}),
       name: formData.name.trim(),
       price: parseFloat(formData.price) || 0,
-      costPrice: formData.costPrice ? parseFloat(formData.costPrice) : undefined,
+      costPrice: formData.costPrice ? parseFloat(formData.costPrice) : null,
       unit: formData.unit.trim() || 'قطعة',
       notes: formData.notes.trim(),
     });
@@ -259,13 +259,16 @@ export const ProductsView: React.FC<ProductsViewProps> = ({ onSellProduct }) => 
 
                 <div>
                   <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">وحدة القياس</label>
-                  <input
-                    type="text"
-                    placeholder="قطعة / دستة / كرتونة"
+                  <select
                     value={formData.unit}
                     onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
                     className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500 text-xs"
-                  />
+                  >
+                    <option value="قطعة">قطعة</option>
+                    <option value="شكارة">شكارة</option>
+                    <option value="كرتونة">كرتونة</option>
+                    <option value="دستة">دستة</option>
+                  </select>
                 </div>
               </div>
 

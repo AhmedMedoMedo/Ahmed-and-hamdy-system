@@ -24,7 +24,7 @@ export interface Product {
   id: string;
   name: string;
   price: number;
-  costPrice?: number;
+  costPrice?: number | null;
   unit: string;
   notes?: string;
   createdAt: string;

@@ -681,7 +681,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       id,
       name: data.name.trim(),
       price: Number(data.price) || 0,
-      costPrice: data.costPrice !== undefined ? Number(data.costPrice) : undefined,
+      costPrice: data.costPrice ? Number(data.costPrice) : null,
       unit: data.unit || 'قطعة',
       notes: data.notes || '',
       createdAt: (data as any).createdAt || now,
