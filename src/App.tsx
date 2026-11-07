@@ -14,7 +14,7 @@ import { MerchantDebtsView } from './components/MerchantDebtsView';
 import { PrintModal } from './components/PrintModal';
 import { SettingsModal } from './components/SettingsModal';
 import { SecurityLockModal } from './components/SecurityLockModal';
-import type { Invoice, Payment, Product, WorkOrder, Expense } from './types';
+import type { Invoice, Payment, Product, WorkOrder, Expense, MerchantStatementPrintData } from './types';
 import { CheckCircle2 } from 'lucide-react';
 
 const MainLayout: React.FC = () => {
@@ -35,6 +35,7 @@ const MainLayout: React.FC = () => {
   const [printablePayment, setPrintablePayment] = useState<Payment | null>(null);
   const [printableOrder, setPrintableOrder] = useState<WorkOrder | null>(null);
   const [printableExpense, setPrintableExpense] = useState<Expense | null>(null);
+  const [printableMerchantStatement, setPrintableMerchantStatement] = useState<MerchantStatementPrintData | null>(null);
 
   // Cross-view deep links
   const [selectedMerchantForView, setSelectedMerchantForView] = useState<string | null>(null);
@@ -144,6 +145,9 @@ const MainLayout: React.FC = () => {
               onClearSelectedMerchant={() => setSelectedMerchantForView(null)}
               onOpenNewInvoiceWithMerchant={(mId) => handleOpenNewInvoice(mId)}
               onOpenNewPaymentWithMerchant={(mId) => handleOpenNewPayment(mId)}
+              onPrintInvoice={(inv) => setPrintableInvoice(inv)}
+              onPrintPayment={(pay) => setPrintablePayment(pay)}
+              onPrintMerchantStatement={(stmt) => setPrintableMerchantStatement(stmt)}
             />
           )}
 
@@ -199,19 +203,21 @@ const MainLayout: React.FC = () => {
           <SettingsModal onClose={() => setIsSettingsOpen(false)} />
         )}
 
-        {/* Printable Invoice / Payment / Order / Expense Modal */}
-        {(printableInvoice || printablePayment || printableOrder || printableExpense) && (
+        {/* Printable Invoice / Payment / Order / Expense / Merchant Statement Modal */}
+        {(printableInvoice || printablePayment || printableOrder || printableExpense || printableMerchantStatement) && (
           <PrintModal
             invoice={printableInvoice}
             payment={printablePayment}
             order={printableOrder}
             expense={printableExpense}
+            merchantStatement={printableMerchantStatement}
             currency={currency}
             onClose={() => {
               setPrintableInvoice(null);
               setPrintablePayment(null);
               setPrintableOrder(null);
               setPrintableExpense(null);
+              setPrintableMerchantStatement(null);
             }}
           />
         )}

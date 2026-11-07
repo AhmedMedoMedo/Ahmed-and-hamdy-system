@@ -177,4 +177,29 @@ export interface MonthSummary {
   invoicesCount: number;
   paymentsCount: number;
   expensesCount: number;
+}export interface MerchantStatementTransaction {
+  id: string;
+  type: 'invoice' | 'payment';
+  date: string;
+  title: string;
+  debit: number;
+  credit: number;
+  balanceAfter: number;
+  notes?: string;
+  createdAt: string;
+  rawInvoice?: Invoice;
+  rawPayment?: Payment;
+}
+
+export interface MerchantStatementPrintData {
+  merchant: Merchant;
+  balances: {
+    totalInvoicedAllTime: number;
+    totalPaidAllTime: number;
+    currentDebt: number;
+  };
+  invoices: Invoice[];
+  payments: Payment[];
+  transactions: MerchantStatementTransaction[];
+  generatedAt?: string;
 }

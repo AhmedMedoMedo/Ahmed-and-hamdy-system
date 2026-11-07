@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
-import type { Invoice, Payment, WorkOrder, Expense } from '../types';
+import type { Invoice, Payment, WorkOrder, Expense, MerchantStatementPrintData } from '../types';
 import { formatCurrency, formatDateArabic } from '../utils/formatters';
 import { toPng } from 'html-to-image';
 import { 
@@ -21,6 +21,7 @@ interface PrintModalProps {
   payment?: Payment | null;
   order?: WorkOrder | null;
   expense?: Expense | null;
+  merchantStatement?: MerchantStatementPrintData | null;
   currency?: string;
   onClose: () => void;
 }
@@ -30,6 +31,7 @@ export const PrintModal: React.FC<PrintModalProps> = ({
   payment,
   order,
   expense,
+  merchantStatement,
   onClose,
 }) => {
   const { merchantBalances, storeName, currency, merchants, invoices, showToast } = useApp();
@@ -86,15 +88,15 @@ export const PrintModal: React.FC<PrintModalProps> = ({
   const [capturedImageDataUrl, setCapturedImageDataUrl] = useState<string | null>(null);
   const [capturedBlob, setCapturedBlob] = useState<Blob | null>(null);
   const [selectedMerchantId, setSelectedMerchantId] = useState<string>(
-    effectiveInvoice?.merchantId || payment?.merchantId || (merchants[0]?.id || '')
+    merchantStatement?.merchant.id || effectiveInvoice?.merchantId || payment?.merchantId || (merchants[0]?.id || '')
   );
   const [customPhone, setCustomPhone] = useState<string>(() => {
-    const targetId = effectiveInvoice?.merchantId || payment?.merchantId;
+    const targetId = merchantStatement?.merchant.id || effectiveInvoice?.merchantId || payment?.merchantId;
     const m = merchants.find(item => item.id === targetId);
-    return m?.phone || '';
+    return merchantStatement?.merchant.phone || m?.phone || '';
   });
 
-  if (!effectiveInvoice && !payment && !expense) return null;
+  if (!effectiveInvoice && !payment && !expense && !merchantStatement) return null;
 
   // Format date and time in authentic Egyptian commercial style
   const getFormattedDateTime = (dateStr: string) => {
@@ -185,6 +187,32 @@ ${payment.notes ? `📝 *البيان:* ${payment.notes}\n` : ''}---------------
 ${paymentNewDebt > 0 ? `👉 *الباقي عليك للحساب:* ${formatCurrency(paymentNewDebt, currency)}` : '🎉 *حسابك خالص ومسدد بالكامل بدون أي ديون*'}
 
 تم قيد المبلغ في كشف حسابك.. تسلم وربنا يزيدك ويوسع رزقك 🙏`;
+    } else if (merchantStatement) {
+      const m = merchantStatement.merchant;
+      const b = merchantStatement.balances;
+      return `*${storeName || 'Ahmed And Hamdy'}*
+*كشف حساب تاجر معتمد — ${m.name}*
+----------------------------------------
+👤 *التاجر:* ${m.name}
+📱 *الهاتف:* ${m.phone || 'غير مسجل'}
+📅 *تاريخ التقرير:* ${formatDateArabic(merchantStatement.generatedAt || new Date().toISOString())}
+----------------------------------------
+📊 *ملخص الحساب المالي:*
+• إجمالي المسحوبات (فواتير): ${formatCurrency(b.totalInvoicedAllTime, currency)} (${merchantStatement.invoices.length} فاتورة)
+• إجمالي المسدد (دفعات): ${formatCurrency(b.totalPaidAllTime, currency)} (${merchantStatement.payments.length} سند قبض)
+• *صافي المديونية الحالية:* *${formatCurrency(b.currentDebt, currency)}*
+----------------------------------------
+📦 *سجل فواتير البيع:*
+${merchantStatement.invoices.length === 0 ? '• لا توجد فواتير' : merchantStatement.invoices.slice(0, 10).map(inv => `• فاتورة #${inv.invoiceNumber} (${inv.date}): ${formatCurrency(inv.total, currency)}`).join('\n')}
+${merchantStatement.invoices.length > 10 ? `... وغيرها (${merchantStatement.invoices.length} فاتورة إجمالاً)` : ''}
+----------------------------------------
+💵 *سجل الدفعات المستلمة:*
+${merchantStatement.payments.length === 0 ? '• لا توجد دفعات' : merchantStatement.payments.slice(0, 10).map(p => `• دفعة #${p.receiptNumber || '0742'} (${p.date}): ${formatCurrency(p.amount, currency)} [${p.paymentMethod}]`).join('\n')}
+${merchantStatement.payments.length > 10 ? `... وغيرها (${merchantStatement.payments.length} دفعة إجمالاً)` : ''}
+----------------------------------------
+${b.currentDebt > 0 ? `👉 *المتبقي المطلوب سداده:* ${formatCurrency(b.currentDebt, currency)}` : '🎉 *الحساب مسدد وخالص بالكامل*'}
+
+شاكرين لسيادتكم دوام التعاون وسرعة السداد 🙏`;
     }
     return '';
   };
@@ -868,13 +896,237 @@ ${paymentNewDebt > 0 ? `👉 *الباقي عليك للحساب:* ${formatCurre
             </div>
           )}
 
+          {/* ==================== 5. MERCHANT ACCOUNT STATEMENT VIEW ==================== */}
+          {merchantStatement && (
+            <div className="space-y-4 w-full">
+              {/* Header: Company Title (Right) + Statement Reference Box (Left) */}
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h1 className="text-xl sm:text-2xl font-black text-black tracking-tight leading-tight">
+                    {storeName || 'Ahmed And Hamdy'}
+                  </h1>
+                  <p className="text-[11px] text-slate-600 font-medium mt-0.5">
+                    النظام المحاسبي الداخلي — كشف حساب تاجر تفصيلي
+                  </p>
+                </div>
+
+                <div className="border border-slate-300 rounded-md text-[11px] font-mono-num divide-y divide-slate-200 min-w-[200px] text-right">
+                  <div className="p-1.5 flex justify-between gap-2">
+                    <span className="text-slate-500 font-sans">كود المستند:</span>
+                    <span className="font-black text-black">#كشف-{merchantStatement.merchant.id.slice(0, 6)}</span>
+                  </div>
+                  <div className="p-1.5 flex justify-between gap-2">
+                    <span className="text-slate-500 font-sans">تاريخ التقرير:</span>
+                    <span className="font-bold text-black text-[10px]">
+                      {getFormattedDateTime(merchantStatement.generatedAt || new Date().toISOString())}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Solid Horizontal Divider Line */}
+              <div className="border-b-2 border-black my-2"></div>
+
+              {/* Merchant Details Card */}
+              <div className="grid grid-cols-2 gap-3 border border-slate-300 rounded-md p-2.5 text-xs">
+                <div>
+                  <span className="text-[10px] text-slate-500 block mb-0.5">كشف حساب العميل / التاجر:</span>
+                  <div className="text-base font-black text-black">{merchantStatement.merchant.name}</div>
+                  {merchantStatement.merchant.address && (
+                    <div className="text-[11px] text-slate-600 mt-0.5">العنوان: {merchantStatement.merchant.address}</div>
+                  )}
+                </div>
+                <div className="text-left font-mono-num">
+                  <span className="text-[10px] text-slate-500 block mb-0.5 font-sans">بيانات الاتصال:</span>
+                  <div className="font-bold text-black text-xs">{merchantStatement.merchant.phone || 'بدون هاتف'}</div>
+                  <div className="text-[10px] text-slate-500 font-sans mt-0.5">
+                    حالة الحساب: {merchantStatement.balances.currentDebt > 0 ? 'عليه مديونية قائمة' : 'خالص السداد'}
+                  </div>
+                </div>
+              </div>
+
+              {/* Financial Balances Summary Bar */}
+              <div className="grid grid-cols-3 border border-slate-300 rounded-md overflow-hidden text-center text-xs divide-x divide-x-reverse divide-slate-300">
+                <div className="p-2 bg-slate-50/70">
+                  <span className="text-[10px] text-slate-600 block mb-0.5 font-bold">إجمالي المسحوبات (فواتير)</span>
+                  <span className="font-black font-mono-num text-slate-900 text-sm">
+                    {formatCurrency(merchantStatement.balances.totalInvoicedAllTime, currency)}
+                  </span>
+                  <span className="text-[9px] text-slate-500 block mt-0.5 font-mono-num">
+                    ({merchantStatement.invoices.length} فاتورة بيع)
+                  </span>
+                </div>
+                <div className="p-2 bg-slate-50/70">
+                  <span className="text-[10px] text-teal-800 block mb-0.5 font-bold">إجمالي المسدد (دفعات)</span>
+                  <span className="font-black font-mono-num text-teal-700 text-sm">
+                    {formatCurrency(merchantStatement.balances.totalPaidAllTime, currency)}
+                  </span>
+                  <span className="text-[9px] text-slate-500 block mt-0.5 font-mono-num">
+                    ({merchantStatement.payments.length} سند قبض)
+                  </span>
+                </div>
+                <div className="p-2 bg-rose-50/40">
+                  <span className="text-[10px] text-rose-700 block mb-0.5 font-bold">صافي المديونية الحالية</span>
+                  <span className={`font-black font-mono-num text-sm ${merchantStatement.balances.currentDebt > 0 ? 'text-rose-700' : 'text-emerald-700'}`}>
+                    {formatCurrency(merchantStatement.balances.currentDebt, currency)}
+                  </span>
+                  <span className="text-[9px] text-rose-600 block mt-0.5 font-bold">
+                    {merchantStatement.balances.currentDebt > 0 ? 'مطلوب سداده' : 'خالص تماماً'}
+                  </span>
+                </div>
+              </div>
+
+              {/* SECTION 1: Independent Sales Invoices Table */}
+              <div className="space-y-1.5 pt-1">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-black text-black flex items-center gap-1.5">
+                    <span className="bg-blue-100 text-blue-900 px-2 py-0.5 rounded text-[10px] font-bold">قسم ١</span>
+                    <span>سجل عمليات البيع والفواتير ({merchantStatement.invoices.length})</span>
+                  </span>
+                  <span className="font-mono-num text-[11px] text-slate-600 font-bold">
+                    إجمالي الفواتير: {formatCurrency(merchantStatement.balances.totalInvoicedAllTime, currency)}
+                  </span>
+                </div>
+
+                <div className="border border-slate-300 rounded-md overflow-hidden">
+                  <table className="w-full text-right text-xs border-collapse">
+                    <thead>
+                      <tr className="bg-slate-100 border-b border-slate-300 text-[10px] font-bold text-black">
+                        <th className="py-1 px-2 border-l border-slate-200">رقم الفاتورة</th>
+                        <th className="py-1 px-2 border-l border-slate-200">التاريخ</th>
+                        <th className="py-1 px-2 border-l border-slate-200">الأصناف / البيان</th>
+                        <th className="py-1 px-2 border-l border-slate-200 text-center">المسدد فوري</th>
+                        <th className="py-1 px-2 border-l border-slate-200 text-center">المتبقي دين</th>
+                        <th className="py-1 px-2 text-left font-black">إجمالي الفاتورة</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200 font-mono-num text-[11px]">
+                      {merchantStatement.invoices.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} className="py-3 text-center text-slate-400 font-sans">
+                            لا توجد فواتير بيع مسجلة لهذا التاجر
+                          </td>
+                        </tr>
+                      ) : (
+                        merchantStatement.invoices.map((inv, idx) => (
+                          <tr key={idx} className="hover:bg-slate-50">
+                            <td className="py-1.5 px-2 font-bold text-black border-l border-slate-200">
+                              #{inv.invoiceNumber}
+                            </td>
+                            <td className="py-1.5 px-2 border-l border-slate-200 text-slate-700">
+                              {inv.date}
+                            </td>
+                            <td className="py-1.5 px-2 border-l border-slate-200 font-sans text-[10px] text-slate-700 max-w-[160px] truncate">
+                              {inv.items.map(it => `${it.productName} (${it.quantity})`).join(', ') || inv.notes || '—'}
+                            </td>
+                            <td className="py-1.5 px-2 border-l border-slate-200 text-center text-teal-700">
+                              {inv.paidAmount > 0 ? formatCurrency(inv.paidAmount, currency) : '0'}
+                            </td>
+                            <td className="py-1.5 px-2 border-l border-slate-200 text-center text-rose-700 font-bold">
+                              {inv.remainingAmount > 0 ? formatCurrency(inv.remainingAmount, currency) : '0'}
+                            </td>
+                            <td className="py-1.5 px-2 text-left font-black text-black">
+                              {formatCurrency(inv.total, currency)}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* SECTION 2: Independent Financial Collections Table */}
+              <div className="space-y-1.5 pt-1">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-black text-black flex items-center gap-1.5">
+                    <span className="bg-teal-100 text-teal-900 px-2 py-0.5 rounded text-[10px] font-bold">قسم ٢</span>
+                    <span>سجل العمليات المالية وسندات القبض ({merchantStatement.payments.length})</span>
+                  </span>
+                  <span className="font-mono-num text-[11px] text-teal-800 font-bold">
+                    إجمالي المسدد: {formatCurrency(merchantStatement.balances.totalPaidAllTime, currency)}
+                  </span>
+                </div>
+
+                <div className="border border-slate-300 rounded-md overflow-hidden">
+                  <table className="w-full text-right text-xs border-collapse">
+                    <thead>
+                      <tr className="bg-slate-100 border-b border-slate-300 text-[10px] font-bold text-black">
+                        <th className="py-1 px-2 border-l border-slate-200">رقم الحركة</th>
+                        <th className="py-1 px-2 border-l border-slate-200">التاريخ</th>
+                        <th className="py-1 px-2 border-l border-slate-200">طريقة الدفع</th>
+                        <th className="py-1 px-2 border-l border-slate-200">البيان / ملاحظات</th>
+                        <th className="py-1 px-2 text-left font-black">المبلغ المقبوض</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200 font-mono-num text-[11px]">
+                      {merchantStatement.payments.length === 0 ? (
+                        <tr>
+                          <td colSpan={5} className="py-3 text-center text-slate-400 font-sans">
+                            لا توجد سندات دفعات مسجلة لهذا التاجر
+                          </td>
+                        </tr>
+                      ) : (
+                        merchantStatement.payments.map((p, idx) => (
+                          <tr key={idx} className="hover:bg-slate-50">
+                            <td className="py-1.5 px-2 font-bold text-black border-l border-slate-200">
+                              #{p.receiptNumber || '0742'}
+                            </td>
+                            <td className="py-1.5 px-2 border-l border-slate-200 text-slate-700">
+                              {p.date}
+                            </td>
+                            <td className="py-1.5 px-2 border-l border-slate-200 font-sans text-[10px] text-teal-800 font-bold">
+                              {p.paymentMethod}
+                            </td>
+                            <td className="py-1.5 px-2 border-l border-slate-200 font-sans text-[10px] text-slate-600 max-w-[180px] truncate">
+                              {p.notes || 'دفعة نقدية مسددة للحساب'}
+                            </td>
+                            <td className="py-1.5 px-2 text-left font-black text-teal-700">
+                              {formatCurrency(p.amount, currency)}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Status Banner */}
+              <div className="bg-slate-100 p-2.5 rounded-md border border-slate-300 text-center text-xs font-bold">
+                <span>الموقف المالي النهائي للحساب: </span>
+                {merchantStatement.balances.currentDebt > 0 ? (
+                  <span className="text-rose-700 font-black font-mono-num">
+                    صافي مديونية قائمة على التاجر بمبلغ {formatCurrency(merchantStatement.balances.currentDebt, currency)}
+                  </span>
+                ) : (
+                  <span className="text-emerald-700 font-black">
+                    حساب التاجر مسدد وخالص بالكامل ولا توجد عليه أي مديونيات
+                  </span>
+                )}
+              </div>
+
+              {/* Signatures */}
+              <div className="pt-6 mt-3 border-t border-dashed border-slate-300 flex justify-between text-[10px] text-slate-500">
+                <div>توقيع التاجر / العميل: .......................................</div>
+                <div>توقيع الحسابات / المعتمد: .......................................</div>
+              </div>
+
+              <div className="text-[9px] text-slate-400 font-mono-num text-right">
+                #كشف-{merchantStatement.merchant.id.slice(0, 6)}
+              </div>
+            </div>
+          )}
+
           </div>
         </div>
 
         {/* Modal Bottom Close Button (Hidden when printing) - Lifted above mobile navigation bar */}
         <div className="pt-2.5 pb-6 sm:pb-0 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center print:hidden shrink-0">
           <span className="text-[11px] text-slate-500 dark:text-slate-400 font-mono-num">
-            {invoice 
+            {merchantStatement
+              ? `كشف حساب: ${merchantStatement.merchant.name}`
+              : invoice 
               ? `فاتورة #${invoice.invoiceNumber}` 
               : payment 
               ? `حركة #${payment.receiptNumber || '0742'}`

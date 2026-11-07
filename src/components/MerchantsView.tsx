@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
-import type { Merchant } from '../types';
+import type { Merchant, Invoice, Payment, MerchantStatementPrintData } from '../types';
 import { formatCurrency, formatDateArabic, getTodayDateString } from '../utils/formatters';
 import { ConfirmModal } from './ConfirmModal';
 import { 
@@ -25,13 +25,19 @@ interface MerchantsViewProps {
   onClearSelectedMerchant?: () => void;
   onOpenNewInvoiceWithMerchant?: (merchantId: string) => void;
   onOpenNewPaymentWithMerchant?: (merchantId: string) => void;
+  onPrintInvoice?: (invoice: Invoice) => void;
+  onPrintPayment?: (payment: Payment) => void;
+  onPrintMerchantStatement?: (statementData: MerchantStatementPrintData) => void;
 }
 
 export const MerchantsView: React.FC<MerchantsViewProps> = ({
   initialSelectedMerchantId,
   onClearSelectedMerchant,
   onOpenNewInvoiceWithMerchant,
-  onOpenNewPaymentWithMerchant
+  onOpenNewPaymentWithMerchant,
+  onPrintInvoice,
+  onPrintPayment,
+  onPrintMerchantStatement
 }) => {
   const { 
     merchants, 
@@ -56,6 +62,7 @@ export const MerchantsView: React.FC<MerchantsViewProps> = ({
 
   // Detail / Statement state
   const [activeMerchantId, setActiveMerchantId] = useState<string | null>(initialSelectedMerchantId || null);
+  const [statementTab, setStatementTab] = useState<'all' | 'invoices' | 'payments'>('all');
 
   // Deletion Modal state (replaces window.confirm completely)
   const [deleteDialog, setDeleteDialog] = useState<{
@@ -167,6 +174,20 @@ export const MerchantsView: React.FC<MerchantsViewProps> = ({
     return merchants.find(m => m.id === activeMerchantId) || null;
   }, [merchants, activeMerchantId]);
 
+  const activeMerchantInvoices = useMemo(() => {
+    if (!activeMerchantId) return [];
+    return invoices
+      .filter(inv => inv.merchantId === activeMerchantId)
+      .sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt));
+  }, [activeMerchantId, invoices]);
+
+  const activeMerchantPayments = useMemo(() => {
+    if (!activeMerchantId) return [];
+    return payments
+      .filter(pay => pay.merchantId === activeMerchantId)
+      .sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt));
+  }, [activeMerchantId, payments]);
+
   const activeMerchantTransactions = useMemo(() => {
     if (!activeMerchantId) return [];
 
@@ -181,6 +202,7 @@ export const MerchantsView: React.FC<MerchantsViewProps> = ({
         credit: 0,
         notes: inv.notes || '',
         createdAt: inv.createdAt,
+        rawInvoice: inv,
       }));
 
     const merchantPays = payments
@@ -194,6 +216,7 @@ export const MerchantsView: React.FC<MerchantsViewProps> = ({
         credit: pay.amount,
         notes: pay.notes || '',
         createdAt: pay.createdAt,
+        rawPayment: pay,
       }));
 
     const combined = [...merchantInvs, ...merchantPays].sort((a, b) => {
@@ -211,6 +234,20 @@ export const MerchantsView: React.FC<MerchantsViewProps> = ({
       };
     });
   }, [activeMerchantId, invoices, payments]);
+
+  // Print full statement handler
+  const handlePrintFullStatement = () => {
+    if (!activeMerchant || !onPrintMerchantStatement) return;
+    const b = merchantBalances[activeMerchant.id] || { totalInvoicedAllTime: 0, totalPaidAllTime: 0, currentDebt: 0 };
+    onPrintMerchantStatement({
+      merchant: activeMerchant,
+      balances: b,
+      invoices: activeMerchantInvoices,
+      payments: activeMerchantPayments,
+      transactions: activeMerchantTransactions,
+      generatedAt: new Date().toISOString(),
+    });
+  };
 
   // Share statement via WhatsApp
   const handleShareWhatsApp = () => {
@@ -247,14 +284,14 @@ export const MerchantsView: React.FC<MerchantsViewProps> = ({
       {/* Top Mobile Bar */}
       <div className="flex items-center justify-between gap-2 pt-1">
         <div>
-          <h2 className="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-1.5">
-            <Users className="w-5 h-5 text-emerald-600" />
+          <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+            <Users className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
             <span>سجل التجار والعملاء</span>
-            <span className="text-xs bg-slate-200 text-slate-700 px-2 py-0.5 rounded-full font-mono-num font-bold">
+            <span className="text-xs bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 px-2 py-0.5 rounded-full font-mono-num font-bold">
               {merchants.length}
             </span>
           </h2>
-          <p className="text-[11px] text-slate-500">متابعة حسابات التجار والديون وكشوف الحساب</p>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400">متابعة حسابات التجار والديون وكشوف الحساب</p>
         </div>
 
         <button
@@ -275,12 +312,12 @@ export const MerchantsView: React.FC<MerchantsViewProps> = ({
             placeholder="بحث باسم التاجر أو رقم الهاتف..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-3 pr-9 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-500 bg-white"
+            className="w-full pl-3 pr-9 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-emerald-500 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500"
           />
           {searchTerm && (
             <button
               onClick={() => setSearchTerm('')}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
             >
               <X className="w-4 h-4" />
             </button>
@@ -288,11 +325,13 @@ export const MerchantsView: React.FC<MerchantsViewProps> = ({
         </div>
 
         {/* Status filter tabs */}
-        <div className="grid grid-cols-3 gap-1.5 bg-slate-200/70 p-1 rounded-xl text-xs">
+        <div className="grid grid-cols-3 gap-1.5 bg-slate-200/70 dark:bg-slate-800/80 p-1 rounded-xl text-xs">
           <button
             onClick={() => setFilterType('all')}
             className={`py-1.5 rounded-lg font-bold transition-all ${
-              filterType === 'all' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-600'
+              filterType === 'all' 
+                ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-2xs' 
+                : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
             الكل ({merchants.length})
@@ -300,7 +339,7 @@ export const MerchantsView: React.FC<MerchantsViewProps> = ({
           <button
             onClick={() => setFilterType('debt')}
             className={`py-1.5 rounded-lg font-bold transition-all ${
-              filterType === 'debt' ? 'bg-rose-600 text-white shadow-2xs' : 'text-rose-700'
+              filterType === 'debt' ? 'bg-rose-600 text-white shadow-2xs' : 'text-rose-700 dark:text-rose-400'
             }`}
           >
             عليهم ديون
@@ -308,7 +347,7 @@ export const MerchantsView: React.FC<MerchantsViewProps> = ({
           <button
             onClick={() => setFilterType('settled')}
             className={`py-1.5 rounded-lg font-bold transition-all ${
-              filterType === 'settled' ? 'bg-emerald-600 text-white shadow-2xs' : 'text-emerald-700'
+              filterType === 'settled' ? 'bg-emerald-600 text-white shadow-2xs' : 'text-emerald-700 dark:text-emerald-400'
             }`}
           >
             خالص السداد
@@ -329,15 +368,17 @@ export const MerchantsView: React.FC<MerchantsViewProps> = ({
           return (
             <div
               key={merchant.id}
-              className={`bg-white rounded-2xl border p-3.5 shadow-2xs transition-all ${
-                hasDebt ? 'border-rose-100 hover:border-rose-200' : 'border-slate-200/80 hover:border-slate-300'
+              className={`bg-white dark:bg-slate-800 rounded-2xl border p-3.5 shadow-2xs transition-all ${
+                hasDebt 
+                  ? 'border-rose-100 dark:border-rose-900/50 hover:border-rose-200 dark:hover:border-rose-800' 
+                  : 'border-slate-200/80 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
               }`}
             >
               <div className="flex items-start justify-between gap-2 mb-2">
                 <div className="min-w-0">
-                  <h3 className="font-bold text-slate-900 text-sm truncate">{merchant.name}</h3>
+                  <h3 className="font-bold text-slate-900 dark:text-white text-sm truncate">{merchant.name}</h3>
                   {merchant.phone && (
-                    <div className="flex items-center gap-1 text-[11px] text-slate-500 mt-0.5" dir="ltr">
+                    <div className="flex items-center gap-1 text-[11px] text-slate-500 dark:text-slate-400 mt-0.5" dir="ltr">
                       <Phone className="w-3 h-3 text-slate-400" />
                       <span>{merchant.phone}</span>
                     </div>
@@ -347,8 +388,8 @@ export const MerchantsView: React.FC<MerchantsViewProps> = ({
                 <span
                   className={`px-2 py-0.5 rounded-full text-[11px] font-bold shrink-0 ${
                     hasDebt 
-                      ? 'bg-rose-50 text-rose-700 border border-rose-200' 
-                      : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                      ? 'bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900/60' 
+                      : 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60'
                   }`}
                 >
                   {hasDebt ? 'عليه دين' : 'خالص'}
@@ -356,22 +397,22 @@ export const MerchantsView: React.FC<MerchantsViewProps> = ({
               </div>
 
               {/* Financial Summary */}
-              <div className="bg-slate-50 rounded-xl p-2.5 border border-slate-100 flex items-center justify-between text-xs my-2">
+              <div className="bg-slate-50 dark:bg-slate-900/60 rounded-xl p-2.5 border border-slate-100 dark:border-slate-700/60 flex items-center justify-between text-xs my-2">
                 <div>
-                  <span className="text-[10px] text-slate-500 block">المسحوبات</span>
-                  <span className="font-bold font-mono-num text-slate-800">
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400 block">المسحوبات</span>
+                  <span className="font-bold font-mono-num text-slate-800 dark:text-slate-200">
                     {formatCurrency(balance.totalInvoicedAllTime, currency)}
                   </span>
                 </div>
-                <div className="border-r border-slate-200 pr-2.5">
-                  <span className="text-[10px] text-slate-500 block">المسدد</span>
-                  <span className="font-bold font-mono-num text-teal-700">
+                <div className="border-r border-slate-200 dark:border-slate-700 pr-2.5">
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400 block">المسدد</span>
+                  <span className="font-bold font-mono-num text-teal-700 dark:text-teal-400">
                     {formatCurrency(balance.totalPaidAllTime, currency)}
                   </span>
                 </div>
-                <div className="border-r border-slate-200 pr-2.5">
-                  <span className="text-[10px] text-rose-600 font-bold block">المتبقي دين</span>
-                  <span className={`font-black font-mono-num ${hasDebt ? 'text-rose-600' : 'text-emerald-600'}`}>
+                <div className="border-r border-slate-200 dark:border-slate-700 pr-2.5">
+                  <span className="text-[10px] text-rose-600 dark:text-rose-400 font-bold block">المتبقي دين</span>
+                  <span className={`font-black font-mono-num ${hasDebt ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
                     {formatCurrency(balance.currentDebt, currency)}
                   </span>
                 </div>
@@ -380,17 +421,20 @@ export const MerchantsView: React.FC<MerchantsViewProps> = ({
               {/* Action Buttons Row */}
               <div className="flex items-center gap-1.5 pt-1">
                 <button
-                  onClick={() => setActiveMerchantId(merchant.id)}
-                  className="flex-1 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold flex items-center justify-center gap-1 transition-colors"
+                  onClick={() => {
+                    setActiveMerchantId(merchant.id);
+                    setStatementTab('all');
+                  }}
+                  className="flex-1 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-200 text-xs font-bold flex items-center justify-center gap-1 transition-colors"
                 >
-                  <FileText className="w-3.5 h-3.5 text-emerald-600" />
+                  <FileText className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                   <span>كشف حساب</span>
                 </button>
 
                 <button
                   onClick={() => onOpenNewInvoiceWithMerchant && onOpenNewInvoiceWithMerchant(merchant.id)}
                   title="إصدار فاتورة بيع للتاجر"
-                  className="py-1.5 px-2.5 rounded-xl bg-emerald-50 text-emerald-700 hover:bg-emerald-100 text-xs font-bold flex items-center gap-1"
+                  className="py-1.5 px-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 text-xs font-bold flex items-center gap-1 border border-emerald-200/60 dark:border-emerald-800/50"
                 >
                   <Receipt className="w-3.5 h-3.5" />
                   <span>فاتورة</span>
@@ -399,7 +443,7 @@ export const MerchantsView: React.FC<MerchantsViewProps> = ({
                 <button
                   onClick={() => onOpenNewPaymentWithMerchant && onOpenNewPaymentWithMerchant(merchant.id)}
                   title="استلام دفعة نقدية"
-                  className="py-1.5 px-2.5 rounded-xl bg-teal-50 text-teal-700 hover:bg-teal-100 text-xs font-bold flex items-center gap-1"
+                  className="py-1.5 px-2.5 rounded-xl bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 hover:bg-teal-100 dark:hover:bg-teal-900/60 text-xs font-bold flex items-center gap-1 border border-teal-200/60 dark:border-teal-800/50"
                 >
                   <HandCoins className="w-3.5 h-3.5" />
                   <span>دفعة</span>
@@ -408,7 +452,7 @@ export const MerchantsView: React.FC<MerchantsViewProps> = ({
                 <button
                   onClick={() => handleOpenForm(merchant)}
                   title="تعديل بيانات التاجر"
-                  className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-500"
+                  className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400"
                 >
                   <Edit3 className="w-4 h-4" />
                 </button>
@@ -416,7 +460,7 @@ export const MerchantsView: React.FC<MerchantsViewProps> = ({
                 <button
                   onClick={() => triggerDeleteMerchant(merchant)}
                   title="حذف التاجر"
-                  className="p-1.5 rounded-xl hover:bg-rose-50 text-rose-500"
+                  className="p-1.5 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-950/50 text-rose-500 dark:text-rose-400"
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>
@@ -518,25 +562,36 @@ export const MerchantsView: React.FC<MerchantsViewProps> = ({
       {/* Detailed Merchant Statement Modal */}
       {activeMerchant && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-3xl max-w-lg w-full p-4 shadow-2xl border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white max-h-[92vh] flex flex-col justify-between overflow-hidden">
+          <div className="bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-3xl max-w-xl w-full p-4 shadow-2xl border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white max-h-[92vh] flex flex-col justify-between overflow-hidden">
             
             {/* Header */}
             <div>
               <div className="flex items-center justify-between pb-2.5 border-b border-slate-100 dark:border-slate-800 mb-2">
                 <div className="min-w-0 pr-1">
                   <h3 className="font-bold text-sm sm:text-base text-slate-900 dark:text-white truncate">كشف حساب: {activeMerchant.name}</h3>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400">حركة الفواتير والدفعات والرصيد التراكمي</p>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">حركة الفواتير والدفعات وسجل الحساب التراكمي</p>
                 </div>
 
-                <div className="flex items-center gap-1 shrink-0">
+                <div className="flex items-center gap-1.5 shrink-0">
+                  {/* User Requested: Print Full Statement button */}
+                  <button
+                    onClick={handlePrintFullStatement}
+                    className="p-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center gap-1 shadow-xs transition-colors"
+                    title="طباعة كشف الحساب بالكامل"
+                  >
+                    <Printer className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">طباعة الكشف</span>
+                  </button>
+
                   <button
                     onClick={handleShareWhatsApp}
-                    className="p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 text-xs font-bold flex items-center gap-1"
+                    className="p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 text-xs font-bold flex items-center gap-1 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 transition-colors"
                     title="مشاركة عبر واتساب"
                   >
                     <Share2 className="w-3.5 h-3.5" />
                     <span>واتساب</span>
                   </button>
+
                   <button
                     onClick={() => setActiveMerchantId(null)}
                     className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-lg"
@@ -549,13 +604,13 @@ export const MerchantsView: React.FC<MerchantsViewProps> = ({
               {/* Financial Balance Strip */}
               <div className="grid grid-cols-3 gap-1.5 p-2 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200/80 dark:border-slate-700/80 mb-2 text-center text-xs">
                 <div>
-                  <span className="text-[10px] text-slate-500 dark:text-slate-400 block">المسحوبات</span>
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400 block">المسحوبات ({activeMerchantInvoices.length})</span>
                   <span className="font-bold font-mono-num text-slate-800 dark:text-slate-200">
                     {formatCurrency(merchantBalances[activeMerchant.id]?.totalInvoicedAllTime || 0, currency)}
                   </span>
                 </div>
                 <div>
-                  <span className="text-[10px] text-slate-500 dark:text-slate-400 block">المسدد</span>
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400 block">المسدد ({activeMerchantPayments.length})</span>
                   <span className="font-bold font-mono-num text-teal-700 dark:text-teal-400">
                     {formatCurrency(merchantBalances[activeMerchant.id]?.totalPaidAllTime || 0, currency)}
                   </span>
@@ -567,83 +622,293 @@ export const MerchantsView: React.FC<MerchantsViewProps> = ({
                   </span>
                 </div>
               </div>
+
+              {/* Sub-Tabs: Independent Sales Operations vs Financial Operations vs All */}
+              <div className="grid grid-cols-3 gap-1 bg-slate-100 dark:bg-slate-800/80 p-1 rounded-xl text-xs mb-2">
+                <button
+                  onClick={() => setStatementTab('all')}
+                  className={`py-1.5 rounded-lg font-bold text-center transition-all ${
+                    statementTab === 'all'
+                      ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-2xs'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  الكل ({activeMerchantTransactions.length})
+                </button>
+                <button
+                  onClick={() => setStatementTab('invoices')}
+                  className={`py-1.5 rounded-lg font-bold text-center transition-all ${
+                    statementTab === 'invoices'
+                      ? 'bg-blue-600 text-white shadow-2xs'
+                      : 'text-blue-700 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40'
+                  }`}
+                >
+                  عمليات البيع ({activeMerchantInvoices.length})
+                </button>
+                <button
+                  onClick={() => setStatementTab('payments')}
+                  className={`py-1.5 rounded-lg font-bold text-center transition-all ${
+                    statementTab === 'payments'
+                      ? 'bg-teal-600 text-white shadow-2xs'
+                      : 'text-teal-700 dark:text-teal-400 hover:bg-teal-50 dark:hover:bg-teal-950/40'
+                  }`}
+                >
+                  العمليات المالية ({activeMerchantPayments.length})
+                </button>
+              </div>
             </div>
 
-            {/* Scrollable Transaction History with INLINE DELETION option */}
-            <div className="flex-1 overflow-y-auto space-y-2 py-2 pr-1">
-              {activeMerchantTransactions.length === 0 ? (
-                <div className="text-center py-10 text-xs text-slate-400 dark:text-slate-500">
-                  لا توجد حركات مسجلة لهذا التاجر بعد
-                </div>
-              ) : (
-                activeMerchantTransactions.map((tx, idx) => {
-                  const isInv = tx.type === 'invoice';
-                  return (
-                    <div
-                      key={tx.id + idx}
-                      className={`p-2.5 rounded-xl border text-xs flex items-center justify-between gap-2 ${
-                        isInv 
-                          ? 'bg-blue-50/40 dark:bg-blue-950/30 border-blue-200/80 dark:border-blue-800/60' 
-                          : 'bg-emerald-50/50 dark:bg-emerald-950/30 border-emerald-200/80 dark:border-emerald-800/60'
-                      }`}
-                    >
-                      <div className="min-w-0 flex-1">
-                        <div className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-                          <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded ${
-                            isInv 
-                              ? 'bg-blue-100 dark:bg-blue-900/60 text-blue-800 dark:text-blue-300' 
-                              : 'bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300'
-                          }`}>
-                            {isInv ? 'فاتورة' : 'سند قبض'}
-                          </span>
-                          <span className={isInv ? 'text-blue-700 dark:text-blue-400 font-bold' : 'text-emerald-700 dark:text-emerald-400 font-bold'}>{tx.title}</span>
-                          <span className="text-[10px] text-slate-400 dark:text-slate-500 font-normal">({formatDateArabic(tx.date)})</span>
-                        </div>
-                        {tx.notes && <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate mt-0.5">{tx.notes}</p>}
-                      </div>
-
-                      <div className="text-left shrink-0 pl-1">
-                        <div className={`font-mono-num font-black ${isInv ? 'text-blue-700 dark:text-blue-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
-                          {isInv ? `+${formatCurrency(tx.debit, currency)}` : `-${formatCurrency(tx.credit, currency)}`}
-                        </div>
-                        <div className="text-[10px] text-slate-400 dark:text-slate-500">
-                          الرصيد: {formatCurrency(tx.balanceAfter, currency)}
-                        </div>
-                      </div>
-
-                      {/* Delete button right inside ledger! */}
-                      <button
-                        onClick={() => triggerDeleteStatementItem(tx)}
-                        title="حذف هذه المعاملة وتحديث الرصيد"
-                        className="p-1 text-slate-300 dark:text-slate-600 hover:text-rose-600 dark:hover:text-rose-400 rounded-lg shrink-0"
+            {/* Scrollable Tab Content */}
+            <div className="flex-1 overflow-y-auto space-y-2 py-1 pr-1">
+              
+              {/* TAB 1: ALL TRANSACTIONS WITH RUNNING BALANCE */}
+              {statementTab === 'all' && (
+                activeMerchantTransactions.length === 0 ? (
+                  <div className="text-center py-10 text-xs text-slate-400 dark:text-slate-500">
+                    لا توجد حركات مسجلة لهذا التاجر بعد
+                  </div>
+                ) : (
+                  activeMerchantTransactions.map((tx, idx) => {
+                    const isInv = tx.type === 'invoice';
+                    return (
+                      <div
+                        key={tx.id + idx}
+                        className={`p-2.5 rounded-xl border text-xs flex items-center justify-between gap-2 transition-all ${
+                          isInv 
+                            ? 'bg-blue-50/40 dark:bg-blue-950/30 border-blue-200/80 dark:border-blue-800/60' 
+                            : 'bg-emerald-50/50 dark:bg-emerald-950/30 border-emerald-200/80 dark:border-emerald-800/60'
+                        }`}
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  );
-                })
+                        <div className="min-w-0 flex-1">
+                          <div className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                            <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded ${
+                              isInv 
+                                ? 'bg-blue-100 dark:bg-blue-900/60 text-blue-800 dark:text-blue-300' 
+                                : 'bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300'
+                            }`}>
+                              {isInv ? 'فاتورة' : 'سند قبض'}
+                            </span>
+                            <span className={isInv ? 'text-blue-700 dark:text-blue-400 font-bold' : 'text-emerald-700 dark:text-emerald-400 font-bold'}>{tx.title}</span>
+                            <span className="text-[10px] text-slate-400 dark:text-slate-500 font-normal">({formatDateArabic(tx.date)})</span>
+                          </div>
+                          {tx.notes && <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate mt-0.5">{tx.notes}</p>}
+                        </div>
+
+                        <div className="text-left shrink-0 pl-1">
+                          <div className={`font-mono-num font-black ${isInv ? 'text-blue-700 dark:text-blue-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                            {isInv ? `+${formatCurrency(tx.debit, currency)}` : `-${formatCurrency(tx.credit, currency)}`}
+                          </div>
+                          <div className="text-[10px] text-slate-400 dark:text-slate-500">
+                            الرصيد: {formatCurrency(tx.balanceAfter, currency)}
+                          </div>
+                        </div>
+
+                        {/* User Requested: Print Individual Operation Button */}
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button
+                            onClick={() => {
+                              if (isInv && tx.rawInvoice && onPrintInvoice) {
+                                onPrintInvoice(tx.rawInvoice);
+                              } else if (!isInv && tx.rawPayment && onPrintPayment) {
+                                onPrintPayment(tx.rawPayment);
+                              }
+                            }}
+                            title={isInv ? 'طباعة هذه الفاتورة' : 'طباعة هذا السند'}
+                            className="p-1.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-colors"
+                          >
+                            <Printer className="w-3.5 h-3.5 text-slate-600 dark:text-slate-300" />
+                          </button>
+
+                          <button
+                            onClick={() => triggerDeleteStatementItem(tx)}
+                            title="حذف هذه المعاملة وتحديث الرصيد"
+                            className="p-1.5 text-slate-300 dark:text-slate-600 hover:text-rose-600 dark:hover:text-rose-400 rounded-lg"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })
+                )
               )}
+
+              {/* TAB 2: SALES INVOICES ONLY (INDEPENDENT DISPLAY) */}
+              {statementTab === 'invoices' && (
+                activeMerchantInvoices.length === 0 ? (
+                  <div className="text-center py-10 text-xs text-slate-400 dark:text-slate-500">
+                    لا توجد فواتير بيع مسجلة لهذا التاجر
+                  </div>
+                ) : (
+                  activeMerchantInvoices.map((inv) => {
+                    const isPaidFully = inv.remainingAmount <= 0;
+                    return (
+                      <div
+                        key={inv.id}
+                        className="p-3 rounded-2xl border border-blue-200/80 dark:border-blue-800/60 bg-blue-50/30 dark:bg-blue-950/20 text-xs space-y-2 transition-all hover:border-blue-300 dark:hover:border-blue-700"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <div className="font-bold text-sm text-blue-900 dark:text-blue-300 flex items-center gap-1.5">
+                              <Receipt className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                              <span>فاتورة بيع #{inv.invoiceNumber}</span>
+                            </div>
+                            <span className="text-[10px] text-slate-500 dark:text-slate-400 block mt-0.5">
+                              تاريخ الحركة: {formatDateArabic(inv.date)}
+                            </span>
+                          </div>
+
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                            isPaidFully 
+                              ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300' 
+                              : 'bg-rose-100 dark:bg-rose-950 text-rose-800 dark:text-rose-300'
+                          }`}>
+                            {isPaidFully ? 'مسددة بالكامل' : `متبقي دين ${formatCurrency(inv.remainingAmount, currency)}`}
+                          </span>
+                        </div>
+
+                        {/* Sold items snippet */}
+                        {inv.items && inv.items.length > 0 && (
+                          <div className="bg-white/80 dark:bg-slate-800/80 rounded-xl p-2 border border-slate-100 dark:border-slate-800 text-[11px] text-slate-700 dark:text-slate-300">
+                            <span className="font-bold text-slate-500 dark:text-slate-400 text-[10px] block mb-0.5">الأصناف ({inv.items.length}):</span>
+                            <div className="truncate">
+                              {inv.items.map(it => `${it.productName} (${it.quantity})`).join(' • ')}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Financial summary row & Print button */}
+                        <div className="flex items-center justify-between pt-1 border-t border-blue-100 dark:border-blue-900/40">
+                          <div>
+                            <span className="text-[10px] text-slate-500 dark:text-slate-400 block font-sans">قيمة الفاتورة</span>
+                            <span className="font-black text-sm font-mono-num text-blue-900 dark:text-blue-300">
+                              {formatCurrency(inv.total, currency)}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              onClick={() => onPrintInvoice && onPrintInvoice(inv)}
+                              className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center gap-1 shadow-xs transition-colors"
+                            >
+                              <Printer className="w-3.5 h-3.5" />
+                              <span>طباعة الفاتورة</span>
+                            </button>
+
+                            <button
+                              onClick={() => triggerDeleteStatementItem({ id: inv.id, type: 'invoice', title: `فاتورة #${inv.invoiceNumber}` })}
+                              className="p-1.5 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 rounded-lg"
+                              title="حذف الفاتورة"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                )
+              )}
+
+              {/* TAB 3: FINANCIAL OPERATIONS ONLY (INDEPENDENT DISPLAY) */}
+              {statementTab === 'payments' && (
+                activeMerchantPayments.length === 0 ? (
+                  <div className="text-center py-10 text-xs text-slate-400 dark:text-slate-500">
+                    لا توجد سندات دفعات مسجلة لهذا التاجر
+                  </div>
+                ) : (
+                  activeMerchantPayments.map((pay) => (
+                    <div
+                      key={pay.id}
+                      className="p-3 rounded-2xl border border-teal-200/80 dark:border-teal-800/60 bg-teal-50/30 dark:bg-teal-950/20 text-xs space-y-2 transition-all hover:border-teal-300 dark:hover:border-teal-700"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <div className="font-bold text-sm text-teal-900 dark:text-teal-300 flex items-center gap-1.5">
+                            <HandCoins className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+                            <span>سند قبض #{pay.receiptNumber || '0742'}</span>
+                          </div>
+                          <span className="text-[10px] text-slate-500 dark:text-slate-400 block mt-0.5">
+                            تاريخ التحصيل: {formatDateArabic(pay.date)}
+                          </span>
+                        </div>
+
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-teal-100 dark:bg-teal-950 text-teal-800 dark:text-teal-300 border border-teal-200 dark:border-teal-800">
+                          {pay.paymentMethod}
+                        </span>
+                      </div>
+
+                      {pay.notes && (
+                        <div className="bg-white/80 dark:bg-slate-800/80 rounded-xl p-2 border border-slate-100 dark:border-slate-800 text-[11px] text-slate-700 dark:text-slate-300">
+                          <span className="font-bold text-slate-500 dark:text-slate-400 text-[10px] block mb-0.5">ملاحظات التحصيل:</span>
+                          <div>{pay.notes}</div>
+                        </div>
+                      )}
+
+                      {/* Financial summary row & Print button */}
+                      <div className="flex items-center justify-between pt-1 border-t border-teal-100 dark:border-teal-900/40">
+                        <div>
+                          <span className="text-[10px] text-slate-500 dark:text-slate-400 block font-sans">المبلغ المقبوض</span>
+                          <span className="font-black text-sm font-mono-num text-teal-700 dark:text-teal-300">
+                            {formatCurrency(pay.amount, currency)}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            onClick={() => onPrintPayment && onPrintPayment(pay)}
+                            className="px-3 py-1.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs flex items-center gap-1 shadow-xs transition-colors"
+                          >
+                            <Printer className="w-3.5 h-3.5" />
+                            <span>طباعة السند</span>
+                          </button>
+
+                          <button
+                            onClick={() => triggerDeleteStatementItem({ id: pay.id, type: 'payment', title: `سند قبض #${pay.receiptNumber || '0742'}` })}
+                            className="p-1.5 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 rounded-lg"
+                            title="حذف سند التحصيل"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )
+              )}
+
             </div>
 
             {/* Footer - Lifted above mobile navigation bar */}
-            <div className="pt-3 pb-8 sm:pb-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2 mb-2 sm:mb-0">
+            <div className="pt-3 pb-8 sm:pb-2 border-t border-slate-100 dark:border-slate-800 space-y-2 mb-2 sm:mb-0">
+              <div className="flex items-center justify-between gap-2">
+                <button
+                  onClick={() => {
+                    if (onOpenNewInvoiceWithMerchant) onOpenNewInvoiceWithMerchant(activeMerchant.id);
+                    setActiveMerchantId(null);
+                  }}
+                  className="flex-1 py-2.5 sm:py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-md active:scale-95 transition-all"
+                >
+                  + فاتورة بيع جديدة
+                </button>
+                <button
+                  onClick={() => {
+                    if (onOpenNewPaymentWithMerchant) onOpenNewPaymentWithMerchant(activeMerchant.id);
+                    setActiveMerchantId(null);
+                  }}
+                  className="flex-1 py-2.5 sm:py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-md active:scale-95 transition-all"
+                >
+                  + استلام دفعة كاش
+                </button>
+              </div>
+
+              {/* Full Statement Print Quick Button */}
               <button
-                onClick={() => {
-                  if (onOpenNewInvoiceWithMerchant) onOpenNewInvoiceWithMerchant(activeMerchant.id);
-                  setActiveMerchantId(null);
-                }}
-                className="flex-1 py-3 sm:py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-md active:scale-95 transition-all"
+                onClick={handlePrintFullStatement}
+                className="w-full py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors border border-slate-200 dark:border-slate-700"
               >
-                + فاتورة بيع جديدة
-              </button>
-              <button
-                onClick={() => {
-                  if (onOpenNewPaymentWithMerchant) onOpenNewPaymentWithMerchant(activeMerchant.id);
-                  setActiveMerchantId(null);
-                }}
-                className="flex-1 py-3 sm:py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-md active:scale-95 transition-all"
-              >
-                + استلام دفعة كاش
+                <Printer className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                <span>طباعة تقرير كشف الحساب بالكامل (A4 / صورة)</span>
               </button>
             </div>
 
