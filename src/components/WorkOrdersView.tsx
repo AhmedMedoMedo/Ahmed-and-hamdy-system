@@ -74,7 +74,7 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
   const [formError, setFormError] = useState<string | null>(null);
 
   // Immediate delivery option upon creation
-  const [creationAction, setCreationAction] = useState<'pending' | 'deliver_debt' | 'deliver_cash' | 'deliver_partial'>('deliver_debt');
+  const [creationAction, setCreationAction] = useState<'pending' | 'deliver_debt' | 'deliver_cash' | 'deliver_partial'>('pending');
   const [creationPaidAmount, setCreationPaidAmount] = useState<string>('');
 
   // Inline Quick Add Merchant
@@ -96,7 +96,7 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
   // Open Create/Edit Order
   const handleOpenForm = (existing?: WorkOrder) => {
     setFormError(null);
-    setCreationAction('deliver_debt');
+    setCreationAction('pending');
     setCreationPaidAmount('');
     if (existing) {
       setEditingOrder(existing);
