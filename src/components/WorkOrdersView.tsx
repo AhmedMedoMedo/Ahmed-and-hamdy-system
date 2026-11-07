@@ -717,7 +717,7 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
       {/* Create / Edit Work Order Modal */}
       {isFormOpen && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-3xl max-w-lg w-full p-4 sm:p-5 shadow-2xl border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white max-h-[95vh] flex flex-col justify-between overflow-hidden">
+          <div className="bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-3xl max-w-lg w-full p-4 sm:p-5 shadow-2xl border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white flex flex-col max-h-[85vh] sm:max-h-[90vh] overflow-hidden">
             
             <div className="flex items-center justify-between pb-2.5 border-b border-slate-100 dark:border-slate-800 mb-2 shrink-0">
               <h3 className="font-bold text-base text-slate-900 dark:text-white flex items-center gap-2">
@@ -730,13 +730,13 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
             </div>
 
             {formError && (
-              <div className="p-2 mb-2 bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-900/60 rounded-xl text-xs flex items-center gap-1.5 font-bold">
+              <div className="p-2 mb-2 bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-900/60 rounded-xl text-xs flex items-center gap-1.5 font-bold shrink-0">
                 <AlertCircle className="w-4 h-4 shrink-0" />
                 <span>{formError}</span>
               </div>
             )}
 
-            <form onSubmit={handleSubmitForm} id="work-order-form" className="flex-1 overflow-y-auto space-y-3 text-xs sm:text-sm pr-1">
+            <form onSubmit={handleSubmitForm} id="work-order-form" className="flex-1 overflow-y-auto overscroll-contain space-y-3 text-xs sm:text-sm pr-1">
               
               {/* Merchant Selector with Instant 1-Letter Search */}
               <div>
@@ -1063,7 +1063,7 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
       {/* Delivery Confirmation & Partial Batch Modal */}
       {deliveryModalOrder && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-3xl max-w-lg w-full p-4 sm:p-5 shadow-2xl border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white max-h-[95vh] flex flex-col justify-between overflow-hidden">
+          <div className="bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-3xl max-w-lg w-full p-4 sm:p-5 shadow-2xl border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white flex flex-col max-h-[85vh] sm:max-h-[90vh] overflow-hidden">
             
             <div className="flex items-center justify-between pb-2.5 border-b border-slate-100 dark:border-slate-800 mb-2 shrink-0">
               <div className="min-w-0 pr-1">
@@ -1081,13 +1081,13 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
             </div>
 
             {deliveryError && (
-              <div className="p-2 mb-2 bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-900/60 rounded-xl text-xs flex items-center gap-1.5 font-bold">
+              <div className="p-2 mb-2 bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-900/60 rounded-xl text-xs flex items-center gap-1.5 font-bold shrink-0">
                 <AlertCircle className="w-4 h-4 shrink-0" />
                 <span>{deliveryError}</span>
               </div>
             )}
 
-            <div className="flex-1 overflow-y-auto space-y-3 text-xs pr-1">
+            <div className="flex-1 overflow-y-auto overscroll-contain space-y-3 text-xs pr-1">
               
               {/* Items Delivery List (User specifies what was delivered now) */}
               <div className="space-y-2">
