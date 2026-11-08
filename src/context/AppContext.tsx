@@ -414,21 +414,42 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     localStorage.setItem(STORAGE_KEYS.personalTransactions, JSON.stringify(personalTransactions));
   }, [currency, storeName, merchants, products, invoices, payments, expenses, orders, personalContacts, personalTransactions]);
 
-  // 2. Auth listener & Auto Anonymous Sign-In on boot
+  // 2. Auth listener, Auto Anonymous Sign-In & Online/Offline Network Listeners
   useEffect(() => {
-    testConnection().then((ok) => setCloudConnected(ok));
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      setCloudConnected(false);
+    } else {
+      testConnection().then((ok) => setCloudConnected(ok));
+    }
+
+    const handleOnline = () => {
+      setCloudConnected(true);
+      showToast('تمت استعادة الاتصال.. جاري مزامنة البيانات السحابية ☁️');
+    };
+
+    const handleOffline = () => {
+      setCloudConnected(false);
+      showToast('أنت الآن أوفلاين.. النظام يعمل محلياً وسيزامن البيانات لاحقاً 📴');
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
 
     const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
       if (user) {
         setCurrentUser(user);
-        setCloudConnected(true);
+        if (typeof navigator === 'undefined' || navigator.onLine) {
+          setCloudConnected(true);
+        }
         setAuthLoading(false);
       } else {
         // Automatically authenticate anonymously so all devices sync without manual clicks
         try {
           const anonUser = await signInAnonymouslyUser();
           setCurrentUser(anonUser);
-          setCloudConnected(true);
+          if (typeof navigator === 'undefined' || navigator.onLine) {
+            setCloudConnected(true);
+          }
         } catch (e) {
           console.error("Auto sign-in error:", e);
         } finally {
@@ -437,8 +458,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
     });
 
-    return () => unsubscribeAuth();
-  }, []);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+      unsubscribeAuth();
+    };
+  }, [showToast]);
 
   // 3. Attach Unified Shared Store Firestore Subscriptions
   useEffect(() => {

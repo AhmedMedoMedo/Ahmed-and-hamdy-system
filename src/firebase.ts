@@ -1,8 +1,12 @@
 import { initializeApp } from 'firebase/app';
 import { 
   getFirestore, 
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager,
   doc, 
-  getDocFromServer 
+  getDocFromServer,
+  type Firestore 
 } from 'firebase/firestore';
 import { 
   getAuth, 
@@ -18,7 +22,24 @@ import {
 import firebaseConfig from '../firebase-applet-config.json';
 
 const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+
+let dbInstance: Firestore;
+try {
+  dbInstance = initializeFirestore(
+    app,
+    {
+      localCache: persistentLocalCache({
+        tabManager: persistentMultipleTabManager()
+      })
+    },
+    firebaseConfig.firestoreDatabaseId
+  );
+} catch (error) {
+  console.warn("Failed to initialize Firestore with persistent cache, falling back to default:", error);
+  dbInstance = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+}
+
+export const db = dbInstance;
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 
@@ -72,6 +93,9 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
 }
 
 export async function testConnection(): Promise<boolean> {
+  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    return false;
+  }
   try {
     await getDocFromServer(doc(db, 'test', 'connection'));
     return true;
