@@ -153,10 +153,10 @@ export const PaymentsView: React.FC<PaymentsViewProps> = ({
         notes: notes.trim(),
       });
       showToast(editingPayment ? 'تم تعديل سند القبض' : 'تم استلام الدفعة وتخفيض دين التاجر');
-      handleCloseForm();
     } catch (err: any) {
       console.warn("Payment offline catch:", err);
       showToast('تم حفظ العملية محلياً (أوفلاين) وستتم المزامنة عند عودة الإنترنت');
+    } finally {
       handleCloseForm();
     }
   };
