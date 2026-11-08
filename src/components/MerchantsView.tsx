@@ -135,10 +135,11 @@ export const MerchantsView: React.FC<MerchantsViewProps> = ({
       });
 
       showToast(editingMerchant ? 'تم تعديل بيانات التاجر' : 'تمت إضافة التاجر بنجاح');
-    } catch (err) {
+      setIsFormOpen(false);
+      setEditingMerchant(null);
+    } catch (err: any) {
       console.warn("Merchant saved locally in offline mode:", err);
-      showToast(editingMerchant ? 'تم تعديل بيانات التاجر محلياً' : 'تم حفظ بيانات التاجر محلياً (أوفلاين) 📴');
-    } finally {
+      showToast('تم حفظ العملية محلياً (أوفلاين) وستتم المزامنة عند عودة الإنترنت');
       setIsFormOpen(false);
       setEditingMerchant(null);
     }
@@ -237,9 +238,9 @@ export const MerchantsView: React.FC<MerchantsViewProps> = ({
       });
 
       showToast(`تمت زيادة دين بمبلغ ${formatCurrency(amount, currency)} على ${selectedMerchantForDebt.name}`);
-    } catch (err) {
+    } catch (err: any) {
       console.warn("Debt increase saved locally in offline mode:", err);
-      showToast('تم تسجيل زيادة الدين محلياً وتحديث الحساب (أوفلاين) 📴');
+      showToast('تم حفظ العملية محلياً (أوفلاين) وستتم المزامنة عند عودة الإنترنت');
     } finally {
       setIsDebtModalOpen(false);
       setSelectedMerchantForDebt(null);

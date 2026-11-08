@@ -300,14 +300,17 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
           );
         } catch (err: any) {
           console.warn("Auto-delivery in offline mode:", err);
-          showToast('تم حفظ طلب الشغل والتسليم محلياً (أوفلاين) 📴');
+          showToast('تم حفظ العملية محلياً (أوفلاين) وستتم المزامنة عند عودة الإنترنت');
+          handleCloseForm();
         }
       } else {
         showToast(editingOrder ? 'تم تعديل طلب الشغل بنجاح' : 'تم تسجيل طلب الشغل وقيد التحضير');
       }
-    } catch (err) {
+      handleCloseForm();
+    } catch (err: any) {
       console.warn("Work order saved locally in offline mode:", err);
-      showToast(editingOrder ? 'تم تعديل طلب الشغل محلياً' : 'تم حفظ طلب الشغل محلياً بنجاح (أوفلاين) 📴');
+      showToast('تم حفظ العملية محلياً (أوفلاين) وستتم المزامنة عند عودة الإنترنت');
+      handleCloseForm();
     } finally {
       handleCloseForm();
       if (invoiceToPrint && onPrintInvoice) {
@@ -384,9 +387,11 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
           ? 'تم تسليم كامل الطلب وإصدار الفاتورة وتحديث الحسابات بنجاح!'
           : 'تم تسليم الجزء المحدد وإصدار فاتورة به، وبقي الباقي قيد التحضير!'
       );
+      setDeliveryModalOrder(null);
     } catch (err: any) {
-      console.warn("Delivery saved locally in offline mode:", err);
-      showToast('تم تسجيل التسليم وتحديث الحسابات محلياً (أوفلاين) 📴');
+      console.warn("Delivery offline catch:", err);
+      showToast('تم حفظ العملية محلياً (أوفلاين) وستتم المزامنة عند عودة الإنترنت');
+      setDeliveryModalOrder(null);
     } finally {
       setDeliveryModalOrder(null);
       if (invoiceToPrint && onPrintInvoice) {

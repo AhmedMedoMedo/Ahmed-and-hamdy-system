@@ -282,10 +282,10 @@ export const InvoicesView: React.FC<InvoicesViewProps> = ({
       }, true);
 
       showToast(editingInvoice ? 'تم تعديل الفاتورة بنجاح' : 'تم اعتماد الفاتورة وتحديث دين التاجر');
-    } catch (err) {
-      console.warn("Invoice saved locally in offline mode:", err);
-      showToast(editingInvoice ? 'تم تعديل الفاتورة محلياً' : 'تم حفظ الفاتورة محلياً وتحديث الحسابات (أوفلاين) 📴');
-    } finally {
+      handleCloseForm();
+    } catch (err: any) {
+      console.warn("Invoice offline catch:", err);
+      showToast('تم حفظ العملية محلياً (أوفلاين) وستتم المزامنة عند عودة الإنترنت');
       handleCloseForm();
     }
   };
