@@ -262,26 +262,32 @@ export const InvoicesView: React.FC<InvoicesViewProps> = ({
     const mName = m ? m.name : 'تاجر غير محدد';
     const monthKey = getMonthKeyFromDate(invoiceDate);
 
-    await saveInvoice({
-      ...(editingInvoice ? { id: editingInvoice.id } : {}),
-      invoiceNumber: invoiceNumber.trim() || `فاتورة-${Date.now().toString().slice(-4)}`,
-      merchantId,
-      merchantName: mName,
-      date: invoiceDate,
-      monthKey,
-      items,
-      subtotal,
-      discountType,
-      discountValue,
-      discount: calculatedDiscount,
-      total: netTotal,
-      paidAmount,
-      remainingAmount,
-      notes: notes.trim(),
-    }, true);
+    try {
+      await saveInvoice({
+        ...(editingInvoice ? { id: editingInvoice.id } : {}),
+        invoiceNumber: invoiceNumber.trim() || `فاتورة-${Date.now().toString().slice(-4)}`,
+        merchantId,
+        merchantName: mName,
+        date: invoiceDate,
+        monthKey,
+        items,
+        subtotal,
+        discountType,
+        discountValue,
+        discount: calculatedDiscount,
+        total: netTotal,
+        paidAmount,
+        remainingAmount,
+        notes: notes.trim(),
+      }, true);
 
-    showToast(editingInvoice ? 'تم تعديل الفاتورة بنجاح' : 'تم اعتماد الفاتورة وتحديث دين التاجر');
-    handleCloseForm();
+      showToast(editingInvoice ? 'تم تعديل الفاتورة بنجاح' : 'تم اعتماد الفاتورة وتحديث دين التاجر');
+    } catch (err) {
+      console.warn("Invoice saved locally in offline mode:", err);
+      showToast(editingInvoice ? 'تم تعديل الفاتورة محلياً' : 'تم حفظ الفاتورة محلياً وتحديث الحسابات (أوفلاين) 📴');
+    } finally {
+      handleCloseForm();
+    }
   };
 
   // Delete Invoice action

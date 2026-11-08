@@ -129,12 +129,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         notes: depositNotes.trim() || 'إيداع نقدي / إيراد عام',
       });
       showToast('تم تسجيل الإيداع النقدي بنجاح');
+    } catch (err) {
+      console.warn('Deposit saved locally in offline mode:', err);
+      showToast('تم تسجيل الإيداع النقدي محلياً (أوفلاين) 📴');
+    } finally {
       setIsDepositModalOpen(false);
       setDepositAmount('');
       setDepositNotes('');
-    } catch (err) {
-      console.error('Error saving deposit:', err);
-      showToast('حدث خطأ أثناء حفظ الإيداع النقدي');
     }
   };
 

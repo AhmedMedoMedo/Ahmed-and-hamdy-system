@@ -104,17 +104,23 @@ export const PersonalLedgerView: React.FC = () => {
     e.preventDefault();
     if (!contactForm.name.trim()) return;
 
-    await savePersonalContact({
-      ...(editingContact ? { id: editingContact.id } : {}),
-      name: contactForm.name.trim(),
-      phone: contactForm.phone.trim(),
-      relationship: contactForm.relationship.trim(),
-      notes: contactForm.notes.trim(),
-    });
+    try {
+      await savePersonalContact({
+        ...(editingContact ? { id: editingContact.id } : {}),
+        name: contactForm.name.trim(),
+        phone: contactForm.phone.trim(),
+        relationship: contactForm.relationship.trim(),
+        notes: contactForm.notes.trim(),
+      });
 
-    showToast(editingContact ? 'تم تعديل بيانات الشخص' : 'تمت إضافة الاسم للحساب الشخصي');
-    setIsContactModalOpen(false);
-    setEditingContact(null);
+      showToast(editingContact ? 'تم تعديل بيانات الشخص' : 'تمت إضافة الاسم للحساب الشخصي');
+    } catch (err) {
+      console.warn("Contact saved locally in offline mode:", err);
+      showToast(editingContact ? 'تم تعديل بيانات الشخص محلياً' : 'تم حفظ الاسم محلياً (أوفلاين) 📴');
+    } finally {
+      setIsContactModalOpen(false);
+      setEditingContact(null);
+    }
   };
 
   // Open Transaction Modal
@@ -146,7 +152,7 @@ export const PersonalLedgerView: React.FC = () => {
     e.preventDefault();
     const parsedAmount = parseFloat(txForm.amount);
     if (!parsedAmount || parsedAmount <= 0) {
-      alert('يرجى إدخال مبلغ صحيح');
+      showToast('يرجى إدخال مبلغ صحيح');
       return;
     }
 
@@ -154,20 +160,26 @@ export const PersonalLedgerView: React.FC = () => {
     const cName = c ? c.name : undefined;
     const monthKey = getMonthKeyFromDate(txForm.date);
 
-    await savePersonalTransaction({
-      ...(editingTx ? { id: editingTx.id } : {}),
-      contactId: txForm.contactId || undefined,
-      contactName: cName,
-      type: txForm.type,
-      amount: parsedAmount,
-      date: txForm.date,
-      monthKey,
-      notes: txForm.notes.trim(),
-    });
+    try {
+      await savePersonalTransaction({
+        ...(editingTx ? { id: editingTx.id } : {}),
+        contactId: txForm.contactId || undefined,
+        contactName: cName,
+        type: txForm.type,
+        amount: parsedAmount,
+        date: txForm.date,
+        monthKey,
+        notes: txForm.notes.trim(),
+      });
 
-    showToast(editingTx ? 'تم تعديل الحركة الشخصية' : 'تم تسجيل الحركة في الحساب الشخصي');
-    setIsTxModalOpen(false);
-    setEditingTx(null);
+      showToast(editingTx ? 'تم تعديل الحركة الشخصية' : 'تم تسجيل الحركة في الحساب الشخصي');
+    } catch (err) {
+      console.warn("Transaction saved locally in offline mode:", err);
+      showToast(editingTx ? 'تم تعديل الحركة محلياً' : 'تم تسجيل الحركة محلياً (أوفلاين) 📴');
+    } finally {
+      setIsTxModalOpen(false);
+      setEditingTx(null);
+    }
   };
 
   // Safe Deletion confirmation

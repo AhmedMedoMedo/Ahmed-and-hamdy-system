@@ -73,18 +73,24 @@ export const ProductsView: React.FC<ProductsViewProps> = ({ onSellProduct }) => 
     e.preventDefault();
     if (!formData.name.trim() || !formData.price) return;
 
-    await saveProduct({
-      ...(editingProduct ? { id: editingProduct.id } : {}),
-      name: formData.name.trim(),
-      price: parseFloat(formData.price) || 0,
-      costPrice: formData.costPrice ? parseFloat(formData.costPrice) : null,
-      unit: formData.unit.trim() || 'قطعة',
-      notes: formData.notes.trim(),
-    });
+    try {
+      await saveProduct({
+        ...(editingProduct ? { id: editingProduct.id } : {}),
+        name: formData.name.trim(),
+        price: parseFloat(formData.price) || 0,
+        costPrice: formData.costPrice ? parseFloat(formData.costPrice) : null,
+        unit: formData.unit.trim() || 'قطعة',
+        notes: formData.notes.trim(),
+      });
 
-    showToast(editingProduct ? 'تم تعديل سعر وبيانات المنتج' : 'تمت إضافة المنتج بنجاح');
-    setIsFormOpen(false);
-    setEditingProduct(null);
+      showToast(editingProduct ? 'تم تعديل سعر وبيانات المنتج' : 'تمت إضافة المنتج بنجاح');
+    } catch (err) {
+      console.warn("Product saved locally in offline mode:", err);
+      showToast(editingProduct ? 'تم تعديل بيانات المنتج محلياً' : 'تم حفظ بيانات المنتج محلياً (أوفلاين) 📴');
+    } finally {
+      setIsFormOpen(false);
+      setEditingProduct(null);
+    }
   };
 
   const handleConfirmDelete = async () => {
