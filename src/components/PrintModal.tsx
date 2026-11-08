@@ -639,49 +639,35 @@ ${b.currentDebt > 0 ? `👉 *المتبقي المطلوب سداده:* ${format
                   <span className="text-[10px] text-slate-600 font-bold">{effectiveInvoice.merchantName}</span>
                 </div>
 
-                {/* 4 Informative Metrics: Previous Debt, Invoice Total, Cash Paid, Total Debt After */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 divide-x divide-x-reverse divide-slate-300 p-2 font-mono-num text-center gap-y-2">
-                  <div className="px-1.5">
-                    <span className="text-[10px] text-slate-500 font-sans block mb-0.5">الحساب السابق</span>
+                {/* 4 Clean Balanced Columns */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 divide-x divide-x-reverse divide-slate-200 p-2 font-mono-num text-center gap-y-2">
+                  <div className="px-2">
+                    <span className="text-[10px] text-slate-500 font-sans block mb-1">الحساب السابق</span>
                     <span className="font-bold text-slate-800 text-xs sm:text-sm">
                       {formatCurrency(invoicePrevDebt, currency)}
                     </span>
                   </div>
 
-                  <div className="px-1.5">
-                    <span className="text-[10px] text-slate-500 font-sans block mb-0.5">قيمة الفاتورة</span>
-                    <span className="font-bold text-blue-800 text-xs sm:text-sm">
+                  <div className="px-2">
+                    <span className="text-[10px] text-slate-500 font-sans block mb-1">إجمالي الفاتورة</span>
+                    <span className="font-bold text-blue-700 text-xs sm:text-sm">
                       {formatCurrency(effectiveInvoice.total, currency)}
                     </span>
                   </div>
 
-                  <div className="px-1.5">
-                    <span className="text-[10px] text-slate-500 font-sans block mb-0.5">المسدد كاش فوري</span>
+                  <div className="px-2">
+                    <span className="text-[10px] text-slate-500 font-sans block mb-1">المسدد كاش</span>
                     <span className="font-bold text-emerald-700 text-xs sm:text-sm">
                       {formatCurrency(effectiveInvoice.paidAmount, currency)}
                     </span>
                   </div>
 
-                  <div className="px-1.5 bg-slate-50 rounded">
-                    <span className="text-[10px] text-slate-700 font-sans font-bold block mb-0.5">الحساب بعد الفاتورة</span>
-                    <span className="font-black text-black text-xs sm:text-sm">
+                  <div className="px-2 bg-slate-50/80 rounded-md">
+                    <span className="text-[10px] text-slate-700 font-sans font-bold block mb-1">الحساب الحالي (بعد الفاتورة)</span>
+                    <span className={`text-sm sm:text-base font-black ${invoiceNewTotalDebt > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
                       {formatCurrency(invoiceNewTotalDebt, currency)}
                     </span>
                   </div>
-                </div>
-
-                {/* Sub-footer inside box: Status of account after operation */}
-                <div className="bg-slate-50 px-3 py-1.5 border-t border-slate-200 text-center text-[11px] font-bold text-black">
-                  <span>وضع الحساب بعد الفاتورة ({invoicePaymentStatusText}): </span>
-                  {invoiceNewTotalDebt > 0 ? (
-                    <span className="font-black text-rose-700 font-mono-num">
-                      على التاجر سداد {formatCurrency(invoiceNewTotalDebt, currency)}
-                    </span>
-                  ) : (
-                    <span className="font-black text-emerald-700">
-                      حساب التاجر خالص ومسدد تماماً ولا يوجد عليه أي دين
-                    </span>
-                  )}
                 </div>
               </div>
 
