@@ -631,47 +631,38 @@ ${b.currentDebt > 0 ? `👉 *المتبقي المطلوب سداده:* ${format
                 </table>
               </div>
 
-              {/* Merchant Account Summary Card: Before and After Balance */}
-              <div className="border border-slate-300 rounded-md overflow-hidden text-xs">
-                {/* Header */}
-                <div className="bg-slate-100 px-3 py-1.5 border-b border-slate-300 font-bold text-black flex justify-between items-center text-[11px]">
-                  <span>ملخص حساب التاجر (قبل وبعد الفاتورة)</span>
-                  <span className="text-[10px] text-slate-600 font-bold">{effectiveInvoice.merchantName}</span>
+              {/* Clean Minimalist Account Summary (4 Items) */}
+              <div className="grid grid-cols-4 border border-slate-300 rounded-lg p-2.5 bg-slate-50/60 text-center font-mono-num text-xs divide-x divide-x-reverse divide-slate-200">
+                <div className="px-1.5">
+                  <span className="text-[11px] text-slate-500 font-sans block mb-1">الحساب السابق</span>
+                  <span className="font-bold text-slate-800 text-xs sm:text-sm">
+                    {formatCurrency(invoicePrevDebt, currency)}
+                  </span>
                 </div>
 
-                {/* 4 Clean Balanced Columns */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 divide-x divide-x-reverse divide-slate-200 p-2 font-mono-num text-center gap-y-2">
-                  <div className="px-2">
-                    <span className="text-[10px] text-slate-500 font-sans block mb-1">الحساب السابق</span>
-                    <span className="font-bold text-slate-800 text-xs sm:text-sm">
-                      {formatCurrency(invoicePrevDebt, currency)}
-                    </span>
-                  </div>
+                <div className="px-1.5">
+                  <span className="text-[11px] text-slate-500 font-sans block mb-1">إجمالي الفاتورة</span>
+                  <span className="font-bold text-blue-700 text-xs sm:text-sm">
+                    {formatCurrency(effectiveInvoice.total, currency)}
+                  </span>
+                </div>
 
-                  <div className="px-2">
-                    <span className="text-[10px] text-slate-500 font-sans block mb-1">إجمالي الفاتورة</span>
-                    <span className="font-bold text-blue-700 text-xs sm:text-sm">
-                      {formatCurrency(effectiveInvoice.total, currency)}
-                    </span>
-                  </div>
+                <div className="px-1.5">
+                  <span className="text-[11px] text-slate-500 font-sans block mb-1">المسدد كاش</span>
+                  <span className="font-bold text-emerald-700 text-xs sm:text-sm">
+                    {formatCurrency(effectiveInvoice.paidAmount, currency)}
+                  </span>
+                </div>
 
-                  <div className="px-2">
-                    <span className="text-[10px] text-slate-500 font-sans block mb-1">المسدد كاش</span>
-                    <span className="font-bold text-emerald-700 text-xs sm:text-sm">
-                      {formatCurrency(effectiveInvoice.paidAmount, currency)}
-                    </span>
-                  </div>
-
-                  <div className="px-2 bg-slate-50/80 rounded-md">
-                    <span className="text-[10px] text-slate-700 font-sans font-bold block mb-1">الحساب الحالي (بعد الفاتورة)</span>
-                    <span className={`text-sm sm:text-base font-black ${invoiceNewTotalDebt > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
-                      {formatCurrency(invoiceNewTotalDebt, currency)}
-                    </span>
-                  </div>
+                <div className="px-1.5">
+                  <span className="text-[11px] text-slate-700 font-sans font-bold block mb-1">الحساب الحالي (الباقي)</span>
+                  <span className={`text-sm sm:text-base font-black ${invoiceNewTotalDebt > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                    {formatCurrency(invoiceNewTotalDebt, currency)}
+                  </span>
                 </div>
               </div>
 
-              {/* Notes */}
+              {/* Notes (if any) */}
               {effectiveInvoice.notes && (
                 <div className="p-2 border border-dashed border-slate-300 rounded-md text-[10px] text-slate-600">
                   <span className="font-bold">ملاحظات الفاتورة: </span>
@@ -679,16 +670,12 @@ ${b.currentDebt > 0 ? `👉 *المتبقي المطلوب سداده:* ${format
                 </div>
               )}
 
-              {/* Printable Footer with Signature & Timestamp */}
-              <div className="pt-4 border-t border-dashed border-slate-300 flex items-center justify-between text-[10px] text-slate-500">
+              {/* Printable Footer with Signature Line */}
+              <div className="pt-4 border-t border-dashed border-slate-300 flex items-center justify-between text-xs text-slate-500">
                 <div>التوقيع والختم: .......................................</div>
-                <div className="font-mono-num">
-                  تمت معاينة المستند: {getFormattedDateTime(effectiveInvoice.date)}
+                <div className="font-mono-num text-[11px]">
+                  {getFormattedDateTime(effectiveInvoice.date)}
                 </div>
-              </div>
-
-              <div className="text-[9px] text-slate-400 font-mono-num text-right">
-                {effectiveInvoice.invoiceNumber}
               </div>
 
             </div>

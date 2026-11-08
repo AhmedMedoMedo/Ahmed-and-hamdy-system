@@ -100,14 +100,14 @@ export const ProductsView: React.FC<ProductsViewProps> = ({ onSellProduct }) => 
       {/* Top Header */}
       <div className="flex items-center justify-between gap-2 pt-1">
         <div>
-          <h2 className="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-1.5">
-            <Package className="w-5 h-5 text-emerald-600" />
+          <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+            <Package className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
             <span>منتجات البيع والتسعير</span>
-            <span className="text-xs bg-slate-200 text-slate-700 px-2 py-0.5 rounded-full font-mono-num font-bold">
+            <span className="text-xs bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 px-2 py-0.5 rounded-full font-mono-num font-bold">
               {products.length}
             </span>
           </h2>
-          <p className="text-[11px] text-slate-500">حدد أسعار المنتجات وقم ببيعها للتجار بنقرة واحدة</p>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400">حدد أسعار المنتجات وقم ببيعها للتجار بنقرة واحدة</p>
         </div>
 
         <button
@@ -121,18 +121,18 @@ export const ProductsView: React.FC<ProductsViewProps> = ({ onSellProduct }) => 
 
       {/* Search Input */}
       <div className="relative">
-        <Search className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2" />
+        <Search className="w-4 h-4 text-slate-400 dark:text-slate-500 absolute right-3 top-1/2 -translate-y-1/2" />
         <input
           type="text"
           placeholder="بحث عن منتج بالاسم أو الوحدة..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full pl-3 pr-9 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-500 bg-white"
+          className="w-full pl-3 pr-9 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:border-emerald-500"
         />
         {searchTerm && (
           <button
             onClick={() => setSearchTerm('')}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
           >
             <X className="w-4 h-4" />
           </button>
@@ -145,31 +145,31 @@ export const ProductsView: React.FC<ProductsViewProps> = ({ onSellProduct }) => 
           return (
             <div
               key={product.id}
-              className="bg-white rounded-2xl border border-slate-200/80 p-3.5 shadow-2xs hover:border-slate-300 transition-all"
+              className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200/80 dark:border-slate-700 p-3.5 shadow-2xs hover:border-slate-300 dark:hover:border-slate-600 transition-all"
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5 flex-wrap">
-                    <h3 className="font-bold text-slate-900 text-sm truncate">{product.name}</h3>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+                    <h3 className="font-bold text-slate-900 dark:text-white text-sm truncate">{product.name}</h3>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
                       {product.unit}
                     </span>
                   </div>
                   {product.notes && (
-                    <p className="text-[11px] text-slate-500 mt-1 line-clamp-1">{product.notes}</p>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 line-clamp-1">{product.notes}</p>
                   )}
                 </div>
 
                 <div className="text-left shrink-0 pl-1">
-                  <div className="text-[10px] text-slate-500 font-semibold">سعر بيع التاجر</div>
-                  <div className="text-base font-black text-emerald-700 font-mono-num">
+                  <div className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold">سعر بيع التاجر</div>
+                  <div className="text-base font-black text-emerald-700 dark:text-emerald-400 font-mono-num">
                     {formatCurrency(product.price, currency)}
                   </div>
                 </div>
               </div>
 
               {/* Action Buttons Row */}
-              <div className="pt-2.5 mt-2 border-t border-slate-100 flex items-center justify-between gap-1.5">
+              <div className="pt-2.5 mt-2 border-t border-slate-100 dark:border-slate-700 flex items-center justify-between gap-1.5">
                 {/* Direct Sell to Merchant Button */}
                 <button
                   onClick={() => onSellProduct && onSellProduct(product)}
@@ -183,7 +183,7 @@ export const ProductsView: React.FC<ProductsViewProps> = ({ onSellProduct }) => 
                 <button
                   onClick={() => handleOpenForm(product)}
                   title="تعديل السعر والبيانات"
-                  className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-600"
+                  className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition-colors"
                 >
                   <Edit3 className="w-4 h-4" />
                 </button>
@@ -192,7 +192,7 @@ export const ProductsView: React.FC<ProductsViewProps> = ({ onSellProduct }) => 
                 <button
                   onClick={() => setProductToDelete(product)}
                   title="حذف المنتج"
-                  className="p-1.5 rounded-xl hover:bg-rose-50 text-rose-500"
+                  className="p-1.5 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-950/40 text-rose-500 dark:text-rose-400 transition-colors"
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>
