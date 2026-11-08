@@ -4,6 +4,7 @@ import type { WorkOrder, OrderItem, OrderStatus, Product } from '../types';
 import { 
   formatCurrency, 
   formatDateArabic, 
+  getTimeAgoArabic,
   getTodayDateString, 
   generateOrderNumber,
   getMonthKeyFromDate 
@@ -566,11 +567,20 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
                       #{order.orderNumber}
                     </span>
                   </div>
-                  <div className="flex items-center gap-2 text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">
+                  <div className="flex items-center flex-wrap gap-2 text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">
                     <span className="flex items-center gap-0.5">
                       <Calendar className="w-3 h-3" />
                       {formatDateArabic(order.date)}
                     </span>
+                    {order.createdAt && (
+                      <>
+                        <span>•</span>
+                        <span className="flex items-center gap-1 text-[10px] text-slate-400 dark:text-slate-500">
+                          <Clock className="w-3 h-3" />
+                          {getTimeAgoArabic(order.createdAt)}
+                        </span>
+                      </>
+                    )}
                     <span>•</span>
                     <span>{order.items.length} أصناف</span>
                   </div>

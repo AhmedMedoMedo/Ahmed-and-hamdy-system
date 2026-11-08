@@ -138,19 +138,14 @@ export function isDateInCurrentMonth(dateStr: string, targetMonthKey?: string): 
 }
 
 /**
- * Format relative time in Arabic (e.g. منذ 5 دقائق، منذ ساعتين، أمس، منذ يومين...)
+ * Calculate relative time from ISO date string returning accurate Arabic string
  */
-export function formatTimeAgoArabic(createdAt?: string, dateStr?: string): string {
-  if (!createdAt && !dateStr) return '';
-  const now = new Date();
-  let past: Date;
-  if (createdAt) {
-    past = new Date(createdAt);
-  } else {
-    past = new Date(dateStr!);
-  }
+export function getTimeAgoArabic(dateString: string): string {
+  if (!dateString) return '';
+  const past = new Date(dateString);
   if (isNaN(past.getTime())) return '';
 
+  const now = new Date();
   const diffMs = now.getTime() - past.getTime();
   if (diffMs < 0) return 'الآن';
   const diffSec = Math.floor(diffMs / 1000);
@@ -202,5 +197,14 @@ export function formatTimeAgoArabic(createdAt?: string, dateStr?: string): strin
   if (diffMonth === 2) return 'منذ شهرين';
   if (diffMonth <= 10) return `منذ ${diffMonth} أشهر`;
   return `منذ ${diffMonth} شهراً`;
+}
+
+/**
+ * Format relative time in Arabic (e.g. منذ 5 دقائق، منذ ساعتين، أمس، منذ يومين...)
+ */
+export function formatTimeAgoArabic(createdAt?: string, dateStr?: string): string {
+  if (createdAt) return getTimeAgoArabic(createdAt);
+  if (dateStr) return getTimeAgoArabic(dateStr);
+  return '';
 }
 
