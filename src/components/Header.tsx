@@ -70,7 +70,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
               </div>
               <div className="min-w-0">
                 <h1 className="text-sm font-bold text-slate-900 dark:text-white truncate leading-tight">
-                  نظام الحسابات والتجار
+                  Ahmed And Hamdy
                 </h1>
                 
                 {/* Cloud Status Indicator Button - One click to manage cloud sync */}
