@@ -12,7 +12,8 @@ import {
   DollarSign, 
   X,
   ShoppingCart,
-  Check
+  Check,
+  CircleDollarSign
 } from 'lucide-react';
 
 interface ProductsViewProps {
@@ -46,6 +47,10 @@ export const ProductsView: React.FC<ProductsViewProps> = ({ onSellProduct }) => 
       (p.unit && p.unit.toLowerCase().includes(searchTerm.toLowerCase()))
     );
   }, [products, searchTerm]);
+
+  const totalStockValue = useMemo(() => {
+    return products.reduce((acc, p) => acc + ((Number(p.price) || 0) * (Number(p.stock) || 0)), 0);
+  }, [products]);
 
   const handleOpenForm = (product?: Product) => {
     if (product) {
@@ -127,6 +132,21 @@ export const ProductsView: React.FC<ProductsViewProps> = ({ onSellProduct }) => 
           <Plus className="w-4 h-4" />
           <span>إضافة منتج وسعر</span>
         </button>
+      </div>
+
+      {/* Total Stock Value Card */}
+      <div className="bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 rounded-xl p-3 mb-4 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-lg bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 flex items-center justify-center shrink-0">
+            <CircleDollarSign className="w-4 h-4" />
+          </div>
+          <span className="text-indigo-900 dark:text-indigo-200 font-bold text-xs">
+            إجمالي قيمة المخزون الحالي
+          </span>
+        </div>
+        <div className="text-left font-mono-num text-lg font-black text-indigo-700 dark:text-indigo-400">
+          {formatCurrency(totalStockValue, currency)}
+        </div>
       </div>
 
       {/* Search Input */}
