@@ -56,6 +56,7 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
     removeWorkOrder, 
     deliverWorkOrder,
     saveMerchant,
+    saveProduct,
     showToast 
   } = useApp();
 
@@ -82,6 +83,12 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
   const [isQuickAddMerchantOpen, setIsQuickAddMerchantOpen] = useState(false);
   const [quickMerchantName, setQuickMerchantName] = useState('');
   const [quickMerchantPhone, setQuickMerchantPhone] = useState('');
+
+  // Inline Quick Add Product
+  const [isQuickAddProductOpen, setIsQuickAddProductOpen] = useState(false);
+  const [activeItemIdx, setActiveItemIdx] = useState<number | null>(null);
+  const [quickProductName, setQuickProductName] = useState('');
+  const [quickProductPrice, setQuickProductPrice] = useState('');
 
   // Delivery Modal State
   const [deliveryModalOrder, setDeliveryModalOrder] = useState<WorkOrder | null>(null);
@@ -233,6 +240,27 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
     setQuickMerchantPhone('');
     setIsQuickAddMerchantOpen(false);
     showToast('تمت إضافة واختيار التاجر');
+  };
+
+  // Quick Add Product
+  const handleQuickAddProduct = async (idx: number) => {
+    if (!quickProductName.trim()) return;
+    try {
+      const newId = await saveProduct({
+        name: quickProductName.trim(),
+        price: parseFloat(quickProductPrice) || 0,
+        unit: 'قطعة',
+        stock: 0
+      });
+      handleItemProductChange(idx, newId);
+      setQuickProductName('');
+      setQuickProductPrice('');
+      setIsQuickAddProductOpen(false);
+      setActiveItemIdx(null);
+      showToast('تم حفظ الصنف الجديد في المخزن بنجاح');
+    } catch {
+      showToast('خطأ في حفظ الصنف');
+    }
   };
 
   // Submit Order Form
@@ -885,7 +913,50 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
                               placeholder="-- ابحث عن صنف بالاسم من أول حرف --"
                               searchPlaceholder="اكتب أول حرف للبحث الفوري عن المنتج..."
                               accentColor="indigo"
+                              onAddNew={() => {
+                                setActiveItemIdx(idx);
+                                setQuickProductName(item.productName || '');
+                                setIsQuickAddProductOpen(true);
+                              }}
+                              addNewText="+ إضافة صنف جديد للمخزن"
                             />
+                            {activeItemIdx === idx && isQuickAddProductOpen && (
+                              <div className="mt-2 p-3 bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 rounded-xl space-y-2">
+                                <span className="font-bold text-xs text-indigo-900 dark:text-indigo-200 block">حفظ الصنف في قاعدة البيانات:</span>
+                                <input
+                                  type="text"
+                                  placeholder="اسم الصنف الجديد"
+                                  value={quickProductName}
+                                  onChange={(e) => setQuickProductName(e.target.value)}
+                                  className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-xs"
+                                />
+                                <input
+                                  type="number"
+                                  step="any"
+                                  min="0"
+                                  placeholder="السعر الافتراضي للوحدة (اختياري)"
+                                  value={quickProductPrice}
+                                  onChange={(e) => setQuickProductPrice(e.target.value)}
+                                  className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-xs font-mono-num"
+                                />
+                                <div className="flex justify-end gap-1.5 pt-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => { setIsQuickAddProductOpen(false); setActiveItemIdx(null); }}
+                                    className="px-2 py-1 text-xs text-slate-500 dark:text-slate-400"
+                                  >
+                                    إلغاء
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleQuickAddProduct(idx)}
+                                    className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold active:scale-95 transition-all"
+                                  >
+                                    حفظ واختيار
+                                  </button>
+                                </div>
+                              </div>
+                            )}
                             <input
                               type="text"
                               placeholder=""
