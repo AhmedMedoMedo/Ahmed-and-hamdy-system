@@ -263,10 +263,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setSystemPin(cleanPin);
     try {
       localStorage.setItem('account_app_system_pin', cleanPin);
+      localStorage.setItem('account_app_pin_verified', 'true');
     } catch {}
     try {
       await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'config', 'security'), {
         pin: cleanPin,
+        pinCode: cleanPin,
         isPinEnabled: true,
         updatedAt: new Date().toISOString(),
       }, { merge: true });
@@ -515,11 +517,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const unsubSec = onSnapshot(secDocRef, (snap) => {
       if (snap.exists()) {
         const secData = snap.data();
-        if (secData?.pin) {
-          const pinStr = String(secData.pin).trim();
-          setSystemPin(pinStr);
+        const incomingPin = secData?.pin || secData?.pinCode;
+        if (incomingPin) {
+          const cloudPin = String(incomingPin).trim();
+          const localKnownPin = localStorage.getItem('account_app_system_pin');
+
+          // If the cloud PIN changed from what was stored locally on this device, force logout & lock immediately!
+          if (localKnownPin && localKnownPin !== cloudPin) {
+            try {
+              localStorage.removeItem('account_app_pin_verified');
+              localStorage.setItem('account_app_system_pin', cloudPin);
+            } catch {}
+            setSystemPin(cloudPin);
+            setIsLocked(true);
+            showToast('تم تغيير رمز الحماية بواسطة المالك، يرجى تسجيل الدخول من جديد');
+            return;
+          }
+
+          setSystemPin(cloudPin);
           try {
-            localStorage.setItem('account_app_system_pin', pinStr);
+            localStorage.setItem('account_app_system_pin', cloudPin);
           } catch {}
         }
         if (typeof secData?.isPinEnabled === 'boolean') {
@@ -689,10 +706,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         const secSnap = await getDoc(doc(db, 'stores', SHARED_STORE_ID, 'config', 'security'));
         if (secSnap.exists()) {
           const secData = secSnap.data();
-          if (secData?.pin) {
-            const pinStr = String(secData.pin).trim();
-            setSystemPin(pinStr);
-            localStorage.setItem('account_app_system_pin', pinStr);
+          const incomingPin = secData?.pin || secData?.pinCode;
+          if (incomingPin) {
+            const pinStr = String(incomingPin).trim();
+            const localKnownPin = localStorage.getItem('account_app_system_pin');
+            if (localKnownPin && localKnownPin !== pinStr) {
+              try {
+                localStorage.removeItem('account_app_pin_verified');
+                localStorage.setItem('account_app_system_pin', pinStr);
+              } catch {}
+              setSystemPin(pinStr);
+              setIsLocked(true);
+              showToast('تم تغيير رمز الحماية بواسطة المالك، يرجى تسجيل الدخول من جديد');
+            } else {
+              setSystemPin(pinStr);
+              localStorage.setItem('account_app_system_pin', pinStr);
+            }
           }
           if (typeof secData?.isPinEnabled === 'boolean') {
             setIsPinEnabled(secData.isPinEnabled);

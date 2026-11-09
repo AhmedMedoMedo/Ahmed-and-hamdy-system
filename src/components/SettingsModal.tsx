@@ -288,6 +288,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                   if (clean.length >= 3) {
                     setIsSavingPin(true);
                     try {
+                      try {
+                        localStorage.setItem('account_app_system_pin', clean);
+                        localStorage.setItem('account_app_pin_verified', 'true');
+                      } catch {}
                       await updateSystemPin(clean);
                       showToast('تم حفظ وتحديث رمز المرور السحابي بنجاح 🔒');
                     } catch (e) {
