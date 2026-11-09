@@ -22,6 +22,7 @@ export interface Product {
   price: number;
   costPrice?: number | null;
   unit: string;
+  stock?: number;
   notes?: string;
   isDeleted?: boolean;
   deletedAt?: string;

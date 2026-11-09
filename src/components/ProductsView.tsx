@@ -27,6 +27,7 @@ export const ProductsView: React.FC<ProductsViewProps> = ({ onSellProduct }) => 
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
 
   // Form State
+  const [stock, setStock] = useState<number | string>(0);
   const [formData, setFormData] = useState({
     name: '',
     price: '',
@@ -56,6 +57,7 @@ export const ProductsView: React.FC<ProductsViewProps> = ({ onSellProduct }) => 
         unit: product.unit || 'قطعة',
         notes: product.notes || '',
       });
+      setStock(product.stock !== undefined ? product.stock : 0);
     } else {
       setEditingProduct(null);
       setFormData({
@@ -65,6 +67,7 @@ export const ProductsView: React.FC<ProductsViewProps> = ({ onSellProduct }) => 
         unit: 'قطعة',
         notes: '',
       });
+      setStock(0);
     }
     setIsFormOpen(true);
   };
@@ -79,6 +82,7 @@ export const ProductsView: React.FC<ProductsViewProps> = ({ onSellProduct }) => 
         name: formData.name.trim(),
         price: parseFloat(formData.price) || 0,
         costPrice: formData.costPrice ? parseFloat(formData.costPrice) : null,
+        stock: Number(stock) || 0,
         unit: formData.unit.trim() || 'قطعة',
         notes: formData.notes.trim(),
       });
@@ -160,6 +164,15 @@ export const ProductsView: React.FC<ProductsViewProps> = ({ onSellProduct }) => 
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
                       {product.unit}
                     </span>
+                    {(product.stock !== undefined && product.stock > 0) ? (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60 font-mono-num">
+                        المخزون: {product.stock}
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-50 dark:bg-rose-950/60 text-rose-500 border border-rose-200 dark:border-rose-900/60">
+                        نفد من المخزون
+                      </span>
+                    )}
                   </div>
                   {product.notes && (
                     <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 line-clamp-1">{product.notes}</p>
@@ -276,6 +289,19 @@ export const ProductsView: React.FC<ProductsViewProps> = ({ onSellProduct }) => 
                     <option value="دستة">دستة</option>
                   </select>
                 </div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">الكمية المتاحة في المخزن (رصيد افتتاحي)</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="any"
+                  placeholder="0"
+                  value={stock}
+                  onChange={(e) => setStock(e.target.value === '' ? '' : Number(e.target.value))}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500 font-mono-num font-bold text-xs"
+                />
               </div>
 
               <div>

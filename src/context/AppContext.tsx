@@ -763,6 +763,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       price: Number(data.price) || 0,
       costPrice: data.costPrice ? Number(data.costPrice) : null,
       unit: data.unit || 'قطعة',
+      stock: data.stock !== undefined ? Number(data.stock) : 0,
       notes: data.notes || '',
       createdAt: (data as any).createdAt || now,
       updatedAt: now,
@@ -849,6 +850,40 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'invoices', id), record, { merge: true });
     } catch (err) {
       console.warn("Save invoice warning:", err);
+    }
+
+    // Automatically deduct stock for sold items from products collection and local state
+    if (record.items && record.items.length > 0) {
+      setProducts(prevProducts => {
+        const nextProducts = [...prevProducts];
+        for (const item of record.items) {
+          const pIndex = nextProducts.findIndex(p => 
+            (item.productId && p.id === item.productId) || 
+            (p.name.trim().toLowerCase() === item.productName.trim().toLowerCase())
+          );
+          if (pIndex >= 0) {
+            const product = nextProducts[pIndex];
+            const currentStock = product.stock !== undefined ? product.stock : 0;
+            const newStock = Math.max(0, currentStock - (Number(item.quantity) || 0));
+            nextProducts[pIndex] = {
+              ...product,
+              stock: newStock,
+              updatedAt: now,
+            };
+
+            const prodId = product.id || item.productId;
+            if (prodId) {
+              setDoc(doc(db, 'stores', SHARED_STORE_ID, 'products', prodId), {
+                stock: newStock,
+                updatedAt: now,
+              }, { merge: true }).catch(err => {
+                console.warn("Stock deduction in Firestore warning:", err);
+              });
+            }
+          }
+        }
+        return nextProducts;
+      });
     }
 
     // Keep linked payment strictly synchronized with invoice paidAmount
