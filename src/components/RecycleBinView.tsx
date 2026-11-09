@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useApp } from '../context/AppContext';
 import type { TrashItem, TrashCollectionType } from '../types';
-import { formatCurrency, formatDateArabic } from '../utils/formatters';
+import { formatCurrency, formatDateArabic, getTimeAgoArabic } from '../utils/formatters';
 import { ConfirmModal } from './ConfirmModal';
 import { 
   Trash2, 
@@ -18,7 +18,8 @@ import {
   Calendar,
   AlertTriangle,
   CheckCircle2,
-  Filter
+  Filter,
+  Clock
 } from 'lucide-react';
 
 export const RecycleBinView: React.FC = () => {
@@ -376,11 +377,20 @@ export const RecycleBinView: React.FC = () => {
                 {/* Footer details & Action Buttons */}
                 <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between gap-2 text-xs">
                   {/* Deleted date */}
-                  <div className="flex items-center gap-1 text-[11px] text-slate-400 dark:text-slate-500">
+                  <div className="flex items-center flex-wrap gap-1 text-[11px] text-slate-400 dark:text-slate-500">
                     <Calendar className="w-3 h-3 shrink-0" />
                     <span>
                       {item.deletedAt ? `حُذف: ${formatDateArabic(item.deletedAt.slice(0, 10))}` : 'محذوف مؤقتاً'}
                     </span>
+                    {item.deletedAt && (
+                      <>
+                        <span>•</span>
+                        <span className="flex items-center gap-0.5 text-[10px] text-slate-500 dark:text-slate-400 font-medium">
+                          <Clock className="w-3 h-3 text-slate-400 dark:text-slate-500" />
+                          {getTimeAgoArabic(item.deletedAt)}
+                        </span>
+                      </>
+                    )}
                   </div>
 
                   {/* Actions */}

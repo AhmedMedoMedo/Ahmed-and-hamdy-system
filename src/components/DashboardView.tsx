@@ -4,6 +4,7 @@ import type { Invoice, Payment, Expense, WorkOrder } from '../types';
 import { 
   formatCurrency, 
   formatDateArabic,
+  getTimeAgoArabic,
   formatTimeAgoArabic,
   getTodayDateString,
   isDateToday,
@@ -1044,17 +1045,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 {/* Row 2: Date & Time Metadata + Quick Action Buttons */}
                 <div className="flex items-center justify-between gap-2 text-xs">
                   {/* Clean Date & Time badges without wrapping bullets */}
-                  <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 font-mono-num flex-wrap">
+                  <div className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400 font-mono-num flex-wrap">
                     <span className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-600 dark:text-slate-300">
                       <Calendar className="w-3 h-3 text-slate-400 dark:text-slate-500" />
                       <span>{formatDateArabic(op.date)}</span>
                     </span>
-                    {op.createdAt && (
-                      <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
-                        <Clock className="w-2.5 h-2.5 text-slate-400" />
-                        <span>{formatTimeAgoArabic(op.createdAt, op.date)}</span>
-                      </span>
-                    )}
+                    <span>•</span>
+                    <span className="flex items-center gap-0.5 text-[10px] text-slate-500 dark:text-slate-400 font-medium">
+                      <Clock className="w-3 h-3 text-slate-400 dark:text-slate-500" />
+                      <span>{getTimeAgoArabic(op.createdAt || op.date)}</span>
+                    </span>
                   </div>
 
                   {/* Actions Group: Print for ALL operations, Edit/Manage, Delete */}

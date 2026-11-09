@@ -4,6 +4,7 @@ import type { Payment, PaymentMethod } from '../types';
 import { 
   formatCurrency, 
   formatDateArabic, 
+  getTimeAgoArabic,
   getTodayDateString, 
   generateReceiptNumber,
   getMonthKeyFromDate,
@@ -23,7 +24,8 @@ import {
   Banknote,
   Smartphone,
   ArrowDownLeft,
-  AlertCircle
+  AlertCircle,
+  Clock
 } from 'lucide-react';
 import { SearchableSelect } from './SearchableSelect';
 
@@ -294,10 +296,15 @@ export const PaymentsView: React.FC<PaymentsViewProps> = ({
                   >
                     {p.merchantName}
                   </button>
-                  <div className="flex items-center gap-1.5 text-[11px] text-slate-400 dark:text-slate-400 mt-0.5">
+                  <div className="flex items-center flex-wrap gap-1.5 text-[11px] text-slate-400 dark:text-slate-400 mt-0.5">
                     <span className="flex items-center gap-0.5">
                       <Calendar className="w-3 h-3" />
                       {formatDateArabic(p.date)}
+                    </span>
+                    <span>•</span>
+                    <span className="flex items-center gap-0.5 text-[10px] text-slate-500 dark:text-slate-400 font-medium">
+                      <Clock className="w-3 h-3 text-slate-400 dark:text-slate-500" />
+                      {getTimeAgoArabic(p.createdAt || p.date)}
                     </span>
                     <span>•</span>
                     <span className="text-teal-700 dark:text-teal-400 font-bold">{p.paymentMethod}</span>

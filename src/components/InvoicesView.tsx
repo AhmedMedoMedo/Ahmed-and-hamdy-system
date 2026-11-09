@@ -4,6 +4,7 @@ import type { Invoice, InvoiceItem, Product } from '../types';
 import { 
   formatCurrency, 
   formatDateArabic, 
+  getTimeAgoArabic,
   getTodayDateString, 
   generateInvoiceNumber,
   getMonthKeyFromDate,
@@ -25,7 +26,8 @@ import {
   Trash,
   Minus,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Clock
 } from 'lucide-react';
 
 interface InvoicesViewProps {
@@ -439,10 +441,15 @@ export const InvoicesView: React.FC<InvoicesViewProps> = ({
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                  <div className="flex items-center flex-wrap gap-2 text-[11px] text-slate-500 dark:text-slate-400 mt-1">
                     <span className="flex items-center gap-0.5">
                       <Calendar className="w-3 h-3 text-slate-400" />
                       {formatDateArabic(inv.date)}
+                    </span>
+                    <span>•</span>
+                    <span className="flex items-center gap-0.5 text-[10px] text-slate-500 dark:text-slate-400 font-medium">
+                      <Clock className="w-3 h-3 text-slate-400 dark:text-slate-500" />
+                      {getTimeAgoArabic(inv.createdAt || inv.date)}
                     </span>
                     <span>•</span>
                     <span>{inv.items.length} أصناف</span>

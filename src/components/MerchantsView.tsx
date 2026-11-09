@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import type { Merchant, Invoice, Payment, MerchantStatementPrintData } from '../types';
-import { formatCurrency, formatDateArabic, getTodayDateString, getMonthKeyFromDate } from '../utils/formatters';
+import { formatCurrency, formatDateArabic, getTimeAgoArabic, getTodayDateString, getMonthKeyFromDate } from '../utils/formatters';
 import { ConfirmModal } from './ConfirmModal';
 import { 
   Users, 
@@ -18,7 +18,8 @@ import {
   X,
   PlusCircle,
   Receipt,
-  TrendingUp
+  TrendingUp,
+  Clock
 } from 'lucide-react';
 
 interface MerchantsViewProps {
@@ -781,6 +782,11 @@ export const MerchantsView: React.FC<MerchantsViewProps> = ({
                             </span>
                             <span className={isInv ? 'text-blue-700 dark:text-blue-400 font-bold' : 'text-emerald-700 dark:text-emerald-400 font-bold'}>{tx.title}</span>
                             <span className="text-[10px] text-slate-400 dark:text-slate-500 font-normal">({formatDateArabic(tx.date)})</span>
+                            <span className="text-slate-300 dark:text-slate-600">•</span>
+                            <span className="flex items-center gap-0.5 text-[10px] text-slate-500 dark:text-slate-400 font-medium">
+                              <Clock className="w-3 h-3 text-slate-400 dark:text-slate-500" />
+                              {getTimeAgoArabic(tx.createdAt || tx.date)}
+                            </span>
                           </div>
                           {tx.notes && <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate mt-0.5">{tx.notes}</p>}
                         </div>
@@ -844,9 +850,14 @@ export const MerchantsView: React.FC<MerchantsViewProps> = ({
                               <Receipt className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                               <span>فاتورة بيع #{inv.invoiceNumber}</span>
                             </div>
-                            <span className="text-[10px] text-slate-500 dark:text-slate-400 block mt-0.5">
-                              تاريخ الحركة: {formatDateArabic(inv.date)}
-                            </span>
+                            <div className="flex items-center flex-wrap gap-1 text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
+                              <span>تاريخ الحركة: {formatDateArabic(inv.date)}</span>
+                              <span>•</span>
+                              <span className="flex items-center gap-0.5 text-[10px] text-slate-500 dark:text-slate-400 font-medium">
+                                <Clock className="w-3 h-3 text-slate-400 dark:text-slate-500" />
+                                {getTimeAgoArabic(inv.createdAt || inv.date)}
+                              </span>
+                            </div>
                           </div>
 
                           <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
@@ -919,9 +930,14 @@ export const MerchantsView: React.FC<MerchantsViewProps> = ({
                             <HandCoins className="w-4 h-4 text-teal-600 dark:text-teal-400" />
                             <span>سند قبض #{pay.receiptNumber || '0742'}</span>
                           </div>
-                          <span className="text-[10px] text-slate-500 dark:text-slate-400 block mt-0.5">
-                            تاريخ التحصيل: {formatDateArabic(pay.date)}
-                          </span>
+                            <div className="flex items-center flex-wrap gap-1 text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
+                              <span>تاريخ التحصيل: {formatDateArabic(pay.date)}</span>
+                              <span>•</span>
+                              <span className="flex items-center gap-0.5 text-[10px] text-slate-500 dark:text-slate-400 font-medium">
+                                <Clock className="w-3 h-3 text-slate-400 dark:text-slate-500" />
+                                {getTimeAgoArabic(pay.createdAt || pay.date)}
+                              </span>
+                            </div>
                         </div>
 
                         <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-teal-100 dark:bg-teal-950 text-teal-800 dark:text-teal-300 border border-teal-200 dark:border-teal-800">

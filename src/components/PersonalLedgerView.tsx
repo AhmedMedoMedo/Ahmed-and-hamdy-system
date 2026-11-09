@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import type { PersonalContact, PersonalTransaction, PersonalTransactionType } from '../types';
-import { formatCurrency, formatDateArabic, getTodayDateString, getMonthKeyFromDate } from '../utils/formatters';
+import { formatCurrency, formatDateArabic, getTimeAgoArabic, getTodayDateString, getMonthKeyFromDate } from '../utils/formatters';
 import { ConfirmModal } from './ConfirmModal';
 import { 
   UserCheck, 
@@ -16,7 +16,8 @@ import {
   Wallet,
   ShieldCheck,
   CreditCard,
-  AlertCircle
+  AlertCircle,
+  Clock
 } from 'lucide-react';
 
 export const PersonalLedgerView: React.FC = () => {
@@ -361,8 +362,13 @@ export const PersonalLedgerView: React.FC = () => {
                         {typeInfo.label}
                       </span>
                     </div>
-                    <div className="flex items-center gap-1.5 text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">
+                    <div className="flex items-center flex-wrap gap-1.5 text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">
                       <span>{formatDateArabic(tx.date)}</span>
+                      <span>•</span>
+                      <span className="flex items-center gap-0.5 text-[10px] text-slate-500 dark:text-slate-400 font-medium">
+                        <Clock className="w-3 h-3 text-slate-400 dark:text-slate-500" />
+                        {getTimeAgoArabic(tx.createdAt || tx.date)}
+                      </span>
                       {tx.notes && (
                         <>
                           <span>•</span>
