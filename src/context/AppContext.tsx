@@ -162,9 +162,60 @@ interface AppContextType {
   fetchTrashItems: () => Promise<TrashItem[]>;
   restoreItem: (collectionName: TrashCollectionType | string, id: string) => Promise<void>;
   permanentDelete: (collectionName: TrashCollectionType | string, id: string) => Promise<void>;
+
+  // Sensory & Auditory Feedback
+  triggerSuccessFeedback: () => void;
+  triggerErrorFeedback: () => void;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
+
+// --- Audio & Haptic Feedback Functions ---
+export const triggerSuccessFeedback = () => {
+  try {
+    if (typeof navigator !== 'undefined' && navigator.vibrate) {
+      navigator.vibrate([50, 50, 50]);
+    }
+    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+    if (AudioCtx) {
+      const ctx = new AudioCtx();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
+      osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.12); // A5
+      gain.gain.setValueAtTime(0.12, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.2);
+    }
+  } catch {}
+};
+
+export const triggerErrorFeedback = () => {
+  try {
+    if (typeof navigator !== 'undefined' && navigator.vibrate) {
+      navigator.vibrate([100, 50, 100]);
+    }
+    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+    if (AudioCtx) {
+      const ctx = new AudioCtx();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(220, ctx.currentTime); // A3
+      osc.frequency.linearRampToValueAtTime(164.81, ctx.currentTime + 0.18); // E3
+      gain.gain.setValueAtTime(0.15, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.22);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.22);
+    }
+  } catch {}
+};
 
 const STORAGE_KEYS = {
   merchants: 'account_app_merchants',
@@ -740,90 +791,104 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // --- MERCHANTS CRUD ---
   const saveMerchant = async (data: Omit<Merchant, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }) => {
-    const now = new Date().toISOString();
-    const id = data.id || `m_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
-    const record: Merchant = {
-      id,
-      name: data.name.trim(),
-      phone: data.phone || '',
-      address: data.address || '',
-      notes: data.notes || '',
-      createdAt: (data as any).createdAt || now,
-      updatedAt: now,
-    };
-
-    setMerchants(prev => {
-      const idx = prev.findIndex(item => item.id === id);
-      if (idx >= 0) {
-        const updated = [...prev];
-        updated[idx] = record;
-        return updated;
-      }
-      return [record, ...prev];
-    });
-
     try {
-      await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'merchants', id), record, { merge: true });
+      const now = new Date().toISOString();
+      const id = data.id || `m_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+      const record: Merchant = {
+        id,
+        name: data.name.trim(),
+        phone: data.phone || '',
+        address: data.address || '',
+        notes: data.notes || '',
+        createdAt: (data as any).createdAt || now,
+        updatedAt: now,
+      };
+
+      setMerchants(prev => {
+        const idx = prev.findIndex(item => item.id === id);
+        if (idx >= 0) {
+          const updated = [...prev];
+          updated[idx] = record;
+          return updated;
+        }
+        return [record, ...prev];
+      });
+
+      setDoc(doc(db, 'stores', SHARED_STORE_ID, 'merchants', id), record, { merge: true })
+        .catch(err => console.warn('Offline Sync:', err));
+
+      triggerSuccessFeedback();
+      return id;
     } catch (err) {
+      triggerErrorFeedback();
       console.warn("Save merchant warning:", err);
+      return data.id || '';
     }
-    return id;
   };
 
   const removeMerchant = async (id: string) => {
-    setMerchants(prev => prev.filter(m => m.id !== id));
     try {
-      await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'merchants', id), {
+      setMerchants(prev => prev.filter(m => m.id !== id));
+      setDoc(doc(db, 'stores', SHARED_STORE_ID, 'merchants', id), {
         isDeleted: true,
         deletedAt: new Date().toISOString()
-      }, { merge: true });
+      }, { merge: true }).catch(err => console.warn('Offline Sync:', err));
+      triggerSuccessFeedback();
     } catch (err) {
+      triggerErrorFeedback();
       console.warn("Delete merchant warning:", err);
     }
   };
 
   // --- PRODUCTS CRUD ---
   const saveProduct = async (data: Omit<Product, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }) => {
-    const now = new Date().toISOString();
-    const id = data.id || `prod_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
-    const record: Product = {
-      id,
-      name: data.name.trim(),
-      price: Number(data.price) || 0,
-      costPrice: data.costPrice ? Number(data.costPrice) : null,
-      unit: data.unit || 'قطعة',
-      stock: data.stock !== undefined ? Number(data.stock) : 0,
-      notes: data.notes || '',
-      createdAt: (data as any).createdAt || now,
-      updatedAt: now,
-    };
-
-    setProducts(prev => {
-      const idx = prev.findIndex(item => item.id === id);
-      if (idx >= 0) {
-        const updated = [...prev];
-        updated[idx] = record;
-        return updated;
-      }
-      return [record, ...prev];
-    });
-
     try {
-      await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'products', id), record, { merge: true });
+      const now = new Date().toISOString();
+      const id = data.id || `prod_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+      const record: Product = {
+        id,
+        name: data.name.trim(),
+        price: Number(data.price) || 0,
+        costPrice: data.costPrice ? Number(data.costPrice) : null,
+        unit: data.unit || 'قطعة',
+        stock: data.stock !== undefined ? Number(data.stock) : 0,
+        notes: data.notes || '',
+        createdAt: (data as any).createdAt || now,
+        updatedAt: now,
+      };
+
+      setProducts(prev => {
+        const idx = prev.findIndex(item => item.id === id);
+        if (idx >= 0) {
+          const updated = [...prev];
+          updated[idx] = record;
+          return updated;
+        }
+        return [record, ...prev];
+      });
+
+      setDoc(doc(db, 'stores', SHARED_STORE_ID, 'products', id), record, { merge: true })
+        .catch(err => console.warn('Offline Sync:', err));
+
+      triggerSuccessFeedback();
+      return id;
     } catch (err) {
+      triggerErrorFeedback();
       console.warn("Save product warning:", err);
+      return data.id || '';
     }
-    return id;
   };
 
   const removeProduct = async (id: string) => {
-    setProducts(prev => prev.filter(p => p.id !== id));
     try {
-      await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'products', id), {
+      setProducts(prev => prev.filter(p => p.id !== id));
+      setDoc(doc(db, 'stores', SHARED_STORE_ID, 'products', id), {
         isDeleted: true,
         deletedAt: new Date().toISOString()
-      }, { merge: true });
+      }, { merge: true }).catch(err => console.warn('Offline Sync:', err));
+      triggerSuccessFeedback();
     } catch (err) {
+      triggerErrorFeedback();
       console.warn("Delete product warning:", err);
     }
   };
@@ -833,342 +898,363 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     data: Omit<Invoice, 'id' | 'createdAt' | 'updatedAt'> & { id?: string },
     autoAddPayment = true
   ) => {
-    const now = new Date().toISOString();
-    const id = data.id || `inv_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
-    const monthKey = data.monthKey || getMonthKeyFromDate(data.date);
-
-    const record: Invoice = {
-      id,
-      invoiceNumber: data.invoiceNumber || `فاتورة-${Date.now().toString().slice(-4)}`,
-      merchantId: data.merchantId || '',
-      merchantName: data.merchantName || '',
-      date: data.date,
-      monthKey,
-      items: (data.items || []).map(it => ({
-        id: it.id || `inv_it_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-        productId: it.productId || '',
-        productName: it.productName || '',
-        quantity: Number(it.quantity) || 0,
-        unitPrice: Number(it.unitPrice) || 0,
-        total: Number(it.total) || 0,
-      })),
-      subtotal: Number(data.subtotal) || 0,
-      discountType: data.discountType || 'amount',
-      discountValue: Number(data.discountValue) || 0,
-      discount: Number(data.discount) || 0,
-      total: Number(data.total) || 0,
-      paidAmount: Number(data.paidAmount) || 0,
-      remainingAmount: Number(data.remainingAmount) || 0,
-      notes: data.notes || '',
-      orderId: data.orderId || '',
-      createdAt: (data as any).createdAt || now,
-      updatedAt: now,
-    };
-
-    setInvoices(prev => {
-      const idx = prev.findIndex(item => item.id === id);
-      if (idx >= 0) {
-        const updated = [...prev];
-        updated[idx] = record;
-        return updated;
-      }
-      return [record, ...prev];
-    });
-
     try {
-      await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'invoices', id), record, { merge: true });
-    } catch (err) {
-      console.warn("Save invoice warning:", err);
-    }
+      const now = new Date().toISOString();
+      const id = data.id || `inv_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+      const monthKey = data.monthKey || getMonthKeyFromDate(data.date);
 
-    // Automatically deduct stock for sold items from products collection and local state
-    if (record.items && record.items.length > 0) {
-      setProducts(prevProducts => {
-        const nextProducts = [...prevProducts];
-        for (const item of record.items) {
-          const pIndex = nextProducts.findIndex(p => 
-            (item.productId && p.id === item.productId) || 
-            (p.name.trim().toLowerCase() === item.productName.trim().toLowerCase())
-          );
-          if (pIndex >= 0) {
-            const product = nextProducts[pIndex];
-            const currentStock = product.stock !== undefined ? product.stock : 0;
-            const newStock = Math.max(0, currentStock - (Number(item.quantity) || 0));
-            nextProducts[pIndex] = {
-              ...product,
-              stock: newStock,
-              updatedAt: now,
-            };
+      const record: Invoice = {
+        id,
+        invoiceNumber: data.invoiceNumber || `فاتورة-${Date.now().toString().slice(-4)}`,
+        merchantId: data.merchantId || '',
+        merchantName: data.merchantName || '',
+        date: data.date,
+        monthKey,
+        items: (data.items || []).map(it => ({
+          id: it.id || `inv_it_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+          productId: it.productId || '',
+          productName: it.productName || '',
+          quantity: Number(it.quantity) || 0,
+          unitPrice: Number(it.unitPrice) || 0,
+          total: Number(it.total) || 0,
+        })),
+        subtotal: Number(data.subtotal) || 0,
+        discountType: data.discountType || 'amount',
+        discountValue: Number(data.discountValue) || 0,
+        discount: Number(data.discount) || 0,
+        total: Number(data.total) || 0,
+        paidAmount: Number(data.paidAmount) || 0,
+        remainingAmount: Number(data.remainingAmount) || 0,
+        notes: data.notes || '',
+        orderId: data.orderId || '',
+        createdAt: (data as any).createdAt || now,
+        updatedAt: now,
+      };
 
-            const prodId = product.id || item.productId;
-            if (prodId) {
-              setDoc(doc(db, 'stores', SHARED_STORE_ID, 'products', prodId), {
+      setInvoices(prev => {
+        const idx = prev.findIndex(item => item.id === id);
+        if (idx >= 0) {
+          const updated = [...prev];
+          updated[idx] = record;
+          return updated;
+        }
+        return [record, ...prev];
+      });
+
+      // Non-blocking background sync to Firestore
+      setDoc(doc(db, 'stores', SHARED_STORE_ID, 'invoices', id), record, { merge: true })
+        .catch(err => console.warn('Offline Sync:', err));
+
+      // Automatically deduct stock for sold items from products collection and local state
+      if (record.items && record.items.length > 0) {
+        setProducts(prevProducts => {
+          const nextProducts = [...prevProducts];
+          for (const item of record.items) {
+            const pIndex = nextProducts.findIndex(p => 
+              (item.productId && p.id === item.productId) || 
+              (p.name.trim().toLowerCase() === item.productName.trim().toLowerCase())
+            );
+            if (pIndex >= 0) {
+              const product = nextProducts[pIndex];
+              const currentStock = product.stock !== undefined ? product.stock : 0;
+              const newStock = Math.max(0, currentStock - (Number(item.quantity) || 0));
+              nextProducts[pIndex] = {
+                ...product,
                 stock: newStock,
                 updatedAt: now,
-              }, { merge: true }).catch(err => {
-                console.warn("Stock deduction in Firestore warning:", err);
-              });
+              };
+
+              const prodId = product.id || item.productId;
+              if (prodId) {
+                setDoc(doc(db, 'stores', SHARED_STORE_ID, 'products', prodId), {
+                  stock: newStock,
+                  updatedAt: now,
+                }, { merge: true }).catch(err => {
+                  console.warn('Offline Sync:', err);
+                });
+              }
             }
           }
-        }
-        return nextProducts;
-      });
-    }
-
-    // Keep linked payment strictly synchronized with invoice paidAmount
-    if (autoAddPayment) {
-      try {
-        const existingLinkedPay = payments.find(p => p.invoiceId === record.id);
-        if (record.paidAmount > 0) {
-          await savePayment({
-            ...(existingLinkedPay ? { id: existingLinkedPay.id } : {}),
-            merchantId: record.merchantId,
-            merchantName: record.merchantName,
-            amount: record.paidAmount,
-            date: record.date,
-            monthKey: record.monthKey,
-            paymentMethod: 'كاش',
-            notes: `دفعة نقدية مسددة عند استلام الفاتورة رقم ${record.invoiceNumber}`,
-            invoiceId: record.id,
-          });
-        } else if (existingLinkedPay) {
-          // If invoice was updated to unpaid/debt, remove the linked payment to keep merchant ledger pure!
-          await removePayment(existingLinkedPay.id);
-        }
-      } catch (err) {
-        console.warn("Auto payment sync warning:", err);
+          return nextProducts;
+        });
       }
-    }
 
-    return id;
+      // Keep linked payment strictly synchronized with invoice paidAmount
+      if (autoAddPayment) {
+        try {
+          const existingLinkedPay = payments.find(p => p.invoiceId === record.id);
+          if (record.paidAmount > 0) {
+            savePayment({
+              ...(existingLinkedPay ? { id: existingLinkedPay.id } : {}),
+              merchantId: record.merchantId,
+              merchantName: record.merchantName,
+              amount: record.paidAmount,
+              date: record.date,
+              monthKey: record.monthKey,
+              paymentMethod: 'كاش',
+              notes: `دفعة نقدية مسددة عند استلام الفاتورة رقم ${record.invoiceNumber}`,
+              invoiceId: record.id,
+            }).catch(err => console.warn('Offline Sync:', err));
+          } else if (existingLinkedPay) {
+            removePayment(existingLinkedPay.id).catch(err => console.warn('Offline Sync:', err));
+          }
+        } catch (err) {
+          console.warn("Auto payment sync warning:", err);
+        }
+      }
+
+      triggerSuccessFeedback();
+      return id;
+    } catch (err) {
+      triggerErrorFeedback();
+      console.warn("Save invoice warning:", err);
+      return data.id || '';
+    }
   };
 
   const removeInvoice = async (id: string) => {
-    const inv = invoices.find(item => item.id === id);
-
-    // 1. Remove the invoice from state and Firestore (Soft Delete)
-    setInvoices(prev => prev.filter(item => item.id !== id));
     try {
-      await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'invoices', id), {
+      const inv = invoices.find(item => item.id === id);
+
+      // 1. Remove the invoice from state and Firestore (Soft Delete)
+      setInvoices(prev => prev.filter(item => item.id !== id));
+      setDoc(doc(db, 'stores', SHARED_STORE_ID, 'invoices', id), {
         isDeleted: true,
         deletedAt: new Date().toISOString()
-      }, { merge: true });
-    } catch (err) {
-      console.warn("Delete invoice warning:", err);
-    }
+      }, { merge: true }).catch(err => console.warn('Offline Sync:', err));
 
-    // 2. Remove any linked payment created alongside this invoice (Soft Delete)
-    const linkedPayments = payments.filter(p => p.invoiceId === id);
-    if (linkedPayments.length > 0) {
-      setPayments(prev => prev.filter(p => p.invoiceId !== id));
-      for (const lp of linkedPayments) {
-        try {
-          await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'payments', lp.id), {
+      // 2. Remove any linked payment created alongside this invoice (Soft Delete)
+      const linkedPayments = payments.filter(p => p.invoiceId === id);
+      if (linkedPayments.length > 0) {
+        setPayments(prev => prev.filter(p => p.invoiceId !== id));
+        for (const lp of linkedPayments) {
+          setDoc(doc(db, 'stores', SHARED_STORE_ID, 'payments', lp.id), {
             isDeleted: true,
             deletedAt: new Date().toISOString()
-          }, { merge: true });
-        } catch (e) {
-          console.warn("Delete linked payment error:", e);
+          }, { merge: true }).catch(err => console.warn('Offline Sync:', err));
         }
       }
-    }
 
-    // 3. Rollback delivered quantities on the linked Work Order if this invoice came from an order
-    if (inv?.orderId) {
-      const order = orders.find(o => o.id === inv.orderId);
-      if (order) {
-        const revertedItems = order.items.map(it => {
-          const invItem = inv.items.find(it2 => it2.productId === it.productId || it2.productName === it.productName);
-          const deliveredInInv = invItem ? invItem.quantity : 0;
-          const newDelivered = Math.max(0, it.quantityDelivered - deliveredInInv);
-          const newRemaining = Math.max(0, it.quantityOrdered - newDelivered);
-          return {
-            ...it,
-            quantityDelivered: newDelivered,
-            quantityRemaining: newRemaining,
+      // 3. Rollback delivered quantities on the linked Work Order if this invoice came from an order
+      if (inv?.orderId) {
+        const order = orders.find(o => o.id === inv.orderId);
+        if (order) {
+          const revertedItems = order.items.map(it => {
+            const invItem = inv.items.find(it2 => it2.productId === it.productId || it2.productName === it.productName);
+            const deliveredInInv = invItem ? invItem.quantity : 0;
+            const newDelivered = Math.max(0, it.quantityDelivered - deliveredInInv);
+            const newRemaining = Math.max(0, it.quantityOrdered - newDelivered);
+            return {
+              ...it,
+              quantityDelivered: newDelivered,
+              quantityRemaining: newRemaining,
+            };
+          });
+          const someDelivered = revertedItems.some(it => it.quantityDelivered > 0);
+          const allDelivered = revertedItems.every(it => it.quantityRemaining === 0);
+          const newStatus: OrderStatus = allDelivered ? 'delivered' : someDelivered ? 'partially_delivered' : 'pending';
+          const newDeliveredTotal = Math.max(0, (order.deliveredTotalAmount || 0) - inv.total);
+
+          const updatedOrder: WorkOrder = {
+            ...order,
+            items: revertedItems,
+            status: newStatus,
+            deliveredTotalAmount: newDeliveredTotal,
+            updatedAt: new Date().toISOString(),
           };
-        });
-        const someDelivered = revertedItems.some(it => it.quantityDelivered > 0);
-        const allDelivered = revertedItems.every(it => it.quantityRemaining === 0);
-        const newStatus: OrderStatus = allDelivered ? 'delivered' : someDelivered ? 'partially_delivered' : 'pending';
-        const newDeliveredTotal = Math.max(0, (order.deliveredTotalAmount || 0) - inv.total);
-
-        const updatedOrder: WorkOrder = {
-          ...order,
-          items: revertedItems,
-          status: newStatus,
-          deliveredTotalAmount: newDeliveredTotal,
-          updatedAt: new Date().toISOString(),
-        };
-        setOrders(prev => prev.map(o => o.id === order.id ? updatedOrder : o));
-        try {
-          await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'orders', order.id), updatedOrder, { merge: true });
-        } catch (e) {
-          console.warn("Rollback order error:", e);
+          setOrders(prev => prev.map(o => o.id === order.id ? updatedOrder : o));
+          setDoc(doc(db, 'stores', SHARED_STORE_ID, 'orders', order.id), updatedOrder, { merge: true })
+            .catch(err => console.warn('Offline Sync:', err));
         }
       }
+
+      triggerSuccessFeedback();
+    } catch (err) {
+      triggerErrorFeedback();
+      console.warn("Delete invoice warning:", err);
     }
   };
 
   // --- PAYMENTS CRUD ---
   const savePayment = async (data: Omit<Payment, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }) => {
-    const now = new Date().toISOString();
-    const id = data.id || `pay_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
-    const monthKey = data.monthKey || getMonthKeyFromDate(data.date);
-
-    const record: Payment = {
-      id,
-      merchantId: data.merchantId,
-      merchantName: data.merchantName,
-      amount: Number(data.amount) || 0,
-      date: data.date,
-      monthKey,
-      paymentMethod: data.paymentMethod || 'كاش',
-      notes: data.notes || '',
-      invoiceId: data.invoiceId || '',
-      receiptNumber: data.receiptNumber || `سند-${Date.now().toString().slice(-4)}`,
-      createdAt: (data as any).createdAt || now,
-      updatedAt: now,
-    };
-
-    setPayments(prev => {
-      const idx = prev.findIndex(item => item.id === id);
-      if (idx >= 0) {
-        const updated = [...prev];
-        updated[idx] = record;
-        return updated;
-      }
-      return [record, ...prev];
-    });
-
     try {
-      await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'payments', id), record, { merge: true });
+      const now = new Date().toISOString();
+      const id = data.id || `pay_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+      const monthKey = data.monthKey || getMonthKeyFromDate(data.date);
+
+      const record: Payment = {
+        id,
+        merchantId: data.merchantId,
+        merchantName: data.merchantName,
+        amount: Number(data.amount) || 0,
+        date: data.date,
+        monthKey,
+        paymentMethod: data.paymentMethod || 'كاش',
+        notes: data.notes || '',
+        invoiceId: data.invoiceId || '',
+        receiptNumber: data.receiptNumber || `سند-${Date.now().toString().slice(-4)}`,
+        createdAt: (data as any).createdAt || now,
+        updatedAt: now,
+      };
+
+      setPayments(prev => {
+        const idx = prev.findIndex(item => item.id === id);
+        if (idx >= 0) {
+          const updated = [...prev];
+          updated[idx] = record;
+          return updated;
+        }
+        return [record, ...prev];
+      });
+
+      setDoc(doc(db, 'stores', SHARED_STORE_ID, 'payments', id), record, { merge: true })
+        .catch(err => console.warn('Offline Sync:', err));
+
+      triggerSuccessFeedback();
+      return id;
     } catch (err) {
+      triggerErrorFeedback();
       console.warn("Save payment warning:", err);
+      return data.id || '';
     }
-    return id;
   };
 
   const removePayment = async (id: string) => {
-    setPayments(prev => prev.filter(p => p.id !== id));
     try {
-      await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'payments', id), {
+      setPayments(prev => prev.filter(p => p.id !== id));
+      setDoc(doc(db, 'stores', SHARED_STORE_ID, 'payments', id), {
         isDeleted: true,
         deletedAt: new Date().toISOString()
-      }, { merge: true });
+      }, { merge: true }).catch(err => console.warn('Offline Sync:', err));
+      triggerSuccessFeedback();
     } catch (err) {
+      triggerErrorFeedback();
       console.warn("Delete payment warning:", err);
     }
   };
 
   // --- EXPENSES & CASH WITHDRAWALS CRUD ---
   const saveExpense = async (data: Omit<Expense, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }) => {
-    const now = new Date().toISOString();
-    const id = data.id || `exp_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
-    const monthKey = data.monthKey || getMonthKeyFromDate(data.date);
-
-    const record: Expense = {
-      id,
-      title: data.title.trim(),
-      category: data.category,
-      amount: Number(data.amount) || 0,
-      date: data.date,
-      monthKey,
-      paymentMethod: data.paymentMethod || 'كاش',
-      notes: data.notes ? data.notes.trim() : '',
-      createdAt: (data as any).createdAt || now,
-      updatedAt: now,
-    };
-
-    setExpenses(prev => {
-      const idx = prev.findIndex(item => item.id === id);
-      if (idx >= 0) {
-        const updated = [...prev];
-        updated[idx] = record;
-        return updated;
-      }
-      return [record, ...prev];
-    });
-
     try {
-      await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'expenses', id), record, { merge: true });
+      const now = new Date().toISOString();
+      const id = data.id || `exp_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+      const monthKey = data.monthKey || getMonthKeyFromDate(data.date);
+
+      const record: Expense = {
+        id,
+        title: data.title.trim(),
+        category: data.category,
+        amount: Number(data.amount) || 0,
+        date: data.date,
+        monthKey,
+        paymentMethod: data.paymentMethod || 'كاش',
+        notes: data.notes ? data.notes.trim() : '',
+        createdAt: (data as any).createdAt || now,
+        updatedAt: now,
+      };
+
+      setExpenses(prev => {
+        const idx = prev.findIndex(item => item.id === id);
+        if (idx >= 0) {
+          const updated = [...prev];
+          updated[idx] = record;
+          return updated;
+        }
+        return [record, ...prev];
+      });
+
+      setDoc(doc(db, 'stores', SHARED_STORE_ID, 'expenses', id), record, { merge: true })
+        .catch(err => console.warn('Offline Sync:', err));
+
+      triggerSuccessFeedback();
+      return id;
     } catch (err) {
+      triggerErrorFeedback();
       console.warn("Save expense warning:", err);
+      return data.id || '';
     }
-    return id;
   };
 
   const removeExpense = async (id: string) => {
-    setExpenses(prev => prev.filter(e => e.id !== id));
     try {
-      await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'expenses', id), {
+      setExpenses(prev => prev.filter(e => e.id !== id));
+      setDoc(doc(db, 'stores', SHARED_STORE_ID, 'expenses', id), {
         isDeleted: true,
         deletedAt: new Date().toISOString()
-      }, { merge: true });
+      }, { merge: true }).catch(err => console.warn('Offline Sync:', err));
+      triggerSuccessFeedback();
     } catch (err) {
+      triggerErrorFeedback();
       console.warn("Delete expense warning:", err);
     }
   };
 
   // --- WORK ORDERS CRUD & DELIVERY ---
   const saveWorkOrder = async (data: Omit<WorkOrder, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }): Promise<WorkOrder> => {
-    const now = new Date().toISOString();
-    const id = data.id || `ord_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
-    const monthKey = data.monthKey || getMonthKeyFromDate(data.date);
-
-    const sanitizedItems: OrderItem[] = (data.items || []).map(it => ({
-      id: it.id || `ord_it_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-      productId: it.productId || '',
-      productName: it.productName || '',
-      unitPrice: Number(it.unitPrice) || 0,
-      quantityOrdered: Number(it.quantityOrdered) || 0,
-      quantityDelivered: Number(it.quantityDelivered) || 0,
-      quantityRemaining: Number(it.quantityRemaining) || 0,
-      unit: it.unit || '',
-    }));
-
-    const record: WorkOrder = {
-      id,
-      orderNumber: data.orderNumber || `طلب-${Date.now().toString().slice(-4)}`,
-      merchantId: data.merchantId || '',
-      merchantName: data.merchantName || '',
-      date: data.date,
-      monthKey,
-      items: sanitizedItems,
-      status: data.status || 'pending',
-      totalEstimatedAmount: Number(data.totalEstimatedAmount) || 0,
-      deliveredTotalAmount: Number(data.deliveredTotalAmount) || 0,
-      notes: data.notes || '',
-      createdAt: (data as any).createdAt || now,
-      updatedAt: now,
-    };
-
-    setOrders(prev => {
-      const idx = prev.findIndex(item => item.id === id);
-      if (idx >= 0) {
-        const updated = [...prev];
-        updated[idx] = record;
-        return updated;
-      }
-      return [record, ...prev];
-    });
-
     try {
-      await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'orders', id), record, { merge: true });
+      const now = new Date().toISOString();
+      const id = data.id || `ord_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+      const monthKey = data.monthKey || getMonthKeyFromDate(data.date);
+
+      const sanitizedItems: OrderItem[] = (data.items || []).map(it => ({
+        id: it.id || `ord_it_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+        productId: it.productId || '',
+        productName: it.productName || '',
+        unitPrice: Number(it.unitPrice) || 0,
+        quantityOrdered: Number(it.quantityOrdered) || 0,
+        quantityDelivered: Number(it.quantityDelivered) || 0,
+        quantityRemaining: Number(it.quantityRemaining) || 0,
+        unit: it.unit || '',
+      }));
+
+      const record: WorkOrder = {
+        id,
+        orderNumber: data.orderNumber || `طلب-${Date.now().toString().slice(-4)}`,
+        merchantId: data.merchantId || '',
+        merchantName: data.merchantName || '',
+        date: data.date,
+        monthKey,
+        items: sanitizedItems,
+        status: data.status || 'pending',
+        totalEstimatedAmount: Number(data.totalEstimatedAmount) || 0,
+        deliveredTotalAmount: Number(data.deliveredTotalAmount) || 0,
+        notes: data.notes || '',
+        createdAt: (data as any).createdAt || now,
+        updatedAt: now,
+      };
+
+      setOrders(prev => {
+        const idx = prev.findIndex(item => item.id === id);
+        if (idx >= 0) {
+          const updated = [...prev];
+          updated[idx] = record;
+          return updated;
+        }
+        return [record, ...prev];
+      });
+
+      setDoc(doc(db, 'stores', SHARED_STORE_ID, 'orders', id), record, { merge: true })
+        .catch(err => console.warn('Offline Sync:', err));
+
+      triggerSuccessFeedback();
+      return record;
     } catch (err) {
+      triggerErrorFeedback();
       console.warn("Save order warning:", err);
+      throw err;
     }
-    return record;
   };
 
   const removeWorkOrder = async (id: string) => {
-    setOrders(prev => prev.filter(o => o.id !== id));
     try {
-      await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'orders', id), {
+      setOrders(prev => prev.filter(o => o.id !== id));
+      setDoc(doc(db, 'stores', SHARED_STORE_ID, 'orders', id), {
         isDeleted: true,
         deletedAt: new Date().toISOString()
-      }, { merge: true });
+      }, { merge: true }).catch(err => console.warn('Offline Sync:', err));
+      triggerSuccessFeedback();
     } catch (err) {
+      triggerErrorFeedback();
       console.warn("Delete order warning:", err);
     }
   };
@@ -1181,114 +1267,119 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     notes?: string,
     fallbackOrder?: WorkOrder
   ): Promise<{ invoiceId: string; newStatus: OrderStatus; invoice?: Invoice }> => {
-    const order = fallbackOrder || orders.find(o => o.id === orderId);
-    if (!order) {
-      console.warn('Order not found for delivery');
-      return { invoiceId: '', newStatus: 'pending' as OrderStatus };
-    }
-
-    const now = new Date().toISOString();
-    const invoiceItems: InvoiceItem[] = [];
-    let batchDeliveryTotal = 0;
-
-    // Clone items and update delivered & remaining quantities
-    const updatedItems: OrderItem[] = order.items.map(item => {
-      const delivery = deliveryItems.find(d => d.itemId === item.id);
-      const qtyNow = delivery ? Math.min(Math.max(0, delivery.quantityToDeliver), item.quantityRemaining) : 0;
-      
-      if (qtyNow > 0) {
-        const lineTotal = qtyNow * item.unitPrice;
-        batchDeliveryTotal += lineTotal;
-        invoiceItems.push({
-          id: `inv_it_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-          productId: item.productId || '',
-          productName: item.productName,
-          quantity: qtyNow,
-          unitPrice: item.unitPrice,
-          total: lineTotal,
-        });
+    try {
+      const order = fallbackOrder || orders.find(o => o.id === orderId);
+      if (!order) {
+        console.warn('Order not found for delivery');
+        return { invoiceId: '', newStatus: 'pending' as OrderStatus };
       }
 
-      const newDelivered = item.quantityDelivered + qtyNow;
-      const newRemaining = Math.max(0, item.quantityOrdered - newDelivered);
+      const now = new Date().toISOString();
+      const invoiceItems: InvoiceItem[] = [];
+      let batchDeliveryTotal = 0;
 
-      return {
-        ...item,
-        productId: item.productId || '',
-        unit: item.unit || '',
-        quantityDelivered: newDelivered,
-        quantityRemaining: newRemaining,
+      // Clone items and update delivered & remaining quantities
+      const updatedItems: OrderItem[] = order.items.map(item => {
+        const delivery = deliveryItems.find(d => d.itemId === item.id);
+        const qtyNow = delivery ? Math.min(Math.max(0, delivery.quantityToDeliver), item.quantityRemaining) : 0;
+        
+        if (qtyNow > 0) {
+          const lineTotal = qtyNow * item.unitPrice;
+          batchDeliveryTotal += lineTotal;
+          invoiceItems.push({
+            id: `inv_it_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+            productId: item.productId || '',
+            productName: item.productName,
+            quantity: qtyNow,
+            unitPrice: item.unitPrice,
+            total: lineTotal,
+          });
+        }
+
+        const newDelivered = item.quantityDelivered + qtyNow;
+        const newRemaining = Math.max(0, item.quantityOrdered - newDelivered);
+
+        return {
+          ...item,
+          productId: item.productId || '',
+          unit: item.unit || '',
+          quantityDelivered: newDelivered,
+          quantityRemaining: newRemaining,
+        };
+      });
+
+      if (invoiceItems.length === 0) {
+        console.warn('No items to deliver');
+        return { invoiceId: '', newStatus: order.status };
+      }
+
+      // Calculate new status
+      const hasRemaining = updatedItems.some(it => it.quantityRemaining > 0);
+      const newStatus: OrderStatus = hasRemaining ? 'partially_delivered' : 'delivered';
+      const newDeliveredTotal = (order.deliveredTotalAmount || 0) + batchDeliveryTotal;
+
+      // Update order record
+      const updatedOrder: WorkOrder = {
+        ...order,
+        items: updatedItems,
+        status: newStatus,
+        deliveredTotalAmount: newDeliveredTotal,
+        updatedAt: now,
       };
-    });
 
-    if (invoiceItems.length === 0) {
-      console.warn('No items to deliver');
-      return { invoiceId: '', newStatus: order.status };
-    }
+      // Determine invoice payment amounts
+      let paidAmount = 0;
+      if (paymentType === 'paid_full') {
+        paidAmount = batchDeliveryTotal;
+      } else if (paymentType === 'paid_partial') {
+        paidAmount = Math.min(Number(paidAmountInput) || 0, batchDeliveryTotal);
+      }
+      const remainingDebt = Math.max(0, batchDeliveryTotal - paidAmount);
 
-    // Calculate new status
-    const hasRemaining = updatedItems.some(it => it.quantityRemaining > 0);
-    const newStatus: OrderStatus = hasRemaining ? 'partially_delivered' : 'delivered';
-    const newDeliveredTotal = (order.deliveredTotalAmount || 0) + batchDeliveryTotal;
+      // Automatically record sales invoice for this delivery batch
+      const invData: Omit<Invoice, 'id' | 'createdAt' | 'updatedAt'> = {
+        invoiceNumber: generateInvoiceNumber(invoices.length),
+        merchantId: order.merchantId || '',
+        merchantName: order.merchantName || '',
+        date: getTodayDateString(),
+        monthKey: getMonthKeyFromDate(getTodayDateString()),
+        items: invoiceItems,
+        subtotal: batchDeliveryTotal,
+        discountType: 'amount',
+        discountValue: 0,
+        discount: 0,
+        total: batchDeliveryTotal,
+        paidAmount,
+        remainingAmount: remainingDebt,
+        notes: notes 
+          ? `تسليم من طلب الشغل #${order.orderNumber}: ${notes}` 
+          : `تسليم من طلب الشغل #${order.orderNumber} (${newStatus === 'delivered' ? 'تسليم كامل' : 'تسليم جزئي'})`,
+        orderId: order.id || '',
+      };
 
-    // Update order record
-    const updatedOrder: WorkOrder = {
-      ...order,
-      items: updatedItems,
-      status: newStatus,
-      deliveredTotalAmount: newDeliveredTotal,
-      updatedAt: now,
-    };
+      const invoiceId = await saveInvoice(invData, true);
 
-    // Determine invoice payment amounts
-    let paidAmount = 0;
-    if (paymentType === 'paid_full') {
-      paidAmount = batchDeliveryTotal;
-    } else if (paymentType === 'paid_partial') {
-      paidAmount = Math.min(Number(paidAmountInput) || 0, batchDeliveryTotal);
-    }
-    const remainingDebt = Math.max(0, batchDeliveryTotal - paidAmount);
+      // Save updated order locally
+      setOrders(prev => prev.map(o => o.id === orderId ? updatedOrder : o));
 
-    // Automatically record sales invoice for this delivery batch
-    const invData: Omit<Invoice, 'id' | 'createdAt' | 'updatedAt'> = {
-      invoiceNumber: generateInvoiceNumber(invoices.length),
-      merchantId: order.merchantId || '',
-      merchantName: order.merchantName || '',
-      date: getTodayDateString(),
-      monthKey: getMonthKeyFromDate(getTodayDateString()),
-      items: invoiceItems,
-      subtotal: batchDeliveryTotal,
-      discountType: 'amount',
-      discountValue: 0,
-      discount: 0,
-      total: batchDeliveryTotal,
-      paidAmount,
-      remainingAmount: remainingDebt,
-      notes: notes 
-        ? `تسليم من طلب الشغل #${order.orderNumber}: ${notes}` 
-        : `تسليم من طلب الشغل #${order.orderNumber} (${newStatus === 'delivered' ? 'تسليم كامل' : 'تسليم جزئي'})`,
-      orderId: order.id || '',
-    };
+      // Non-blocking Firestore write
+      setDoc(doc(db, 'stores', SHARED_STORE_ID, 'orders', orderId), updatedOrder, { merge: true })
+        .catch(err => console.warn('Offline Sync:', err));
 
-    const invoiceId = await saveInvoice(invData, true);
+      const createdInvoice: Invoice = {
+        ...invData,
+        id: invoiceId,
+        createdAt: now,
+        updatedAt: now,
+      };
 
-    // Save updated order
-    setOrders(prev => prev.map(o => o.id === orderId ? updatedOrder : o));
-
-    try {
-      await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'orders', orderId), updatedOrder, { merge: true });
+      triggerSuccessFeedback();
+      return { invoiceId, newStatus, invoice: createdInvoice };
     } catch (err) {
-      console.warn("Save delivered order warning:", err);
+      triggerErrorFeedback();
+      console.warn("Deliver order warning:", err);
+      throw err;
     }
-
-    const createdInvoice: Invoice = {
-      ...invData,
-      id: invoiceId,
-      createdAt: now,
-      updatedAt: now,
-    };
-
-    return { invoiceId, newStatus, invoice: createdInvoice };
   };
 
   const pendingOrdersCount = useMemo(() => {
@@ -1297,93 +1388,107 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // --- PERSONAL CONTACTS CRUD ---
   const savePersonalContact = async (data: Omit<PersonalContact, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }) => {
-    const now = new Date().toISOString();
-    const id = data.id || `pc_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
-    const record: PersonalContact = {
-      id,
-      name: data.name.trim(),
-      phone: data.phone || '',
-      relationship: data.relationship || '',
-      notes: data.notes || '',
-      createdAt: (data as any).createdAt || now,
-      updatedAt: now,
-    };
-
-    setPersonalContacts(prev => {
-      const idx = prev.findIndex(item => item.id === id);
-      if (idx >= 0) {
-        const updated = [...prev];
-        updated[idx] = record;
-        return updated;
-      }
-      return [record, ...prev];
-    });
-
     try {
-      await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'personal_contacts', id), record, { merge: true });
+      const now = new Date().toISOString();
+      const id = data.id || `pc_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+      const record: PersonalContact = {
+        id,
+        name: data.name.trim(),
+        phone: data.phone || '',
+        relationship: data.relationship || '',
+        notes: data.notes || '',
+        createdAt: (data as any).createdAt || now,
+        updatedAt: now,
+      };
+
+      setPersonalContacts(prev => {
+        const idx = prev.findIndex(item => item.id === id);
+        if (idx >= 0) {
+          const updated = [...prev];
+          updated[idx] = record;
+          return updated;
+        }
+        return [record, ...prev];
+      });
+
+      setDoc(doc(db, 'stores', SHARED_STORE_ID, 'personal_contacts', id), record, { merge: true })
+        .catch(err => console.warn('Offline Sync:', err));
+
+      triggerSuccessFeedback();
+      return id;
     } catch (err) {
+      triggerErrorFeedback();
       console.warn("Save personal contact warning:", err);
+      return data.id || '';
     }
-    return id;
   };
 
   const removePersonalContact = async (id: string) => {
-    setPersonalContacts(prev => prev.filter(c => c.id !== id));
     try {
-      await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'personal_contacts', id), {
+      setPersonalContacts(prev => prev.filter(c => c.id !== id));
+      setDoc(doc(db, 'stores', SHARED_STORE_ID, 'personal_contacts', id), {
         isDeleted: true,
         deletedAt: new Date().toISOString()
-      }, { merge: true });
+      }, { merge: true }).catch(err => console.warn('Offline Sync:', err));
+      triggerSuccessFeedback();
     } catch (err) {
+      triggerErrorFeedback();
       console.warn("Delete personal contact warning:", err);
     }
   };
 
   // --- PERSONAL TRANSACTIONS CRUD ---
   const savePersonalTransaction = async (data: Omit<PersonalTransaction, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }) => {
-    const now = new Date().toISOString();
-    const id = data.id || `pt_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
-    const monthKey = data.monthKey || getMonthKeyFromDate(data.date);
-
-    const record: PersonalTransaction = {
-      id,
-      contactId: data.contactId || '',
-      contactName: data.contactName || '',
-      type: data.type,
-      amount: Number(data.amount) || 0,
-      date: data.date,
-      monthKey,
-      notes: data.notes || '',
-      createdAt: (data as any).createdAt || now,
-      updatedAt: now,
-    };
-
-    setPersonalTransactions(prev => {
-      const idx = prev.findIndex(item => item.id === id);
-      if (idx >= 0) {
-        const updated = [...prev];
-        updated[idx] = record;
-        return updated;
-      }
-      return [record, ...prev];
-    });
-
     try {
-      await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'personal_transactions', id), record, { merge: true });
+      const now = new Date().toISOString();
+      const id = data.id || `pt_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+      const monthKey = data.monthKey || getMonthKeyFromDate(data.date);
+
+      const record: PersonalTransaction = {
+        id,
+        contactId: data.contactId || '',
+        contactName: data.contactName || '',
+        type: data.type,
+        amount: Number(data.amount) || 0,
+        date: data.date,
+        monthKey,
+        notes: data.notes || '',
+        createdAt: (data as any).createdAt || now,
+        updatedAt: now,
+      };
+
+      setPersonalTransactions(prev => {
+        const idx = prev.findIndex(item => item.id === id);
+        if (idx >= 0) {
+          const updated = [...prev];
+          updated[idx] = record;
+          return updated;
+        }
+        return [record, ...prev];
+      });
+
+      setDoc(doc(db, 'stores', SHARED_STORE_ID, 'personal_transactions', id), record, { merge: true })
+        .catch(err => console.warn('Offline Sync:', err));
+
+      triggerSuccessFeedback();
+      return id;
     } catch (err) {
+      triggerErrorFeedback();
       console.warn("Save personal transaction warning:", err);
+      return data.id || '';
     }
-    return id;
   };
 
   const removePersonalTransaction = async (id: string) => {
-    setPersonalTransactions(prev => prev.filter(tx => tx.id !== id));
     try {
-      await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'personal_transactions', id), {
+      setPersonalTransactions(prev => prev.filter(tx => tx.id !== id));
+      setDoc(doc(db, 'stores', SHARED_STORE_ID, 'personal_transactions', id), {
         isDeleted: true,
         deletedAt: new Date().toISOString()
-      }, { merge: true });
+      }, { merge: true }).catch(err => console.warn('Offline Sync:', err));
+      triggerSuccessFeedback();
     } catch (err) {
+      triggerErrorFeedback();
       console.warn("Delete personal transaction warning:", err);
     }
   };
@@ -1895,6 +2000,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       removePersonalContact,
       savePersonalTransaction,
       removePersonalTransaction,
+      triggerSuccessFeedback,
+      triggerErrorFeedback,
       toastMessage,
       showToast,
       exportDataJSON,
