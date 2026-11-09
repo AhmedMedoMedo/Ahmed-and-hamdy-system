@@ -162,6 +162,13 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
       unit: firstProd ? (firstProd.unit || '') : '',
     };
     setItems([...items, newItem]);
+    setTimeout(() => {
+      const input = document.getElementById(`qty-input-${items.length}`) as HTMLInputElement | null;
+      if (input) {
+        input.focus();
+        input.select();
+      }
+    }, 100);
   };
 
   const handleRemoveItem = (idx: number) => {
@@ -855,7 +862,11 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
                   {items.map((item, idx) => (
                     <div
                       key={item.id}
-                      className="p-2.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200/80 dark:border-slate-700/80 space-y-2"
+                      className={`p-2.5 rounded-xl border space-y-2 transition-colors ${
+                        !item.quantityOrdered || item.quantityOrdered === 0
+                          ? 'bg-indigo-50/80 dark:bg-indigo-900/40 border-indigo-300 dark:border-indigo-600 shadow-sm'
+                          : 'bg-slate-50 dark:bg-slate-800/60 border-slate-200/80 dark:border-slate-700/80'
+                      }`}
                     >
                       {/* Product Selector with Instant 1-Letter Search / Name */}
                       <div>
@@ -906,6 +917,7 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
                             <Minus className="w-3 h-3" />
                           </button>
                           <input
+                            id={`qty-input-${idx}`}
                             type="number"
                             step="any"
                             min="0"
