@@ -729,24 +729,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
       </div>
 
-      {/* 2 Quick Creation Buttons (Add Merchant, Add Product) */}
-      <div className="grid grid-cols-2 gap-2">
-        <button
-          onClick={onOpenNewMerchant}
-          className="flex items-center justify-center gap-1.5 p-2.5 rounded-xl bg-slate-800 dark:bg-slate-800 hover:bg-slate-900 dark:hover:bg-slate-700 text-white font-bold text-xs shadow-xs transition-colors"
-        >
-          <Users className="w-4 h-4 text-emerald-400" />
-          <span>+ إضافة تاجر جديد</span>
-        </button>
-
-        <button
-          onClick={onOpenNewProduct}
-          className="flex items-center justify-center gap-1.5 p-2.5 rounded-xl bg-slate-800 dark:bg-slate-800 hover:bg-slate-900 dark:hover:bg-slate-700 text-white font-bold text-xs shadow-xs transition-colors"
-        >
-          <Package className="w-4 h-4 text-teal-400" />
-          <span>+ إضافة منتج وسعر</span>
-        </button>
-      </div>
 
       {/* --- RECENT OPERATIONS WITH DIRECT DELETE & EDIT ACTIONS (INVOICES, PAYMENTS, EXPENSES) --- */}
       <div className="bg-white dark:bg-slate-900 rounded-2xl p-3.5 border border-slate-200/80 dark:border-slate-800 shadow-2xs space-y-2.5">
