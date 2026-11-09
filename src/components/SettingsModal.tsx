@@ -50,6 +50,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
   const [importStatus, setImportStatus] = useState<string | null>(null);
   const [newPinValue, setNewPinValue] = useState(systemPin);
   const [isSavingPin, setIsSavingPin] = useState(false);
+  const [tapCount, setTapCount] = useState(0);
+  const [showSecretSection, setShowSecretSection] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   React.useEffect(() => {
@@ -110,7 +112,20 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
         
         {/* Header */}
         <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800 mb-4">
-          <h3 className="font-bold text-base text-slate-800 dark:text-white flex items-center gap-2">
+          <h3 
+            onClick={() => {
+              const next = tapCount + 1;
+              if (next >= 5) {
+                setShowSecretSection(true);
+                showToast('تم فتح إعدادات المالك السرية 🔓');
+                setTapCount(0);
+              } else {
+                setTapCount(next);
+              }
+            }}
+            className="font-bold text-base text-slate-800 dark:text-white flex items-center gap-2 cursor-pointer select-none active:scale-95 transition-transform"
+            title="إعدادات النظام"
+          >
             <Settings className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
             <span>إعدادات النظام والحفظ السحابي</span>
           </h3>
@@ -247,83 +262,85 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
             </div>
           </div>
 
-          {/* Security PIN Code Configuration */}
-          <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                <Lock className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                <span>حماية النظام برمز مرور سري (PIN)</span>
-              </span>
-              <label className="flex items-center gap-1.5 cursor-pointer text-xs font-bold text-slate-700 dark:text-slate-300">
+          {/* Security PIN Code Configuration (Secret Section - unlocked with 5 taps) */}
+          {showSecretSection && (
+            <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 space-y-3 animate-in fade-in duration-300">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                  <Lock className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                  <span>حماية النظام برمز مرور سري (PIN)</span>
+                </span>
+                <label className="flex items-center gap-1.5 cursor-pointer text-xs font-bold text-slate-700 dark:text-slate-300">
+                  <input
+                    type="checkbox"
+                    checked={isPinEnabled}
+                    onChange={(e) => {
+                      togglePinEnabled(e.target.checked);
+                      showToast(e.target.checked ? 'تم تفعيل قفل النظام بالرمز' : 'تم تعطيل قفل النظام');
+                    }}
+                    className="rounded text-emerald-600 focus:ring-emerald-500 w-4 h-4"
+                  />
+                  <span>مفعّل</span>
+                </label>
+              </div>
+
+              <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                يمنع أي شخص أو متطفل من رؤية حساباتك أو فواتيرك عند فتح الرابط من أي جهاز جديد دون إدخال الرمز السري.
+              </p>
+
+              <div className="flex gap-2">
                 <input
-                  type="checkbox"
-                  checked={isPinEnabled}
-                  onChange={(e) => {
-                    togglePinEnabled(e.target.checked);
-                    showToast(e.target.checked ? 'تم تفعيل قفل النظام بالرمز' : 'تم تعطيل قفل النظام');
-                  }}
-                  className="rounded text-emerald-600 focus:ring-emerald-500 w-4 h-4"
+                  type="text"
+                  value={newPinValue}
+                  onChange={(e) => setNewPinValue(e.target.value.replace(/[^0-9a-zA-Z]/g, '').slice(0, 8))}
+                  placeholder="أدخل الرمز السري الجديد"
+                  className="flex-1 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs sm:text-sm font-mono font-bold text-center focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                 />
-                <span>مفعّل</span>
-              </label>
-            </div>
-
-            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-              يمنع أي شخص أو متطفل من رؤية حساباتك أو فواتيرك عند فتح الرابط من أي جهاز جديد دون إدخال الرمز السري.
-            </p>
-
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={newPinValue}
-                onChange={(e) => setNewPinValue(e.target.value.replace(/[^0-9a-zA-Z]/g, '').slice(0, 8))}
-                placeholder="أدخل الرمز السري الجديد"
-                className="flex-1 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs sm:text-sm font-mono font-bold text-center focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-              />
-              <button
-                type="button"
-                disabled={isSavingPin}
-                onClick={async () => {
-                  const clean = newPinValue.trim();
-                  if (clean.length >= 3) {
-                    setIsSavingPin(true);
-                    try {
+                <button
+                  type="button"
+                  disabled={isSavingPin}
+                  onClick={async () => {
+                    const clean = newPinValue.trim();
+                    if (clean.length >= 3) {
+                      setIsSavingPin(true);
                       try {
-                        localStorage.setItem('account_app_system_pin', clean);
-                        localStorage.setItem('account_app_pin_verified', 'true');
-                      } catch {}
-                      await updateSystemPin(clean);
-                      showToast('تم حفظ وتحديث رمز المرور السحابي بنجاح 🔒');
-                    } catch (e) {
-                      showToast('حدث خطأ أثناء حفظ الرمز');
-                    } finally {
-                      setIsSavingPin(false);
+                        try {
+                          localStorage.setItem('account_app_system_pin', clean);
+                          localStorage.setItem('account_app_pin_verified', 'true');
+                        } catch {}
+                        await updateSystemPin(clean);
+                        showToast('تم حفظ وتحديث رمز المرور السحابي بنجاح 🔒');
+                      } catch (e) {
+                        showToast('حدث خطأ أثناء حفظ الرمز');
+                      } finally {
+                        setIsSavingPin(false);
+                      }
+                    } else {
+                      showToast('يجب أن يتكون الرمز من 3 خانات على الأقل');
                     }
-                  } else {
-                    showToast('يجب أن يتكون الرمز من 3 خانات على الأقل');
-                  }
-                }}
-                className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition-colors shrink-0 disabled:opacity-60"
-              >
-                {isSavingPin ? 'جاري الحفظ...' : 'حفظ الرمز'}
-              </button>
-            </div>
+                  }}
+                  className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition-colors shrink-0 disabled:opacity-60"
+                >
+                  {isSavingPin ? 'جاري الحفظ...' : 'حفظ الرمز'}
+                </button>
+              </div>
 
-            <div className="flex justify-between items-center pt-1 text-[11px] text-slate-500 dark:text-slate-400">
-              <span>الرمز الحالي: <b className="font-mono text-emerald-600 dark:text-emerald-400">{systemPin}</b></span>
-              <button
-                type="button"
-                onClick={() => {
-                  lockSystem();
-                  onClose();
-                }}
-                className="text-xs text-rose-600 dark:text-rose-400 hover:underline font-bold flex items-center gap-1"
-              >
-                <Lock className="w-3 h-3" />
-                <span>قفل النظام الآن</span>
-              </button>
+              <div className="flex justify-between items-center pt-1 text-[11px] text-slate-500 dark:text-slate-400">
+                <span>الرمز الحالي: <b className="font-mono text-emerald-600 dark:text-emerald-400">{systemPin}</b></span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    lockSystem();
+                    onClose();
+                  }}
+                  className="text-xs text-rose-600 dark:text-rose-400 hover:underline font-bold flex items-center gap-1"
+                >
+                  <Lock className="w-3 h-3" />
+                  <span>قفل النظام الآن</span>
+                </button>
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Backup / Export / Import JSON */}
           <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 space-y-2.5">
