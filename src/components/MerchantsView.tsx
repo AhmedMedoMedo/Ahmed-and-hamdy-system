@@ -501,13 +501,13 @@ export const MerchantsView: React.FC<MerchantsViewProps> = ({
               </div>
 
               {/* Action Buttons Row */}
-              <div className="flex items-center gap-1.5 pt-1">
+              <div className="flex flex-wrap items-center gap-1.5 pt-3 mt-2 border-t border-slate-100 dark:border-slate-800">
                 <button
                   onClick={() => {
                     setActiveMerchantId(merchant.id);
                     setStatementTab('all');
                   }}
-                  className="flex-1 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-200 text-xs font-bold flex items-center justify-center gap-1 transition-colors"
+                  className="flex-1 min-w-[70px] flex items-center justify-center gap-1 px-2 py-2 rounded-xl text-[10px] sm:text-xs font-bold whitespace-nowrap shadow-2xs bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-200 transition-colors"
                 >
                   <FileText className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                   <span>كشف حساب</span>
@@ -516,7 +516,7 @@ export const MerchantsView: React.FC<MerchantsViewProps> = ({
                 <button
                   onClick={() => onOpenNewInvoiceWithMerchant && onOpenNewInvoiceWithMerchant(merchant.id)}
                   title="إصدار فاتورة بيع للتاجر"
-                  className="py-1.5 px-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 text-xs font-bold flex items-center gap-1 border border-emerald-200/60 dark:border-emerald-800/50"
+                  className="flex-1 min-w-[70px] flex items-center justify-center gap-1 px-2 py-2 rounded-xl text-[10px] sm:text-xs font-bold whitespace-nowrap shadow-2xs bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 border border-emerald-200/60 dark:border-emerald-800/50 transition-colors"
                 >
                   <Receipt className="w-3.5 h-3.5" />
                   <span>فاتورة</span>
@@ -525,7 +525,7 @@ export const MerchantsView: React.FC<MerchantsViewProps> = ({
                 <button
                   onClick={() => onOpenNewPaymentWithMerchant && onOpenNewPaymentWithMerchant(merchant.id)}
                   title="استلام دفعة نقدية"
-                  className="py-1.5 px-2.5 rounded-xl bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 hover:bg-teal-100 dark:hover:bg-teal-900/60 text-xs font-bold flex items-center gap-1 border border-teal-200/60 dark:border-teal-800/50"
+                  className="flex-1 min-w-[70px] flex items-center justify-center gap-1 px-2 py-2 rounded-xl text-[10px] sm:text-xs font-bold whitespace-nowrap shadow-2xs bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 hover:bg-teal-100 dark:hover:bg-teal-900/60 border border-teal-200/60 dark:border-teal-800/50 transition-colors"
                 >
                   <HandCoins className="w-3.5 h-3.5" />
                   <span>دفعة</span>
@@ -535,7 +535,7 @@ export const MerchantsView: React.FC<MerchantsViewProps> = ({
                   type="button"
                   onClick={() => handleOpenDebtModal(merchant)}
                   title="زيادة دين مباشر على التاجر"
-                  className="py-1.5 px-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 hover:bg-rose-100 dark:hover:bg-rose-900/60 text-xs font-bold flex items-center gap-1 border border-rose-200/60 dark:border-rose-800/50 active:scale-95 transition-all"
+                  className="flex-1 min-w-[70px] flex items-center justify-center gap-1 px-2 py-2 rounded-xl text-[10px] sm:text-xs font-bold whitespace-nowrap shadow-2xs bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 hover:bg-rose-100 dark:hover:bg-rose-900/60 border border-rose-200/60 dark:border-rose-800/50 active:scale-95 transition-all"
                 >
                   <TrendingUp className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
                   <span>زيادة دين</span>
@@ -544,7 +544,7 @@ export const MerchantsView: React.FC<MerchantsViewProps> = ({
                 <button
                   onClick={() => handleOpenForm(merchant)}
                   title="تعديل بيانات التاجر"
-                  className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400"
+                  className="shrink-0 w-8 h-8 flex items-center justify-center rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 transition-colors"
                 >
                   <Edit3 className="w-4 h-4" />
                 </button>
@@ -552,7 +552,7 @@ export const MerchantsView: React.FC<MerchantsViewProps> = ({
                 <button
                   onClick={() => triggerDeleteMerchant(merchant)}
                   title="حذف التاجر"
-                  className="p-1.5 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-950/50 text-rose-500 dark:text-rose-400"
+                  className="shrink-0 w-8 h-8 flex items-center justify-center rounded-xl hover:bg-rose-50 dark:hover:bg-rose-950/50 text-rose-500 dark:text-rose-400 transition-colors"
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>
