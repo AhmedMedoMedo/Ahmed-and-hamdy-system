@@ -244,3 +244,12 @@ export interface MerchantStatementPrintData {
   transactions: MerchantStatementTransaction[];
   generatedAt?: string;
 }
+
+export interface SystemLog {
+  id: string;
+  userName: string;
+  action: 'add' | 'edit' | 'delete' | 'login';
+  target: string;
+  details: string;
+  timestamp: string;
+}

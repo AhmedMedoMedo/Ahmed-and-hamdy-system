@@ -25,9 +25,10 @@ import { PWAInstallButton } from './PWAInstallButton';
 
 interface HeaderProps {
   onOpenSettings: () => void;
+  onTitleClick?: () => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
+export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onTitleClick }) => {
   const { 
     selectedMonth, 
     setSelectedMonth, 
@@ -69,7 +70,10 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
                 <Wallet className="w-4 h-4" />
               </div>
               <div className="min-w-0">
-                <h1 className="text-sm font-bold text-slate-900 dark:text-white truncate leading-tight">
+                <h1 
+                  onClick={onTitleClick}
+                  className="text-sm font-bold text-slate-900 dark:text-white truncate leading-tight select-none cursor-pointer active:opacity-70 transition-opacity"
+                >
                   Ahmed And Hamdy
                 </h1>
                 

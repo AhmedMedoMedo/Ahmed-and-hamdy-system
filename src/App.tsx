@@ -12,6 +12,7 @@ import { PersonalLedgerView } from './components/PersonalLedgerView';
 import { MonthlyArchiveView } from './components/MonthlyArchiveView';
 import { MerchantDebtsView } from './components/MerchantDebtsView';
 import { RecycleBinView } from './components/RecycleBinView';
+import { ActivityLogView } from './components/ActivityLogView';
 import { PrintModal } from './components/PrintModal';
 import { SettingsModal } from './components/SettingsModal';
 import { SecurityLockModal } from './components/SecurityLockModal';
@@ -27,8 +28,25 @@ const MainLayout: React.FC = () => {
     isLocked, 
     unlockSystem, 
     systemPin, 
-    storeName 
+    storeName,
+    showToast
   } = useApp();
+
+  // Easter Egg: Secret 5-tap reveal for Owner tabs (Activity Log)
+  const [headerTapCount, setHeaderTapCount] = useState(0);
+  const [showSecretTabs, setShowSecretTabs] = useState(false);
+
+  const handleHeaderTitleClick = () => {
+    setHeaderTapCount(prev => {
+      const next = prev + 1;
+      if (next >= 5) {
+        setShowSecretTabs(true);
+        showToast('تم فتح تبويبات المالك السرية 🔓');
+        return 0;
+      }
+      return next;
+    });
+  };
 
   // Modals & Navigation triggers
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -98,8 +116,11 @@ const MainLayout: React.FC = () => {
 
         {/* Top Header & Navigation Bar (Seamlessly attached to Archive Date) */}
         <div className="sticky top-0 z-30 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 shadow-2xs">
-          <Header onOpenSettings={() => setIsSettingsOpen(true)} />
-          <TopNav />
+          <Header 
+            onOpenSettings={() => setIsSettingsOpen(true)} 
+            onTitleClick={handleHeaderTitleClick}
+          />
+          <TopNav showSecretTabs={showSecretTabs} />
         </div>
 
         {/* Main Content Area */}
@@ -198,6 +219,10 @@ const MainLayout: React.FC = () => {
 
           {activeTab === 'archive' && (
             <MonthlyArchiveView />
+          )}
+
+          {activeTab === 'logs' && (
+            <ActivityLogView />
           )}
 
           {activeTab === 'recycle_bin' && (

@@ -10,10 +10,15 @@ import {
   Archive,
   Truck,
   AlertCircle,
-  Trash2
+  Trash2,
+  Activity
 } from 'lucide-react';
 
-export const TopNav: React.FC = () => {
+interface TopNavProps {
+  showSecretTabs?: boolean;
+}
+
+export const TopNav: React.FC<TopNavProps> = ({ showSecretTabs = false }) => {
   const { activeTab, setActiveTab, pendingOrdersCount, debtorMerchantsCount } = useApp();
   const navContainerRef = useRef<HTMLDivElement>(null);
 
@@ -33,6 +38,7 @@ export const TopNav: React.FC = () => {
     { id: 'products', label: 'المنتجات', icon: Package },
     { id: 'personal', label: 'شخصي', icon: UserCheck },
     { id: 'archive', label: 'الأرشيف', icon: Archive },
+    { id: 'logs', label: 'سجل النشاط', icon: Activity },
     { id: 'recycle_bin', label: 'المحذوفات', icon: Trash2 },
   ];
 
@@ -115,6 +121,10 @@ export const TopNav: React.FC = () => {
         className="max-w-md mx-auto flex items-center gap-1.5 px-2.5 pt-0.5 pb-2 overflow-x-auto no-scrollbar cursor-grab active:cursor-grabbing select-none"
       >
         {tabs.map((tab) => {
+          if (tab.id === 'logs' && !showSecretTabs) {
+            return null;
+          }
+
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
           
@@ -143,6 +153,8 @@ export const TopNav: React.FC = () => {
                     ? 'bg-violet-600 text-white shadow-2xs'
                     : tab.id === 'recycle_bin'
                     ? 'bg-rose-600 text-white shadow-2xs'
+                    : tab.id === 'logs'
+                    ? 'bg-indigo-600 text-white shadow-2xs'
                     : 'bg-emerald-600 text-white shadow-2xs'
                   : tab.id === 'debts' && debtorMerchantsCount > 0
                   ? 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 hover:bg-rose-100 dark:hover:bg-rose-900/60'

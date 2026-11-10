@@ -20,7 +20,10 @@ import {
   deleteDoc, 
   onSnapshot,
   getDocs,
-  getDoc
+  getDoc,
+  query,
+  orderBy,
+  limit
 } from 'firebase/firestore';
 import type { 
   Merchant, 
@@ -38,7 +41,8 @@ import type {
   Expense,
   ExpenseCategory,
   TrashItem,
-  TrashCollectionType
+  TrashCollectionType,
+  SystemLog
 } from '../types';
 import { 
   getCurrentMonthKey, 
@@ -162,6 +166,12 @@ interface AppContextType {
   fetchTrashItems: () => Promise<TrashItem[]>;
   restoreItem: (collectionName: TrashCollectionType | string, id: string) => Promise<void>;
   permanentDelete: (collectionName: TrashCollectionType | string, id: string) => Promise<void>;
+
+  // Activity Log & System Operations
+  currentUserName: string;
+  updateCurrentUserName: (name: string) => void;
+  systemLogs: SystemLog[];
+  logAction: (action: 'add' | 'edit' | 'delete' | 'login', target: string, details: string) => void;
 
   // Sensory & Auditory Feedback
   triggerSuccessFeedback: () => void;
@@ -360,6 +370,49 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [personalContacts, setPersonalContacts] = useState<PersonalContact[]>([]);
   const [personalTransactions, setPersonalTransactions] = useState<PersonalTransaction[]>([]);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // User Name & Activity Log & Presence States
+  const [currentUserName, setCurrentUserName] = useState<string>(() => {
+    try {
+      return localStorage.getItem('app_user_name') || 'مستخدم غير معروف';
+    } catch {
+      return 'مستخدم غير معروف';
+    }
+  });
+
+  const updateCurrentUserName = useCallback((name: string) => {
+    const clean = name.trim() || 'مستخدم غير معروف';
+    setCurrentUserName(clean);
+    try {
+      localStorage.setItem('app_user_name', clean);
+    } catch {}
+  }, []);
+
+  const [systemLogs, setSystemLogs] = useState<SystemLog[]>([]);
+
+  // Optimistic UI, non-blocking logAction
+  const logAction = useCallback((action: 'add' | 'edit' | 'delete' | 'login', target: string, details: string) => {
+    try {
+      const id = `log_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+      const now = new Date().toISOString();
+      const userName = (currentUserName || '').trim() || 'مستخدم غير معروف';
+      const logRecord: SystemLog = {
+        id,
+        userName,
+        action,
+        target,
+        details,
+        timestamp: now,
+      };
+
+      setSystemLogs(prev => [logRecord, ...prev.slice(0, 99)]);
+
+      setDoc(doc(db, 'stores', SHARED_STORE_ID, 'system_logs', id), logRecord)
+        .catch(err => console.warn('Offline Sync log:', err));
+    } catch (err) {
+      console.warn('logAction error:', err);
+    }
+  }, [currentUserName]);
 
   const showToast = useCallback((msg: string) => {
     setToastMessage(msg);
@@ -605,6 +658,31 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
     unsubs.push(unsubSec);
 
+    // Real-time System Logs Subscription (last 100 entries sorted descending)
+    const logsQuery = query(
+      collection(db, 'stores', SHARED_STORE_ID, 'system_logs'),
+      orderBy('timestamp', 'desc'),
+      limit(100)
+    );
+    const unsubLogs = onSnapshot(logsQuery, (snap) => {
+      const logs: SystemLog[] = [];
+      snap.forEach(d => {
+        const data = d.data();
+        logs.push({
+          id: d.id,
+          userName: data.userName || 'مستخدم غير معروف',
+          action: data.action || 'add',
+          target: data.target || '',
+          details: data.details || '',
+          timestamp: data.timestamp || new Date().toISOString(),
+        });
+      });
+      setSystemLogs(logs);
+    }, (err) => {
+      console.warn("System logs listener warning:", err);
+    });
+    unsubs.push(unsubLogs);
+
     // Seamless one-time migration from legacy 'ahmed_and_hamdy' to 'smartscanner_main_store' if newly initialized
     const checkAndMigrateLegacyStore = async () => {
       try {
@@ -794,6 +872,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       const now = new Date().toISOString();
       const id = data.id || `m_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+      const isEdit = Boolean(data.id);
       const record: Merchant = {
         id,
         name: data.name.trim(),
@@ -817,6 +896,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setDoc(doc(db, 'stores', SHARED_STORE_ID, 'merchants', id), record, { merge: true })
         .catch(err => console.warn('Offline Sync:', err));
 
+      logAction(isEdit ? 'edit' : 'add', 'تاجر', `${isEdit ? 'تعديل بيانات التاجر' : 'إضافة تاجر جديد'}: ${record.name}`);
       triggerSuccessFeedback();
       return id;
     } catch (err) {
@@ -828,11 +908,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const removeMerchant = async (id: string) => {
     try {
+      const merchantToDelete = merchants.find(m => m.id === id);
       setMerchants(prev => prev.filter(m => m.id !== id));
       setDoc(doc(db, 'stores', SHARED_STORE_ID, 'merchants', id), {
         isDeleted: true,
         deletedAt: new Date().toISOString()
       }, { merge: true }).catch(err => console.warn('Offline Sync:', err));
+
+      logAction('delete', 'تاجر', `حذف التاجر: ${merchantToDelete ? merchantToDelete.name : id}`);
       triggerSuccessFeedback();
     } catch (err) {
       triggerErrorFeedback();
@@ -845,6 +928,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       const now = new Date().toISOString();
       const id = data.id || `prod_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+      const isEdit = Boolean(data.id);
       const record: Product = {
         id,
         name: data.name.trim(),
@@ -870,6 +954,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setDoc(doc(db, 'stores', SHARED_STORE_ID, 'products', id), record, { merge: true })
         .catch(err => console.warn('Offline Sync:', err));
 
+      logAction(isEdit ? 'edit' : 'add', 'منتج', `${isEdit ? 'تعديل الصنف' : 'إضافة صنف جديد'}: ${record.name} (سعر: ${record.price})`);
       triggerSuccessFeedback();
       return id;
     } catch (err) {
@@ -881,11 +966,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const removeProduct = async (id: string) => {
     try {
+      const prodToDelete = products.find(p => p.id === id);
       setProducts(prev => prev.filter(p => p.id !== id));
       setDoc(doc(db, 'stores', SHARED_STORE_ID, 'products', id), {
         isDeleted: true,
         deletedAt: new Date().toISOString()
       }, { merge: true }).catch(err => console.warn('Offline Sync:', err));
+
+      logAction('delete', 'منتج', `حذف المنتج: ${prodToDelete ? prodToDelete.name : id}`);
       triggerSuccessFeedback();
     } catch (err) {
       triggerErrorFeedback();
@@ -1004,6 +1092,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
       }
 
+      const isEdit = Boolean(data.id);
+      logAction(
+        isEdit ? 'edit' : 'add', 
+        'فاتورة', 
+        `${isEdit ? 'تعديل فاتورة' : 'إصدار فاتورة جديدة'}: ${record.invoiceNumber} للتاجر ${record.merchantName || 'عميل نقدي'} بقيمة ${record.total} ${currency}`
+      );
+
       triggerSuccessFeedback();
       return id;
     } catch (err) {
@@ -1069,6 +1164,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
       }
 
+      logAction('delete', 'فاتورة', `حذف فاتورة: ${inv ? inv.invoiceNumber : id} (${inv ? inv.merchantName : ''})`);
       triggerSuccessFeedback();
     } catch (err) {
       triggerErrorFeedback();
@@ -1112,6 +1208,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setDoc(doc(db, 'stores', SHARED_STORE_ID, 'payments', id), record, { merge: true })
         .catch(err => console.warn('Offline Sync:', err));
 
+      const isEdit = Boolean(data.id);
+      logAction(
+        isEdit ? 'edit' : 'add', 
+        'دفعة', 
+        `${isEdit ? 'تعديل دفعة' : 'تسجيل دفعة جديدة'}: ${record.amount} ${currency} من التاجر ${record.merchantName} (${record.receiptNumber})`
+      );
+
       triggerSuccessFeedback();
       return id;
     } catch (err) {
@@ -1123,11 +1226,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const removePayment = async (id: string) => {
     try {
+      const payToDelete = payments.find(p => p.id === id);
       setPayments(prev => prev.filter(p => p.id !== id));
       setDoc(doc(db, 'stores', SHARED_STORE_ID, 'payments', id), {
         isDeleted: true,
         deletedAt: new Date().toISOString()
       }, { merge: true }).catch(err => console.warn('Offline Sync:', err));
+
+      logAction('delete', 'دفعة', `حذف دفعة بقيمة: ${payToDelete ? payToDelete.amount : id} ${currency} للتاجر ${payToDelete ? payToDelete.merchantName : ''}`);
       triggerSuccessFeedback();
     } catch (err) {
       triggerErrorFeedback();
@@ -1141,6 +1247,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const now = new Date().toISOString();
       const id = data.id || `exp_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
       const monthKey = data.monthKey || getMonthKeyFromDate(data.date);
+      const isEdit = Boolean(data.id);
 
       const record: Expense = {
         id,
@@ -1168,6 +1275,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setDoc(doc(db, 'stores', SHARED_STORE_ID, 'expenses', id), record, { merge: true })
         .catch(err => console.warn('Offline Sync:', err));
 
+      logAction(
+        isEdit ? 'edit' : 'add', 
+        'مصروفات', 
+        `${isEdit ? 'تعديل بند مصروف' : 'تسجيل مصروف جديد'}: ${record.title} (${record.amount} ${currency} - ${record.category})`
+      );
+
       triggerSuccessFeedback();
       return id;
     } catch (err) {
@@ -1179,11 +1292,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const removeExpense = async (id: string) => {
     try {
+      const expToDelete = expenses.find(e => e.id === id);
       setExpenses(prev => prev.filter(e => e.id !== id));
       setDoc(doc(db, 'stores', SHARED_STORE_ID, 'expenses', id), {
         isDeleted: true,
         deletedAt: new Date().toISOString()
       }, { merge: true }).catch(err => console.warn('Offline Sync:', err));
+
+      logAction('delete', 'مصروفات', `حذف مصروف: ${expToDelete ? expToDelete.title : id} (${expToDelete ? expToDelete.amount : ''} ${currency})`);
       triggerSuccessFeedback();
     } catch (err) {
       triggerErrorFeedback();
@@ -1238,6 +1354,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setDoc(doc(db, 'stores', SHARED_STORE_ID, 'orders', id), record, { merge: true })
         .catch(err => console.warn('Offline Sync:', err));
 
+      const isEdit = Boolean(data.id);
+      logAction(
+        isEdit ? 'edit' : 'add', 
+        'طلب شغل', 
+        `${isEdit ? 'تعديل طلب شغل' : 'إنشاء طلب شغل جديد'}: ${record.orderNumber} للتاجر ${record.merchantName} (إجمالي: ${record.totalEstimatedAmount} ${currency})`
+      );
+
       triggerSuccessFeedback();
       return record;
     } catch (err) {
@@ -1249,11 +1372,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const removeWorkOrder = async (id: string) => {
     try {
+      const orderToDelete = orders.find(o => o.id === id);
       setOrders(prev => prev.filter(o => o.id !== id));
       setDoc(doc(db, 'stores', SHARED_STORE_ID, 'orders', id), {
         isDeleted: true,
         deletedAt: new Date().toISOString()
       }, { merge: true }).catch(err => console.warn('Offline Sync:', err));
+
+      logAction('delete', 'طلب شغل', `حذف طلب الشغل: ${orderToDelete ? orderToDelete.orderNumber : id} (${orderToDelete ? orderToDelete.merchantName : ''})`);
       triggerSuccessFeedback();
     } catch (err) {
       triggerErrorFeedback();
@@ -1374,6 +1500,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         createdAt: now,
         updatedAt: now,
       };
+
+      logAction(
+        'edit', 
+        'تسليم طلب', 
+        `تسليم دفعة من طلب الشغل #${order.orderNumber} للتاجر ${order.merchantName} (${newStatus === 'delivered' ? 'تسليم مكتمل بالكامل' : 'تسليم جزئي'}) - فاتورة #${invData.invoiceNumber}`
+      );
 
       triggerSuccessFeedback();
       return { invoiceId, newStatus, invoice: createdInvoice };
@@ -2025,6 +2157,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       fetchTrashItems,
       restoreItem,
       permanentDelete,
+      currentUserName,
+      updateCurrentUserName,
+      systemLogs,
+      logAction,
     }}>
       {children}
     </AppContext.Provider>
