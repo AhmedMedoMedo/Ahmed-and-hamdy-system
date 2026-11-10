@@ -10,7 +10,9 @@ import {
   Tag, 
   CreditCard, 
   Layers,
-  ArrowDownCircle
+  ArrowDownCircle,
+  Home,
+  Zap
 } from 'lucide-react';
 
 interface ExpenseModalProps {
@@ -18,14 +20,21 @@ interface ExpenseModalProps {
   onClose: () => void;
 }
 
-const CATEGORIES: { label: ExpenseCategory; icon: string }[] = [
-  { label: 'مصاريف عامة وتوريد', icon: '📦' },
-  { label: 'مرتبات وأجور', icon: '👥' },
-  { label: 'صيانة وتصليح', icon: '🔧' },
-  { label: 'نقل وتوصيل', icon: '🚚' },
-  { label: 'إيجار وكهرباء', icon: '💡' },
-  { label: 'مسحوبات شخصية', icon: '👤' },
-  { label: 'أخرى', icon: '📝' },
+interface CategoryItem {
+  id: string;
+  label: ExpenseCategory;
+  icon: React.ComponentType<{ className?: string }> | string;
+}
+
+const CATEGORIES: CategoryItem[] = [
+  { id: 'supplies', label: 'مصاريف عامة وتوريد', icon: '📦' },
+  { id: 'salaries', label: 'مرتبات وأجور', icon: '👥' },
+  { id: 'maintenance', label: 'صيانة وتصليح', icon: '🔧' },
+  { id: 'transport', label: 'نقل وتوصيل', icon: '🚚' },
+  { id: 'rent', label: 'إيجار', icon: Home },
+  { id: 'electricity', label: 'كهرباء', icon: Zap },
+  { id: 'personal', label: 'مسحوبات شخصية', icon: '👤' },
+  { id: 'other', label: 'أخرى', icon: '📝' },
 ];
 
 const PAYMENT_METHODS: PaymentMethod[] = [
@@ -160,18 +169,30 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({ initialExpense, onCl
             <div className="grid grid-cols-2 gap-1.5">
               {CATEGORIES.map((cat) => {
                 const isSelected = category === cat.label;
+                const IconComponent = typeof cat.icon !== 'string' ? cat.icon : null;
                 return (
                   <button
                     key={cat.label}
                     type="button"
-                    onClick={() => setCategory(cat.label)}
+                    onClick={() => {
+                      setCategory(cat.label);
+                      if (cat.id !== 'other' && cat.label !== 'أخرى') {
+                        setTitle(cat.label);
+                      } else {
+                        setTitle('');
+                      }
+                    }}
                     className={`p-2 rounded-xl text-[11px] font-bold text-right flex items-center gap-1.5 transition-all ${
                       isSelected 
                         ? 'bg-rose-600 text-white shadow-2xs' 
                         : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
                     }`}
                   >
-                    <span>{cat.icon}</span>
+                    {IconComponent ? (
+                      <IconComponent className="w-3.5 h-3.5 shrink-0" />
+                    ) : (
+                      <span>{cat.icon as string}</span>
+                    )}
                     <span className="truncate">{cat.label}</span>
                   </button>
                 );
