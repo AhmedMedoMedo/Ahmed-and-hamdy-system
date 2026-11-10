@@ -161,6 +161,10 @@ const MainLayout: React.FC = () => {
             />
           )}
 
+          {activeTab === 'personal' && (
+            <PersonalLedgerView />
+          )}
+
           {activeTab === 'merchants' && (
             <MerchantsView
               initialSelectedMerchantId={selectedMerchantForView}
@@ -211,10 +215,6 @@ const MainLayout: React.FC = () => {
             <ProductsView
               onSellProduct={(product) => handleOpenNewInvoice(undefined, product)}
             />
-          )}
-
-          {activeTab === 'personal' && (
-            <PersonalLedgerView />
           )}
 
           {activeTab === 'archive' && (

@@ -429,7 +429,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   return (
     <div className="space-y-3 pb-8">
       
-      {/* Primary Mobile Action Buttons (Invoices=Blue, Withdrawals/Expenses=Amber, Payments=Emerald, Cash Deposit=Teal) */}
+      {/* Primary Mobile Action Buttons (Invoices=Blue, Payments=Emerald, Withdrawals/Expenses=Amber, Cash Deposit=Teal) */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-1.5">
         <button
           onClick={onOpenNewInvoice}
@@ -438,6 +438,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <Receipt className="w-5 h-5 mb-1 text-blue-100" />
           <span className="text-[11px] sm:text-xs leading-tight">فاتورة بيع</span>
           <span className="text-[9px] text-blue-200 mt-0.5">بيع بضاعة</span>
+        </button>
+
+        <button
+          onClick={onOpenNewPayment}
+          className="flex flex-col items-center justify-center p-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold shadow-2xs shadow-emerald-500/20 transition-all text-center"
+        >
+          <HandCoins className="w-5 h-5 mb-1 text-emerald-100" />
+          <span className="text-[11px] sm:text-xs leading-tight">دفعة تاجر</span>
+          <span className="text-[9px] text-emerald-200 mt-0.5">تحصيل وتسديد</span>
         </button>
 
         <button
@@ -450,15 +459,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <ArrowDownCircle className="w-5 h-5 mb-1 text-amber-100" />
           <span className="text-[11px] sm:text-xs leading-tight">مسحوبات</span>
           <span className="text-[9px] text-amber-200 mt-0.5">مصاريف وصيانة</span>
-        </button>
-
-        <button
-          onClick={onOpenNewPayment}
-          className="flex flex-col items-center justify-center p-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold shadow-2xs shadow-emerald-500/20 transition-all text-center"
-        >
-          <HandCoins className="w-5 h-5 mb-1 text-emerald-100" />
-          <span className="text-[11px] sm:text-xs leading-tight">دفعة تاجر</span>
-          <span className="text-[9px] text-emerald-200 mt-0.5">تحصيل وتسديد</span>
         </button>
 
         <button
