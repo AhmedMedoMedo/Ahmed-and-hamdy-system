@@ -658,14 +658,6 @@ export const InvoicesView: React.FC<InvoicesViewProps> = ({
               <div className="space-y-2 pt-1 border-t border-slate-100 dark:border-slate-800">
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-slate-800 dark:text-slate-200 text-xs">الأصناف والمنتجات المباعة:</span>
-                  <button
-                    type="button"
-                    onClick={handleAddItem}
-                    className="text-[11px] text-emerald-700 dark:text-emerald-400 font-bold bg-emerald-50 dark:bg-emerald-950/60 px-2.5 py-1 rounded-lg flex items-center gap-1"
-                  >
-                    <PlusCircle className="w-3.5 h-3.5" />
-                    <span>إضافة صنف</span>
-                  </button>
                 </div>
 
                 <div className="space-y-2">
@@ -772,6 +764,15 @@ export const InvoicesView: React.FC<InvoicesViewProps> = ({
                     </div>
                   ))}
                 </div>
+
+                <button
+                  type="button"
+                  onClick={handleAddItem}
+                  className="w-full mt-3 py-2.5 rounded-xl border-2 border-dashed border-emerald-300 dark:border-emerald-700/60 bg-emerald-50/50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 font-bold text-xs flex items-center justify-center gap-1.5 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-all active:scale-95"
+                >
+                  <PlusCircle className="w-4 h-4" />
+                  <span>+ إضافة صنف جديد للفاتورة</span>
+                </button>
               </div>
 
               {/* Discount Section */}

@@ -876,14 +876,6 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
               <div className="space-y-2 pt-1 border-t border-slate-100 dark:border-slate-800">
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-slate-800 dark:text-slate-200 text-xs">الأصناف والكميات المطلوبة:</span>
-                  <button
-                    type="button"
-                    onClick={handleAddItem}
-                    className="text-[11px] text-indigo-700 dark:text-indigo-400 font-bold bg-indigo-50 dark:bg-indigo-950/60 px-2.5 py-1 rounded-lg flex items-center gap-1"
-                  >
-                    <PlusCircle className="w-3.5 h-3.5" />
-                    <span>إضافة صنف للطلب</span>
-                  </button>
                 </div>
 
                 <div className="space-y-2">
@@ -1034,6 +1026,15 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
                     </div>
                   ))}
                 </div>
+
+                <button
+                  type="button"
+                  onClick={handleAddItem}
+                  className="w-full mt-3 py-2.5 rounded-xl border-2 border-dashed border-indigo-300 dark:border-indigo-700/60 bg-indigo-50/50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-400 font-bold text-xs flex items-center justify-center gap-1.5 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-all active:scale-95"
+                >
+                  <PlusCircle className="w-4 h-4" />
+                  <span>+ إضافة صنف جديد للطلب</span>
+                </button>
               </div>
 
               {/* Delivery and Accounting Action at Registration */}
