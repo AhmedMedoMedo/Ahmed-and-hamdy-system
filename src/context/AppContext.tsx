@@ -927,6 +927,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         remainingAmount: Number(data.remainingAmount) || 0,
         notes: data.notes || '',
         orderId: data.orderId || '',
+        excludeFromStats: data.excludeFromStats !== undefined ? Boolean(data.excludeFromStats) : false,
         createdAt: (data as any).createdAt || now,
         updatedAt: now,
       };
@@ -1093,6 +1094,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         notes: data.notes || '',
         invoiceId: data.invoiceId || '',
         receiptNumber: data.receiptNumber || `سند-${Date.now().toString().slice(-4)}`,
+        excludeFromStats: data.excludeFromStats !== undefined ? Boolean(data.excludeFromStats) : false,
         createdAt: (data as any).createdAt || now,
         updatedAt: now,
       };
@@ -1623,7 +1625,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Overall totals across all time
   const totalAllTimeSales = useMemo(() => {
-    const invTotal = invoices.reduce((sum, inv) => sum + (inv.total || 0), 0);
+    const invTotal = invoices
+      .filter(inv => !inv.excludeFromStats)
+      .reduce((sum, inv) => sum + (inv.total || 0), 0);
     const unbilledOrders = orders
       .filter(ord => !invoices.some(inv => inv.orderId === ord.id || (inv.notes && inv.notes.includes(ord.orderNumber))))
       .reduce((sum, ord) => sum + (ord.status === 'delivered' ? (ord.deliveredTotalAmount || ord.totalEstimatedAmount || 0) : (ord.deliveredTotalAmount || 0)), 0);
@@ -1631,11 +1635,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [invoices, orders]);
 
   const totalAllTimeCollections = useMemo(() => {
-    return payments.reduce((sum, pay) => sum + (pay.amount || 0), 0);
+    return payments
+      .filter(pay => !pay.excludeFromStats)
+      .reduce((sum, pay) => sum + (pay.amount || 0), 0);
   }, [payments]);
 
   const totalAllTimeExpenses = useMemo(() => {
-    return expenses.reduce((sum, exp) => sum + (exp.amount || 0), 0);
+    return expenses
+      .filter(exp => !exp.excludeFromStats)
+      .reduce((sum, exp) => sum + (exp.amount || 0), 0);
   }, [expenses]);
 
   const totalAllTimeNetCollections = useMemo(() => {
@@ -1656,21 +1664,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // 1. Invoices in selected month
     const monthInvs = invoices.filter(inv => {
       const m = inv.monthKey || getMonthKeyFromDate(inv.date);
-      return m === selectedMonth;
+      return m === selectedMonth && !inv.excludeFromStats;
     });
     const newSales = monthInvs.reduce((sum, inv) => sum + (inv.total || 0), 0);
 
     // 2. Payments in selected month
     const monthPays = payments.filter(pay => {
       const m = pay.monthKey || getMonthKeyFromDate(pay.date);
-      return m === selectedMonth;
+      return m === selectedMonth && !pay.excludeFromStats;
     });
     const newCollections = monthPays.reduce((sum, pay) => sum + (pay.amount || 0), 0);
 
     // 3. Expenses/Withdrawals in selected month
     const monthExps = expenses.filter(exp => {
       const m = exp.monthKey || getMonthKeyFromDate(exp.date);
-      return m === selectedMonth;
+      return m === selectedMonth && !exp.excludeFromStats;
     });
     const newExpenses = monthExps.reduce((sum, exp) => sum + (exp.amount || 0), 0);
     const netCollections = newCollections - newExpenses;
@@ -1678,13 +1686,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // 4. Transactions prior to selected month
     const priorInvs = invoices.filter(inv => {
       const m = inv.monthKey || getMonthKeyFromDate(inv.date);
-      return m < selectedMonth;
+      return m < selectedMonth && !inv.excludeFromStats;
     });
     const priorSales = priorInvs.reduce((sum, inv) => sum + (inv.total || 0), 0);
 
     const priorPays = payments.filter(pay => {
       const m = pay.monthKey || getMonthKeyFromDate(pay.date);
-      return m < selectedMonth;
+      return m < selectedMonth && !pay.excludeFromStats;
     });
     const priorCollections = priorPays.reduce((sum, pay) => sum + (pay.amount || 0), 0);
 
@@ -1720,17 +1728,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const sortedMonths = Array.from(monthSet).filter(Boolean).sort().reverse();
 
     return sortedMonths.map(mKey => {
-      const mInvs = invoices.filter(inv => (inv.monthKey || getMonthKeyFromDate(inv.date)) === mKey);
-      const mPays = payments.filter(pay => (pay.monthKey || getMonthKeyFromDate(pay.date)) === mKey);
-      const mExps = expenses.filter(exp => (exp.monthKey || getMonthKeyFromDate(exp.date)) === mKey);
+      const mInvs = invoices.filter(inv => (inv.monthKey || getMonthKeyFromDate(inv.date)) === mKey && !inv.excludeFromStats);
+      const mPays = payments.filter(pay => (pay.monthKey || getMonthKeyFromDate(pay.date)) === mKey && !pay.excludeFromStats);
+      const mExps = expenses.filter(exp => (exp.monthKey || getMonthKeyFromDate(exp.date)) === mKey && !exp.excludeFromStats);
       
       const sales = mInvs.reduce((s, i) => s + (i.total || 0), 0);
       const collections = mPays.reduce((s, p) => s + (p.amount || 0), 0);
       const exps = mExps.reduce((s, e) => s + (e.amount || 0), 0);
 
       // Prior debt
-      const priorInvs = invoices.filter(inv => (inv.monthKey || getMonthKeyFromDate(inv.date)) < mKey);
-      const priorPays = payments.filter(pay => (pay.monthKey || getMonthKeyFromDate(pay.date)) < mKey);
+      const priorInvs = invoices.filter(inv => (inv.monthKey || getMonthKeyFromDate(inv.date)) < mKey && !inv.excludeFromStats);
+      const priorPays = payments.filter(pay => (pay.monthKey || getMonthKeyFromDate(pay.date)) < mKey && !pay.excludeFromStats);
       const carried = priorInvs.reduce((s, i) => s + (i.total || 0), 0) - priorPays.reduce((s, p) => s + (p.amount || 0), 0);
 
       return {

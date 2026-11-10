@@ -69,6 +69,7 @@ export const PaymentsView: React.FC<PaymentsViewProps> = ({
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('كاش');
   const [receiptNumber, setReceiptNumber] = useState('');
   const [notes, setNotes] = useState('');
+  const [excludeFromStats, setExcludeFromStats] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
   // Delete modal state
@@ -98,6 +99,7 @@ export const PaymentsView: React.FC<PaymentsViewProps> = ({
       setPaymentMethod(existing.paymentMethod);
       setReceiptNumber(existing.receiptNumber || '');
       setNotes(existing.notes || '');
+      setExcludeFromStats(Boolean(existing.excludeFromStats));
     } else {
       setEditingPayment(null);
       const chosenMerchant = preselectedMerchantId || (merchants[0]?.id || '');
@@ -107,6 +109,7 @@ export const PaymentsView: React.FC<PaymentsViewProps> = ({
       setPaymentMethod('كاش');
       setReceiptNumber(generateReceiptNumber(payments.length));
       setNotes('');
+      setExcludeFromStats(false);
     }
     setIsFormOpen(true);
   };
@@ -153,6 +156,7 @@ export const PaymentsView: React.FC<PaymentsViewProps> = ({
         paymentMethod,
         receiptNumber: receiptNumber.trim() || `سند-${Date.now().toString().slice(-4)}`,
         notes: notes.trim(),
+        excludeFromStats,
       });
       showToast(editingPayment ? 'تم تعديل سند القبض' : 'تم استلام الدفعة وتخفيض دين التاجر');
     } catch (err: any) {
@@ -491,6 +495,21 @@ export const PaymentsView: React.FC<PaymentsViewProps> = ({
                   onChange={(e) => setNotes(e.target.value)}
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:border-teal-500 text-xs"
                 />
+              </div>
+
+              {/* Exclude from Stats Checkbox */}
+              <div className="flex items-start gap-2 p-2.5 rounded-xl bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200/80 dark:border-amber-800/60">
+                <input
+                  type="checkbox"
+                  id="pay-exclude-stats"
+                  checked={excludeFromStats}
+                  onChange={(e) => setExcludeFromStats(e.target.checked)}
+                  className="mt-0.5 w-4 h-4 rounded text-teal-600 focus:ring-teal-500 border-slate-300 dark:border-slate-700 cursor-pointer"
+                />
+                <label htmlFor="pay-exclude-stats" className="text-xs text-amber-900 dark:text-amber-200 font-medium cursor-pointer">
+                  <span className="font-bold block">تسجيل في كشف حساب التاجر فقط</span>
+                  <span className="text-[11px] text-amber-700 dark:text-amber-300">عدم الإضافة لإيرادات / إحصائيات اليوم (خصم من دين التاجر فقط دون زيادة خزينة اليوم).</span>
+                </label>
               </div>
 
               <div className="pt-3 pb-8 sm:pb-2 border-t border-slate-100 dark:border-slate-800 grid grid-cols-2 gap-2 mb-2 sm:mb-0">

@@ -72,6 +72,7 @@ export const MerchantsView: React.FC<MerchantsViewProps> = ({
   const [selectedMerchantForDebt, setSelectedMerchantForDebt] = useState<Merchant | null>(null);
   const [debtAmount, setDebtAmount] = useState('');
   const [debtNotes, setDebtNotes] = useState('');
+  const [debtExcludeFromStats, setDebtExcludeFromStats] = useState(false);
   const [debtError, setDebtError] = useState<string | null>(null);
   const [isSubmittingDebt, setIsSubmittingDebt] = useState(false);
 
@@ -240,6 +241,7 @@ export const MerchantsView: React.FC<MerchantsViewProps> = ({
         paidAmount: 0,
         remainingAmount: amount,
         notes: debtNotes.trim() || 'تسجيل دين مباشر',
+        excludeFromStats: debtExcludeFromStats,
       });
 
       showToast(`تمت زيادة دين بمبلغ ${formatCurrency(amount, currency)} على ${selectedMerchantForDebt.name}`);
@@ -251,6 +253,7 @@ export const MerchantsView: React.FC<MerchantsViewProps> = ({
       setSelectedMerchantForDebt(null);
       setDebtAmount('');
       setDebtNotes('');
+      setDebtExcludeFromStats(false);
       setIsSubmittingDebt(false);
     }
   };
@@ -769,89 +772,113 @@ export const MerchantsView: React.FC<MerchantsViewProps> = ({
                     return (
                       <div
                         key={tx.id + idx}
-                        className={`p-2.5 rounded-xl border text-xs flex items-center justify-between gap-2 transition-all ${
+                        className={`p-3 rounded-2xl border text-xs flex flex-col gap-2 transition-all ${
                           isInv 
                             ? 'bg-blue-50/40 dark:bg-blue-950/30 border-blue-200/80 dark:border-blue-800/60' 
                             : 'bg-emerald-50/50 dark:bg-emerald-950/30 border-emerald-200/80 dark:border-emerald-800/60'
                         }`}
                       >
-                        <div className="min-w-0 flex-1">
-                          <div className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-                            <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded ${
+                        {/* الصف الأول: شارة نوع العملية والبيان يميناً، والمبلغ بخط كبير وعريض يساراً */}
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${
                               isInv 
                                 ? 'bg-blue-100 dark:bg-blue-900/60 text-blue-800 dark:text-blue-300' 
                                 : 'bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300'
                             }`}>
                               {isInv ? 'فاتورة' : 'سند قبض'}
                             </span>
-                            <span className={isInv ? 'text-blue-700 dark:text-blue-400 font-bold' : 'text-emerald-700 dark:text-emerald-400 font-bold'}>{tx.title}</span>
-                            <span className="text-[10px] text-slate-400 dark:text-slate-500 font-normal">({formatDateArabic(tx.date)})</span>
-                            <span className="text-slate-300 dark:text-slate-600">•</span>
-                            <span className="flex items-center gap-0.5 text-[10px] text-slate-500 dark:text-slate-400 font-medium">
-                              <Clock className="w-3 h-3 text-slate-400 dark:text-slate-500" />
-                              {getTimeAgoArabic(tx.createdAt || tx.date)}
+                            <span className={`font-bold truncate ${isInv ? 'text-blue-900 dark:text-blue-300' : 'text-emerald-900 dark:text-emerald-300'}`}>
+                              {tx.title}
                             </span>
+                            {Boolean(isInv ? tx.rawInvoice?.excludeFromStats : tx.rawPayment?.excludeFromStats) && (
+                              <span className="text-[9px] bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 px-1.5 py-0.2 rounded font-bold shrink-0">
+                                كشف فقط
+                              </span>
+                            )}
                           </div>
-                          {tx.notes && <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate mt-0.5">{tx.notes}</p>}
-                        </div>
 
-                        <div className="text-left shrink-0 pl-1">
-                          <div className={`font-mono-num font-black ${isInv ? 'text-blue-700 dark:text-blue-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                          <div className={`font-mono-num font-black text-sm sm:text-base shrink-0 ${
+                            isInv ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'
+                          }`}>
                             {isInv ? `+${formatCurrency(tx.debit, currency)}` : `-${formatCurrency(tx.credit, currency)}`}
                           </div>
-                          <div className="text-[10px] text-slate-400 dark:text-slate-500">
-                            الرصيد: {formatCurrency(tx.balanceAfter, currency)}
-                          </div>
                         </div>
 
-                        {/* User Requested: Edit & Print Individual Operation Button */}
-                        <div className="flex items-center gap-1 shrink-0">
-                          {isInv && onEditInvoice && (
+                        {/* الصف الثاني: التاريخ والوقت المنقضي بخط صغير ولون رمادي */}
+                        <div className="flex items-center gap-2 text-[10px] text-slate-500 dark:text-slate-400 font-medium">
+                          <span>{formatDateArabic(tx.date)}</span>
+                          <span className="text-slate-300 dark:text-slate-600">•</span>
+                          <span className="flex items-center gap-1">
+                            <Clock className="w-3 h-3 text-slate-400 dark:text-slate-500" />
+                            {getTimeAgoArabic(tx.createdAt || tx.date)}
+                          </span>
+                        </div>
+
+                        {/* الصف الثالث: الملاحظات والبيان إن وُجد */}
+                        {tx.notes && (
+                          <div className="text-[11px] text-slate-600 dark:text-slate-300 bg-white/60 dark:bg-slate-800/60 p-2 rounded-xl border border-slate-100 dark:border-slate-800/80">
+                            {tx.notes}
+                          </div>
+                        )}
+
+                        {/* الصف الرابع (مفصول بخط علوي خفيف): الرصيد التراكمي يميناً، وأزرار الإجراءات يساراً */}
+                        <div className="pt-2 border-t border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between gap-2">
+                          <div className="text-[11px] flex items-center gap-1">
+                            <span className="text-slate-400 dark:text-slate-500 font-medium">الرصيد بعد العملية:</span>
+                            <span className="font-bold font-mono-num text-slate-800 dark:text-slate-200">
+                              {formatCurrency(tx.balanceAfter, currency)}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-1 shrink-0">
+                            {isInv && onEditInvoice && (
+                              <button
+                                onClick={() => {
+                                  const rawInv = tx.rawInvoice || invoices.find(i => i.id === tx.id);
+                                  if (rawInv) onEditInvoice(rawInv);
+                                }}
+                                title="تعديل الفاتورة"
+                                className="p-1.5 sm:p-2 rounded-xl text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/40 transition-all"
+                              >
+                                <Edit3 className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                            {!isInv && onEditPayment && (
+                              <button
+                                onClick={() => {
+                                  const rawPay = tx.rawPayment || payments.find(p => p.id === tx.id);
+                                  if (rawPay) onEditPayment(rawPay);
+                                }}
+                                title="تعديل سند القبض"
+                                className="p-1.5 sm:p-2 rounded-xl text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/40 transition-all"
+                              >
+                                <Edit3 className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+
                             <button
                               onClick={() => {
-                                const rawInv = tx.rawInvoice || invoices.find(i => i.id === tx.id);
-                                if (rawInv) onEditInvoice(rawInv);
+                                if (isInv && tx.rawInvoice && onPrintInvoice) {
+                                  onPrintInvoice(tx.rawInvoice);
+                                } else if (!isInv && tx.rawPayment && onPrintPayment) {
+                                  onPrintPayment(tx.rawPayment);
+                                }
                               }}
-                              title="تعديل الفاتورة"
-                              className="p-1.5 sm:p-2 rounded-xl text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/40 transition-all"
+                              title={isInv ? 'طباعة هذه الفاتورة' : 'طباعة هذا السند'}
+                              className="p-1.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-colors"
                             >
-                              <Edit3 className="w-3.5 h-3.5" />
+                              <Printer className="w-3.5 h-3.5 text-slate-600 dark:text-slate-300" />
                             </button>
-                          )}
-                          {!isInv && onEditPayment && (
+
                             <button
-                              onClick={() => {
-                                const rawPay = tx.rawPayment || payments.find(p => p.id === tx.id);
-                                if (rawPay) onEditPayment(rawPay);
-                              }}
-                              title="تعديل سند القبض"
-                              className="p-1.5 sm:p-2 rounded-xl text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/40 transition-all"
+                              onClick={() => triggerDeleteStatementItem(tx)}
+                              title="حذف هذه المعاملة وتحديث الرصيد"
+                              className="p-1.5 text-slate-300 dark:text-slate-600 hover:text-rose-600 dark:hover:text-rose-400 rounded-lg"
                             >
-                              <Edit3 className="w-3.5 h-3.5" />
+                              <Trash2 className="w-3.5 h-3.5" />
                             </button>
-                          )}
-
-                          <button
-                            onClick={() => {
-                              if (isInv && tx.rawInvoice && onPrintInvoice) {
-                                onPrintInvoice(tx.rawInvoice);
-                              } else if (!isInv && tx.rawPayment && onPrintPayment) {
-                                onPrintPayment(tx.rawPayment);
-                              }
-                            }}
-                            title={isInv ? 'طباعة هذه الفاتورة' : 'طباعة هذا السند'}
-                            className="p-1.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-colors"
-                          >
-                            <Printer className="w-3.5 h-3.5 text-slate-600 dark:text-slate-300" />
-                          </button>
-
-                          <button
-                            onClick={() => triggerDeleteStatementItem(tx)}
-                            title="حذف هذه المعاملة وتحديث الرصيد"
-                            className="p-1.5 text-slate-300 dark:text-slate-600 hover:text-rose-600 dark:hover:text-rose-400 rounded-lg"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                          </div>
                         </div>
                       </div>
                     );
@@ -1160,6 +1187,21 @@ export const MerchantsView: React.FC<MerchantsViewProps> = ({
                   onChange={(e) => setDebtNotes(e.target.value)}
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:border-rose-500 text-xs placeholder:text-slate-400"
                 />
+              </div>
+
+              {/* Exclude from Stats Checkbox */}
+              <div className="flex items-start gap-2 p-2.5 rounded-xl bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200/80 dark:border-amber-800/60">
+                <input
+                  type="checkbox"
+                  id="debt-exclude-stats"
+                  checked={debtExcludeFromStats}
+                  onChange={(e) => setDebtExcludeFromStats(e.target.checked)}
+                  className="mt-0.5 w-4 h-4 rounded text-rose-600 focus:ring-rose-500 border-slate-300 dark:border-slate-700 cursor-pointer"
+                />
+                <label htmlFor="debt-exclude-stats" className="text-xs text-amber-900 dark:text-amber-200 font-medium cursor-pointer">
+                  <span className="font-bold block">تسجيل في كشف حساب التاجر فقط</span>
+                  <span className="text-[11px] text-amber-700 dark:text-amber-300">عدم الإضافة لإيرادات / إحصائيات مبيعات اليوم (ترحيل رصيد أو تسوية حساب).</span>
+                </label>
               </div>
 
               {/* Action Buttons in footer */}

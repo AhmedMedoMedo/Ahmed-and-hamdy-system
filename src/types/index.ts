@@ -56,6 +56,7 @@ export interface Invoice {
   remainingAmount: number; // remaining to be added to merchant debt
   notes?: string;
   orderId?: string;     // Reference to originating work order if created upon delivery
+  excludeFromStats?: boolean; // استبعاد من إحصائيات الخزينة والمبيعات (تسجيل في الحساب فقط)
   isDeleted?: boolean;
   deletedAt?: string;
   createdAt: string;
@@ -73,6 +74,7 @@ export interface Payment {
   notes?: string;
   invoiceId?: string;
   receiptNumber?: string;
+  excludeFromStats?: boolean; // استبعاد من إحصائيات الخزينة والتحصيلات (تسجيل في كشف الحساب فقط)
   isDeleted?: boolean;
   deletedAt?: string;
   createdAt: string;
@@ -171,6 +173,7 @@ export interface Expense {
   monthKey: string;     // YYYY-MM
   paymentMethod: PaymentMethod;
   notes?: string;
+  excludeFromStats?: boolean;
   isDeleted?: boolean;
   deletedAt?: string;
   createdAt: string;

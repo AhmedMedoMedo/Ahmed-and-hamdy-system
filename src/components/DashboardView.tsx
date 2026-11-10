@@ -334,14 +334,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     let expenseCount = 0;
 
     periodOperations.forEach(op => {
+      const isExcluded = Boolean((op.raw as any)?.excludeFromStats);
       if (op.type === 'invoice') {
-        sales += op.amount;
+        if (!isExcluded) sales += op.amount;
         invoiceCount++;
       } else if (op.type === 'payment') {
-        collections += op.amount;
+        if (!isExcluded) collections += op.amount;
         paymentCount++;
       } else if (op.type === 'expense') {
-        expensesSum += op.amount;
+        if (!isExcluded) expensesSum += op.amount;
         expenseCount++;
       }
     });
@@ -371,12 +372,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     let expensesSum = 0;
 
     filteredOperations.forEach(op => {
+      const isExcluded = Boolean((op.raw as any)?.excludeFromStats);
       if (op.type === 'invoice') {
-        sales += op.amount;
+        if (!isExcluded) sales += op.amount;
       } else if (op.type === 'payment') {
-        collections += op.amount;
+        if (!isExcluded) collections += op.amount;
       } else if (op.type === 'expense') {
-        expensesSum += op.amount;
+        if (!isExcluded) expensesSum += op.amount;
       }
     });
 
