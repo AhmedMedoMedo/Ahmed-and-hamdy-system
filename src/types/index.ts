@@ -107,6 +107,7 @@ export interface WorkOrder {
   totalEstimatedAmount: number;  // إجمالي قيمة الطلب الكامل
   deliveredTotalAmount: number;  // قيمة ما تم تسليمه فعلياً حتى الآن
   notes?: string;
+  excludeFromStats?: boolean;
   isDeleted?: boolean;
   deletedAt?: string;
   createdAt: string;
@@ -134,6 +135,7 @@ export interface PersonalTransaction {
   date: string;         // YYYY-MM-DD
   monthKey: string;     // YYYY-MM
   notes?: string;
+  excludeFromStats?: boolean;
   isDeleted?: boolean;
   deletedAt?: string;
   createdAt: string;
@@ -227,6 +229,7 @@ export interface MonthSummary {
   createdAt: string;
   rawInvoice?: Invoice;
   rawPayment?: Payment;
+  excludeFromStats?: boolean;
 }
 
 export interface MerchantStatementPrintData {

@@ -292,6 +292,7 @@ export const MerchantsView: React.FC<MerchantsViewProps> = ({
         notes: inv.notes || '',
         createdAt: inv.createdAt,
         rawInvoice: inv,
+        excludeFromStats: Boolean(inv.excludeFromStats),
       }));
 
     const merchantPays = payments
@@ -306,6 +307,7 @@ export const MerchantsView: React.FC<MerchantsViewProps> = ({
         notes: pay.notes || '',
         createdAt: pay.createdAt,
         rawPayment: pay,
+        excludeFromStats: Boolean(pay.excludeFromStats),
       }));
 
     const combined = [...merchantInvs, ...merchantPays].sort((a, b) => {
@@ -791,7 +793,7 @@ export const MerchantsView: React.FC<MerchantsViewProps> = ({
                             <span className={`font-bold truncate ${isInv ? 'text-blue-900 dark:text-blue-300' : 'text-emerald-900 dark:text-emerald-300'}`}>
                               {tx.title}
                             </span>
-                            {Boolean(isInv ? tx.rawInvoice?.excludeFromStats : tx.rawPayment?.excludeFromStats) && (
+                            {Boolean(tx.excludeFromStats) && (
                               <span className="text-[9px] bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 px-1.5 py-0.2 rounded font-bold shrink-0">
                                 كشف فقط
                               </span>
