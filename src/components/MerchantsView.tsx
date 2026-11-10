@@ -311,9 +311,9 @@ export const MerchantsView: React.FC<MerchantsViewProps> = ({
       }));
 
     const combined = [...merchantInvs, ...merchantPays].sort((a, b) => {
-      const cmp = a.date.localeCompare(b.date);
-      if (cmp !== 0) return cmp;
-      return a.createdAt.localeCompare(b.createdAt);
+      const timeDiff = new Date(a.date).getTime() - new Date(b.date).getTime();
+      if (timeDiff !== 0) return timeDiff;
+      return (a.createdAt || '').localeCompare(b.createdAt || '');
     });
 
     let runningBalance = 0;

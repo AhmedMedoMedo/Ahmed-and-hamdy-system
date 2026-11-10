@@ -82,6 +82,62 @@ export const PrintModal: React.FC<PrintModalProps> = ({
     return null;
   }, [invoice, order, invoices]);
 
+  // Unified chronological ledger transactions for merchant statement with running balance
+  const allTransactions = useMemo(() => {
+    if (!merchantStatement) return [];
+
+    const invs = (merchantStatement.invoices || []).map(inv => {
+      const itemsList = inv.items?.map(it => `${it.productName}${it.quantity ? ` (${it.quantity})` : ''}`).join('، ') || '';
+      const notesPart = inv.notes ? ` - ${inv.notes}` : '';
+      const desc = `فاتورة #${inv.invoiceNumber}${itemsList ? ` (${itemsList})` : ''}${notesPart}`;
+
+      return {
+        id: inv.id,
+        type: 'invoice' as const,
+        date: inv.date,
+        title: `فاتورة #${inv.invoiceNumber}`,
+        details: desc,
+        debit: inv.total,
+        credit: 0,
+        createdAt: inv.createdAt || inv.date,
+      };
+    });
+
+    const pays = (merchantStatement.payments || []).map(pay => {
+      const notesPart = pay.notes ? ` - ${pay.notes}` : '';
+      const methodPart = pay.paymentMethod ? ` (${pay.paymentMethod})` : '';
+      const desc = `سند قبض #${pay.receiptNumber || '0742'}${methodPart}${notesPart}`;
+
+      return {
+        id: pay.id,
+        type: 'payment' as const,
+        date: pay.date,
+        title: `سند قبض #${pay.receiptNumber || '0742'}`,
+        details: desc,
+        debit: 0,
+        credit: pay.amount,
+        createdAt: pay.createdAt || pay.date,
+      };
+    });
+
+    // Merge and sort ascending by date (oldest to newest)
+    const combined = [...invs, ...pays].sort((a, b) => {
+      const timeDiff = new Date(a.date).getTime() - new Date(b.date).getTime();
+      if (timeDiff !== 0) return timeDiff;
+      return (a.createdAt || '').localeCompare(b.createdAt || '');
+    });
+
+    // Calculate running balance: +debit for invoice, -credit for payment
+    let runningBalance = 0;
+    return combined.map(tx => {
+      runningBalance += (tx.debit - tx.credit);
+      return {
+        ...tx,
+        runningBalance,
+      };
+    });
+  }, [merchantStatement]);
+
   // Screenshot & Sharing States
   const [isCapturing, setIsCapturing] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
@@ -871,198 +927,142 @@ ${b.currentDebt > 0 ? `👉 *المتبقي المطلوب سداده:* ${format
 
           {/* ==================== 5. MERCHANT ACCOUNT STATEMENT VIEW ==================== */}
           {merchantStatement && (
-            <div className="space-y-4 w-full">
-              {/* Header: Company Title (Right) + Statement Reference Box (Left) */}
-              <div className="flex items-start justify-between gap-4">
+            <div className="space-y-3.5 w-full">
+              {/* Header: Simplified and Clean */}
+              <div className="flex items-start justify-between gap-4 pb-2 border-b-2 border-black">
                 <div>
                   <h1 className="text-xl sm:text-2xl font-black text-black tracking-tight leading-tight">
                     {storeName || 'Ahmed And Hamdy'}
                   </h1>
-                  <p className="text-[11px] text-slate-600 font-medium mt-0.5">
-                    النظام المحاسبي الداخلي — كشف حساب تاجر تفصيلي
+                  <p className="text-[11px] text-slate-600 font-bold mt-0.5">
+                    كشف حساب تاجر — دفتر الأستاذ العام
                   </p>
                 </div>
 
-                <div className="border border-slate-300 rounded-md text-[11px] font-mono-num divide-y divide-slate-200 min-w-[200px] text-right">
-                  <div className="p-1.5 flex justify-between gap-2">
-                    <span className="text-slate-500 font-sans">كود المستند:</span>
-                    <span className="font-black text-black">#كشف-{merchantStatement.merchant.id.slice(0, 6)}</span>
+                <div className="text-left font-mono-num text-[11px]">
+                  <div className="font-bold text-black text-[10px]">
+                    تاريخ الطباعة: {getFormattedDateTime(merchantStatement.generatedAt || new Date().toISOString())}
                   </div>
-                  <div className="p-1.5 flex justify-between gap-2">
-                    <span className="text-slate-500 font-sans">تاريخ التقرير:</span>
-                    <span className="font-bold text-black text-[10px]">
-                      {getFormattedDateTime(merchantStatement.generatedAt || new Date().toISOString())}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Solid Horizontal Divider Line */}
-              <div className="border-b-2 border-black my-2"></div>
-
-              {/* Merchant Details Card */}
-              <div className="grid grid-cols-2 gap-3 border border-slate-300 rounded-md p-2.5 text-xs">
-                <div>
-                  <span className="text-[10px] text-slate-500 block mb-0.5">كشف حساب العميل / التاجر:</span>
-                  <div className="text-base font-black text-black">{merchantStatement.merchant.name}</div>
-                  {merchantStatement.merchant.address && (
-                    <div className="text-[11px] text-slate-600 mt-0.5">العنوان: {merchantStatement.merchant.address}</div>
-                  )}
-                </div>
-                <div className="text-left font-mono-num">
-                  <span className="text-[10px] text-slate-500 block mb-0.5 font-sans">بيانات الاتصال:</span>
-                  <div className="font-bold text-black text-xs">{merchantStatement.merchant.phone || 'بدون هاتف'}</div>
                   <div className="text-[10px] text-slate-500 font-sans mt-0.5">
-                    حالة الحساب: {merchantStatement.balances.currentDebt > 0 ? 'عليه مديونية قائمة' : 'خالص السداد'}
+                    كود: #كشف-{merchantStatement.merchant.id.slice(0, 6)}
                   </div>
                 </div>
               </div>
 
-              {/* Financial Balances Summary Bar */}
+              {/* Merchant Info Card */}
+              <div className="bg-slate-50 border border-slate-300 rounded-md p-2.5 flex flex-wrap items-center justify-between gap-2 text-xs">
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] text-slate-500 font-bold">التاجر:</span>
+                  <span className="text-sm font-black text-black">{merchantStatement.merchant.name}</span>
+                </div>
+                <div className="flex items-center gap-2 font-mono-num">
+                  <span className="text-[11px] text-slate-500 font-sans font-bold">الهاتف:</span>
+                  <span className="font-bold text-black">{merchantStatement.merchant.phone || 'بدون هاتف'}</span>
+                </div>
+                {merchantStatement.merchant.address && (
+                  <div className="flex items-center gap-1.5 text-slate-600 text-[11px] w-full sm:w-auto">
+                    <span className="text-slate-400 font-bold">العنوان:</span>
+                    <span>{merchantStatement.merchant.address}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Financial Balances Summary Bar: (إجمالي المسحوبات - إجمالي المسدد = صافي المديونية الحالية) */}
               <div className="grid grid-cols-3 border border-slate-300 rounded-md overflow-hidden text-center text-xs divide-x divide-x-reverse divide-slate-300">
-                <div className="p-2 bg-slate-50/70">
-                  <span className="text-[10px] text-slate-600 block mb-0.5 font-bold">إجمالي المسحوبات (فواتير)</span>
-                  <span className="font-black font-mono-num text-slate-900 text-sm">
+                <div className="p-2 bg-slate-50">
+                  <span className="text-[10px] text-slate-600 block mb-0.5 font-bold">إجمالي المسحوبات</span>
+                  <span className="font-black font-mono-num text-rose-700 text-sm">
                     {formatCurrency(merchantStatement.balances.totalInvoicedAllTime, currency)}
                   </span>
                   <span className="text-[9px] text-slate-500 block mt-0.5 font-mono-num">
-                    ({merchantStatement.invoices.length} فاتورة بيع)
+                    ({merchantStatement.invoices.length} فاتورة)
                   </span>
                 </div>
-                <div className="p-2 bg-slate-50/70">
-                  <span className="text-[10px] text-teal-800 block mb-0.5 font-bold">إجمالي المسدد (دفعات)</span>
-                  <span className="font-black font-mono-num text-teal-700 text-sm">
+                <div className="p-2 bg-slate-50">
+                  <span className="text-[10px] text-slate-600 block mb-0.5 font-bold">إجمالي المسدد</span>
+                  <span className="font-black font-mono-num text-emerald-700 text-sm">
                     {formatCurrency(merchantStatement.balances.totalPaidAllTime, currency)}
                   </span>
                   <span className="text-[9px] text-slate-500 block mt-0.5 font-mono-num">
                     ({merchantStatement.payments.length} سند قبض)
                   </span>
                 </div>
-                <div className="p-2 bg-rose-50/40">
-                  <span className="text-[10px] text-rose-700 block mb-0.5 font-bold">صافي المديونية الحالية</span>
+                <div className="p-2 bg-slate-100">
+                  <span className="text-[10px] text-slate-700 block mb-0.5 font-bold">صافي المديونية الحالية</span>
                   <span className={`font-black font-mono-num text-sm ${merchantStatement.balances.currentDebt > 0 ? 'text-rose-700' : 'text-emerald-700'}`}>
                     {formatCurrency(merchantStatement.balances.currentDebt, currency)}
                   </span>
-                  <span className="text-[9px] text-rose-600 block mt-0.5 font-bold">
+                  <span className="text-[9px] text-slate-500 block mt-0.5 font-bold">
                     {merchantStatement.balances.currentDebt > 0 ? 'مطلوب سداده' : 'خالص تماماً'}
                   </span>
                 </div>
               </div>
 
-              {/* SECTION 1: Independent Sales Invoices Table */}
-              <div className="space-y-1.5 pt-1">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="font-black text-black flex items-center gap-1.5">
-                    <span className="bg-blue-100 text-blue-900 px-2 py-0.5 rounded text-[10px] font-bold">قسم ١</span>
-                    <span>سجل عمليات البيع والفواتير ({merchantStatement.invoices.length})</span>
-                  </span>
-                  <span className="font-mono-num text-[11px] text-slate-600 font-bold">
-                    إجمالي الفواتير: {formatCurrency(merchantStatement.balances.totalInvoicedAllTime, currency)}
-                  </span>
-                </div>
-
-                <div className="border border-slate-300 rounded-md overflow-hidden">
-                  <table className="w-full text-right text-xs border-collapse">
-                    <thead>
-                      <tr className="bg-slate-100 border-b border-slate-300 text-[10px] font-bold text-black">
-                        <th className="py-1 px-2 border-l border-slate-200">رقم الفاتورة</th>
-                        <th className="py-1 px-2 border-l border-slate-200">التاريخ</th>
-                        <th className="py-1 px-2 border-l border-slate-200">الأصناف / البيان</th>
-                        <th className="py-1 px-2 border-l border-slate-200 text-center">المسدد فوري</th>
-                        <th className="py-1 px-2 border-l border-slate-200 text-center">المتبقي دين</th>
-                        <th className="py-1 px-2 text-left font-black">إجمالي الفاتورة</th>
+              {/* UNIFIED ACCOUNTING LEDGER TABLE */}
+              <div className="w-full overflow-x-auto">
+                <table className="w-full text-right text-xs border-collapse border border-slate-300">
+                  <thead>
+                    <tr className="bg-slate-100 border-b border-slate-300 text-[10px] sm:text-[11px] font-bold text-black">
+                      <th className="py-1.5 px-2 border border-slate-300 text-center w-20 sm:w-24 whitespace-nowrap">التاريخ</th>
+                      <th className="py-1.5 px-2 border border-slate-300">البيان</th>
+                      <th className="py-1.5 px-2 border border-slate-300 text-center w-20 sm:w-24 text-rose-700 whitespace-nowrap">مدين / سحب</th>
+                      <th className="py-1.5 px-2 border border-slate-300 text-center w-20 sm:w-24 text-emerald-700 whitespace-nowrap">دائن / سداد</th>
+                      <th className="py-1.5 px-2 border border-slate-300 text-center w-24 sm:w-28 text-black font-black whitespace-nowrap">الرصيد</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200 font-mono-num text-[10px] sm:text-[11px]">
+                    {allTransactions.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="py-6 text-center text-slate-400 font-sans text-xs">
+                          لا توجد حركات مسجلة لهذا التاجر
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-200 font-mono-num text-[11px]">
-                      {merchantStatement.invoices.length === 0 ? (
-                        <tr>
-                          <td colSpan={6} className="py-3 text-center text-slate-400 font-sans">
-                            لا توجد فواتير بيع مسجلة لهذا التاجر
+                    ) : (
+                      allTransactions.map((tx, idx) => (
+                        <tr key={tx.id || idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/60'}>
+                          <td className="py-1.5 px-2 border border-slate-300 text-slate-700 text-center whitespace-nowrap text-[10px]">
+                            {tx.date}
+                          </td>
+                          <td className="py-1.5 px-2 border border-slate-300 font-sans text-[10px] sm:text-[11px] text-slate-800 leading-tight">
+                            <span className="font-bold text-black">{tx.title}</span>
+                            {tx.details && tx.details !== tx.title && (
+                              <span className="text-slate-500 block text-[9px] sm:text-[10px] mt-0.5">
+                                {tx.details}
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-1.5 px-2 border border-slate-300 text-center font-bold text-rose-700 whitespace-nowrap">
+                            {tx.debit > 0 ? formatCurrency(tx.debit, currency) : '—'}
+                          </td>
+                          <td className="py-1.5 px-2 border border-slate-300 text-center font-bold text-emerald-700 whitespace-nowrap">
+                            {tx.credit > 0 ? formatCurrency(tx.credit, currency) : '—'}
+                          </td>
+                          <td className="py-1.5 px-2 border border-slate-300 text-center font-black text-black whitespace-nowrap bg-slate-50/80">
+                            {formatCurrency(tx.runningBalance, currency)}
                           </td>
                         </tr>
-                      ) : (
-                        merchantStatement.invoices.map((inv, idx) => (
-                          <tr key={idx} className="hover:bg-slate-50">
-                            <td className="py-1.5 px-2 font-bold text-black border-l border-slate-200">
-                              #{inv.invoiceNumber}
-                            </td>
-                            <td className="py-1.5 px-2 border-l border-slate-200 text-slate-700">
-                              {inv.date}
-                            </td>
-                            <td className="py-1.5 px-2 border-l border-slate-200 font-sans text-[10px] text-slate-700 max-w-[160px] truncate">
-                              {inv.items.map(it => `${it.productName} (${it.quantity})`).join(', ') || inv.notes || '—'}
-                            </td>
-                            <td className="py-1.5 px-2 border-l border-slate-200 text-center text-teal-700">
-                              {inv.paidAmount > 0 ? formatCurrency(inv.paidAmount, currency) : '0'}
-                            </td>
-                            <td className="py-1.5 px-2 border-l border-slate-200 text-center text-rose-700 font-bold">
-                              {inv.remainingAmount > 0 ? formatCurrency(inv.remainingAmount, currency) : '0'}
-                            </td>
-                            <td className="py-1.5 px-2 text-left font-black text-black">
-                              {formatCurrency(inv.total, currency)}
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              {/* SECTION 2: Independent Financial Collections Table */}
-              <div className="space-y-1.5 pt-1">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="font-black text-black flex items-center gap-1.5">
-                    <span className="bg-teal-100 text-teal-900 px-2 py-0.5 rounded text-[10px] font-bold">قسم ٢</span>
-                    <span>سجل العمليات المالية وسندات القبض ({merchantStatement.payments.length})</span>
-                  </span>
-                  <span className="font-mono-num text-[11px] text-teal-800 font-bold">
-                    إجمالي المسدد: {formatCurrency(merchantStatement.balances.totalPaidAllTime, currency)}
-                  </span>
-                </div>
-
-                <div className="border border-slate-300 rounded-md overflow-hidden">
-                  <table className="w-full text-right text-xs border-collapse">
-                    <thead>
-                      <tr className="bg-slate-100 border-b border-slate-300 text-[10px] font-bold text-black">
-                        <th className="py-1 px-2 border-l border-slate-200">رقم الحركة</th>
-                        <th className="py-1 px-2 border-l border-slate-200">التاريخ</th>
-                        <th className="py-1 px-2 border-l border-slate-200">طريقة الدفع</th>
-                        <th className="py-1 px-2 border-l border-slate-200">البيان / ملاحظات</th>
-                        <th className="py-1 px-2 text-left font-black">المبلغ المقبوض</th>
+                      ))
+                    )}
+                  </tbody>
+                  {allTransactions.length > 0 && (
+                    <tfoot>
+                      <tr className="bg-slate-100 border-t-2 border-slate-400 font-mono-num text-[10px] sm:text-[11px] font-black text-black">
+                        <td colSpan={2} className="py-2 px-2 border border-slate-300 font-sans text-right">
+                          الإجمالي النهائي:
+                        </td>
+                        <td className="py-2 px-2 border border-slate-300 text-center text-rose-700 whitespace-nowrap">
+                          {formatCurrency(merchantStatement.balances.totalInvoicedAllTime, currency)}
+                        </td>
+                        <td className="py-2 px-2 border border-slate-300 text-center text-emerald-700 whitespace-nowrap">
+                          {formatCurrency(merchantStatement.balances.totalPaidAllTime, currency)}
+                        </td>
+                        <td className="py-2 px-2 border border-slate-300 text-center text-black whitespace-nowrap bg-slate-200/60 font-black">
+                          {formatCurrency(merchantStatement.balances.currentDebt, currency)}
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-200 font-mono-num text-[11px]">
-                      {merchantStatement.payments.length === 0 ? (
-                        <tr>
-                          <td colSpan={5} className="py-3 text-center text-slate-400 font-sans">
-                            لا توجد سندات دفعات مسجلة لهذا التاجر
-                          </td>
-                        </tr>
-                      ) : (
-                        merchantStatement.payments.map((p, idx) => (
-                          <tr key={idx} className="hover:bg-slate-50">
-                            <td className="py-1.5 px-2 font-bold text-black border-l border-slate-200">
-                              #{p.receiptNumber || '0742'}
-                            </td>
-                            <td className="py-1.5 px-2 border-l border-slate-200 text-slate-700">
-                              {p.date}
-                            </td>
-                            <td className="py-1.5 px-2 border-l border-slate-200 font-sans text-[10px] text-teal-800 font-bold">
-                              {p.paymentMethod}
-                            </td>
-                            <td className="py-1.5 px-2 border-l border-slate-200 font-sans text-[10px] text-slate-600 max-w-[180px] truncate">
-                              {p.notes || 'دفعة نقدية مسددة للحساب'}
-                            </td>
-                            <td className="py-1.5 px-2 text-left font-black text-teal-700">
-                              {formatCurrency(p.amount, currency)}
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
+                    </tfoot>
+                  )}
+                </table>
               </div>
 
               {/* Status Banner */}
@@ -1080,7 +1080,7 @@ ${b.currentDebt > 0 ? `👉 *المتبقي المطلوب سداده:* ${format
               </div>
 
               {/* Signatures */}
-              <div className="pt-6 mt-3 border-t border-dashed border-slate-300 flex justify-between text-[10px] text-slate-500">
+              <div className="pt-4 mt-2 border-t border-dashed border-slate-300 flex justify-between text-[10px] text-slate-500">
                 <div>توقيع التاجر / العميل: .......................................</div>
                 <div>توقيع الحسابات / المعتمد: .......................................</div>
               </div>
