@@ -27,6 +27,8 @@ interface MerchantsViewProps {
   onClearSelectedMerchant?: () => void;
   onOpenNewInvoiceWithMerchant?: (merchantId: string) => void;
   onOpenNewPaymentWithMerchant?: (merchantId: string) => void;
+  onEditInvoice?: (invoice: Invoice) => void;
+  onEditPayment?: (payment: Payment) => void;
   onPrintInvoice?: (invoice: Invoice) => void;
   onPrintPayment?: (payment: Payment) => void;
   onPrintMerchantStatement?: (statementData: MerchantStatementPrintData) => void;
@@ -37,6 +39,8 @@ export const MerchantsView: React.FC<MerchantsViewProps> = ({
   onClearSelectedMerchant,
   onOpenNewInvoiceWithMerchant,
   onOpenNewPaymentWithMerchant,
+  onEditInvoice,
+  onEditPayment,
   onPrintInvoice,
   onPrintPayment,
   onPrintMerchantStatement
@@ -800,8 +804,33 @@ export const MerchantsView: React.FC<MerchantsViewProps> = ({
                           </div>
                         </div>
 
-                        {/* User Requested: Print Individual Operation Button */}
+                        {/* User Requested: Edit & Print Individual Operation Button */}
                         <div className="flex items-center gap-1 shrink-0">
+                          {isInv && onEditInvoice && (
+                            <button
+                              onClick={() => {
+                                const rawInv = tx.rawInvoice || invoices.find(i => i.id === tx.id);
+                                if (rawInv) onEditInvoice(rawInv);
+                              }}
+                              title="تعديل الفاتورة"
+                              className="p-1.5 sm:p-2 rounded-xl text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/40 transition-all"
+                            >
+                              <Edit3 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                          {!isInv && onEditPayment && (
+                            <button
+                              onClick={() => {
+                                const rawPay = tx.rawPayment || payments.find(p => p.id === tx.id);
+                                if (rawPay) onEditPayment(rawPay);
+                              }}
+                              title="تعديل سند القبض"
+                              className="p-1.5 sm:p-2 rounded-xl text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/40 transition-all"
+                            >
+                              <Edit3 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+
                           <button
                             onClick={() => {
                               if (isInv && tx.rawInvoice && onPrintInvoice) {
@@ -889,6 +918,16 @@ export const MerchantsView: React.FC<MerchantsViewProps> = ({
                           </div>
 
                           <div className="flex items-center gap-1.5">
+                            {onEditInvoice && (
+                              <button
+                                onClick={() => onEditInvoice(inv)}
+                                className="p-1.5 sm:p-2 rounded-xl text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/40 transition-all"
+                                title="تعديل الفاتورة"
+                              >
+                                <Edit3 className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+
                             <button
                               onClick={() => onPrintInvoice && onPrintInvoice(inv)}
                               className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center gap-1 shadow-xs transition-colors"
@@ -962,6 +1001,16 @@ export const MerchantsView: React.FC<MerchantsViewProps> = ({
                         </div>
 
                         <div className="flex items-center gap-1.5">
+                          {onEditPayment && (
+                            <button
+                              onClick={() => onEditPayment(pay)}
+                              className="p-1.5 sm:p-2 rounded-xl text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/40 transition-all"
+                              title="تعديل سند القبض"
+                            >
+                              <Edit3 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+
                           <button
                             onClick={() => onPrintPayment && onPrintPayment(pay)}
                             className="px-3 py-1.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs flex items-center gap-1 shadow-xs transition-colors"

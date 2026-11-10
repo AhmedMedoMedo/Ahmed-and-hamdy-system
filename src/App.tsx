@@ -146,6 +146,8 @@ const MainLayout: React.FC = () => {
               onClearSelectedMerchant={() => setSelectedMerchantForView(null)}
               onOpenNewInvoiceWithMerchant={(mId) => handleOpenNewInvoice(mId)}
               onOpenNewPaymentWithMerchant={(mId) => handleOpenNewPayment(mId)}
+              onEditInvoice={handleEditInvoice}
+              onEditPayment={handleEditPayment}
               onPrintInvoice={(inv) => setPrintableInvoice(inv)}
               onPrintPayment={(pay) => setPrintablePayment(pay)}
               onPrintMerchantStatement={(stmt) => setPrintableMerchantStatement(stmt)}
