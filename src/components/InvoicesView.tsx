@@ -161,6 +161,16 @@ export const InvoicesView: React.FC<InvoicesViewProps> = ({
       total: 0,
     };
     setItems([...items, newItem]);
+    setTimeout(() => {
+      const element = document.getElementById(`item-card-${items.length}`);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        const qtyInput = document.getElementById(`qty-input-${items.length}`) as HTMLInputElement | null;
+        if (qtyInput) {
+          qtyInput.focus();
+        }
+      }
+    }, 100);
   };
 
   const handleRemoveItem = (idx: number) => {
@@ -664,6 +674,7 @@ export const InvoicesView: React.FC<InvoicesViewProps> = ({
                   {items.map((item, idx) => (
                     <div
                       key={item.id}
+                      id={`item-card-${idx}`}
                       className="p-2.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200/80 dark:border-slate-700/80 space-y-2"
                     >
                       {/* Product Selector with Instant 1-Letter Search / Custom Name */}
@@ -716,6 +727,7 @@ export const InvoicesView: React.FC<InvoicesViewProps> = ({
                             <Minus className="w-3 h-3" />
                           </button>
                           <input
+                            id={`qty-input-${idx}`}
                             type="number"
                             step="any"
                             min="0"

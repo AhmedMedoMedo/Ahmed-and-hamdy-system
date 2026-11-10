@@ -170,10 +170,14 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
     };
     setItems([...items, newItem]);
     setTimeout(() => {
-      const input = document.getElementById(`qty-input-${items.length}`) as HTMLInputElement | null;
-      if (input) {
-        input.focus();
-        input.select();
+      const element = document.getElementById(`item-card-${items.length}`);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        const qtyInput = document.getElementById(`qty-input-${items.length}`) as HTMLInputElement | null;
+        if (qtyInput) {
+          qtyInput.focus();
+          qtyInput.select();
+        }
       }
     }, 100);
   };
@@ -882,6 +886,7 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
                   {items.map((item, idx) => (
                     <div
                       key={item.id}
+                      id={`item-card-${idx}`}
                       className={`p-2.5 rounded-xl border space-y-2 transition-colors ${
                         !item.quantityOrdered || item.quantityOrdered === 0
                           ? 'bg-indigo-50/80 dark:bg-indigo-900/40 border-indigo-300 dark:border-indigo-600 shadow-sm'
