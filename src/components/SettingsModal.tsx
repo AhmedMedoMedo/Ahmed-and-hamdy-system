@@ -37,6 +37,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
     setStoreName,
     currentUserName,
     updateCurrentUserName,
+    updateDeviceName,
     exportDataJSON, 
     importDataJSON,
     isDarkMode,
@@ -290,12 +291,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                   />
                   <button
                     type="button"
-                    onClick={() => {
+                    onClick={async () => {
                       const clean = userNameInput.trim() || 'مستخدم غير معروف';
-                      updateCurrentUserName(clean);
-                      setUserNameInput(clean);
                       setUserNameSaved(true);
-                      showToast('تم حفظ اسم المستخدم على هذا الجهاز بنجاح');
+                      await updateDeviceName(clean);
+                      setUserNameInput(clean);
                       setTimeout(() => setUserNameSaved(false), 2500);
                     }}
                     className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-bold text-xs rounded-xl transition-all shadow-xs shrink-0 flex items-center gap-1.5"

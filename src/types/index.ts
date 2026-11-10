@@ -253,3 +253,8 @@ export interface SystemLog {
   details: string;
   timestamp: string;
 }
+
+export interface SystemSettings {
+  deviceNames?: Record<string, string>;
+  [key: string]: any;
+}

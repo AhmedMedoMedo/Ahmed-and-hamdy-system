@@ -42,7 +42,8 @@ import type {
   ExpenseCategory,
   TrashItem,
   TrashCollectionType,
-  SystemLog
+  SystemLog,
+  SystemSettings
 } from '../types';
 import { 
   getCurrentMonthKey, 
@@ -170,6 +171,7 @@ interface AppContextType {
   // Activity Log & System Operations
   currentUserName: string;
   updateCurrentUserName: (name: string) => void;
+  updateDeviceName: (newName: string) => Promise<void>;
   systemLogs: SystemLog[];
   logAction: (action: 'add' | 'edit' | 'delete' | 'login', target: string, details: string) => void;
 
@@ -244,6 +246,19 @@ const STORAGE_KEYS = {
 // Dedicated SmartScanner cloud store identifier in Firebase Firestore
 export const SMARTSCANNER_STORE_ID = 'smartscanner_main_store';
 export const SHARED_STORE_ID = SMARTSCANNER_STORE_ID;
+
+// Unique device identifier for per-device cloud name sync
+let localDeviceId = '';
+try {
+  localDeviceId = localStorage.getItem('app_device_id') || '';
+  if (!localDeviceId) {
+    localDeviceId = 'dev_' + Math.random().toString(36).substring(2, 11);
+    localStorage.setItem('app_device_id', localDeviceId);
+  }
+} catch {
+  localDeviceId = 'dev_fallback_' + Math.random().toString(36).substring(2, 9);
+}
+export { localDeviceId };
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -388,6 +403,44 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } catch {}
   }, []);
 
+  const showToast = useCallback((msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => {
+      setToastMessage(prev => prev === msg ? null : prev);
+    }, 3000);
+  }, []);
+
+  const updateDeviceName = useCallback(async (newName: string) => {
+    try {
+      const clean = newName.trim() || 'مستخدم غير معروف';
+      
+      // Update in global settings collection
+      const settingsRef = doc(db, 'settings', 'global');
+      await setDoc(settingsRef, {
+        deviceNames: {
+          [localDeviceId]: clean
+        }
+      }, { merge: true });
+
+      // Also persist in SHARED_STORE_ID config for multi-store reliability
+      setDoc(doc(db, 'stores', SHARED_STORE_ID, 'config', 'settings'), {
+        deviceNames: {
+          [localDeviceId]: clean
+        }
+      }, { merge: true }).catch(() => {});
+
+      setCurrentUserName(clean);
+      try {
+        localStorage.setItem('app_user_name', clean);
+      } catch {}
+
+      showToast('تم حفظ اسم الجهاز في السحابة بنجاح');
+    } catch (err) {
+      console.warn('Error updating device name:', err);
+      showToast('خطأ في حفظ اسم الجهاز');
+    }
+  }, [showToast]);
+
   const [systemLogs, setSystemLogs] = useState<SystemLog[]>([]);
 
   // Optimistic UI, non-blocking logAction
@@ -413,13 +466,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       console.warn('logAction error:', err);
     }
   }, [currentUserName]);
-
-  const showToast = useCallback((msg: string) => {
-    setToastMessage(msg);
-    setTimeout(() => {
-      setToastMessage(prev => prev === msg ? null : prev);
-    }, 3000);
-  }, []);
 
   // 1. Initial local load (Strictly sanitizing any mock sample data)
   useEffect(() => {
@@ -656,7 +702,45 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }, (err) => {
       console.warn("Security config listener warning:", err);
     });
-    unsubs.push(unsubSec);
+    // Real-time settings subscription for deviceNames sync
+    const settingsGlobalRef = doc(db, 'settings', 'global');
+    const unsubSettings = onSnapshot(settingsGlobalRef, (snap) => {
+      if (snap.exists()) {
+        const data = snap.data();
+        if (data.deviceNames && data.deviceNames[localDeviceId]) {
+          const cloudName = String(data.deviceNames[localDeviceId]).trim();
+          if (cloudName) {
+            setCurrentUserName(cloudName);
+            try {
+              localStorage.setItem('app_user_name', cloudName);
+            } catch {}
+          }
+        }
+      }
+    }, (err) => {
+      console.warn("Global settings listener warning:", err);
+    });
+    unsubs.push(unsubSettings);
+
+    // Also check store-specific config/settings for deviceNames
+    const storeSettingsRef = doc(db, 'stores', SHARED_STORE_ID, 'config', 'settings');
+    const unsubStoreSettings = onSnapshot(storeSettingsRef, (snap) => {
+      if (snap.exists()) {
+        const data = snap.data();
+        if (data.deviceNames && data.deviceNames[localDeviceId]) {
+          const cloudName = String(data.deviceNames[localDeviceId]).trim();
+          if (cloudName) {
+            setCurrentUserName(cloudName);
+            try {
+              localStorage.setItem('app_user_name', cloudName);
+            } catch {}
+          }
+        }
+      }
+    }, (err) => {
+      console.warn("Store settings listener warning:", err);
+    });
+    unsubs.push(unsubStoreSettings);
 
     // Real-time System Logs Subscription (last 100 entries sorted descending)
     const logsQuery = query(
@@ -2159,6 +2243,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       permanentDelete,
       currentUserName,
       updateCurrentUserName,
+      updateDeviceName,
       systemLogs,
       logAction,
     }}>
