@@ -81,6 +81,7 @@ export const ActivityLogView: React.FC = () => {
     if (target.includes('طلب')) return <Truck className="w-3.5 h-3.5 text-indigo-500" />;
     if (target.includes('منتج')) return <Package className="w-3.5 h-3.5 text-amber-500" />;
     if (target.includes('تاجر')) return <Users className="w-3.5 h-3.5 text-violet-500" />;
+    if (target.includes('شخصي')) return <UserCheck className="w-3.5 h-3.5 text-teal-500" />;
     return <FileText className="w-3.5 h-3.5 text-slate-500" />;
   };
 

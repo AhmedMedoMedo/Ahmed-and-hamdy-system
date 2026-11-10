@@ -1609,6 +1609,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       const now = new Date().toISOString();
       const id = data.id || `pc_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+      const isEdit = Boolean(data.id && personalContacts.some(item => item.id === data.id));
       const record: PersonalContact = {
         id,
         name: data.name.trim(),
@@ -1632,6 +1633,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setDoc(doc(db, 'stores', SHARED_STORE_ID, 'personal_contacts', id), record, { merge: true })
         .catch(err => console.warn('Offline Sync:', err));
 
+      logAction(
+        isEdit ? 'edit' : 'add',
+        'حساب شخصي',
+        `${isEdit ? 'تعديل جهة اتصال شخصية' : 'إضافة جهة اتصال شخصية'}: ${record.name}`
+      );
+
       triggerSuccessFeedback();
       return id;
     } catch (err) {
@@ -1643,11 +1650,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const removePersonalContact = async (id: string) => {
     try {
+      const contactToDelete = personalContacts.find(c => c.id === id);
       setPersonalContacts(prev => prev.filter(c => c.id !== id));
       setDoc(doc(db, 'stores', SHARED_STORE_ID, 'personal_contacts', id), {
         isDeleted: true,
         deletedAt: new Date().toISOString()
       }, { merge: true }).catch(err => console.warn('Offline Sync:', err));
+
+      logAction(
+        'delete',
+        'حساب شخصي',
+        `حذف جهة اتصال شخصية: ${contactToDelete ? contactToDelete.name : id}`
+      );
+
       triggerSuccessFeedback();
     } catch (err) {
       triggerErrorFeedback();
@@ -1661,6 +1676,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const now = new Date().toISOString();
       const id = data.id || `pt_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
       const monthKey = data.monthKey || getMonthKeyFromDate(data.date);
+      const isEdit = Boolean(data.id && personalTransactions.some(item => item.id === data.id));
 
       const record: PersonalTransaction = {
         id,
@@ -1688,6 +1704,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setDoc(doc(db, 'stores', SHARED_STORE_ID, 'personal_transactions', id), record, { merge: true })
         .catch(err => console.warn('Offline Sync:', err));
 
+      logAction(
+        isEdit ? 'edit' : 'add',
+        'حساب شخصي',
+        `${isEdit ? 'تعديل حركة' : 'تسجيل حركة'} بمبلغ ${record.amount} ${currency}${record.contactName ? ` (${record.contactName})` : ''}`
+      );
+
       triggerSuccessFeedback();
       return id;
     } catch (err) {
@@ -1699,11 +1721,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const removePersonalTransaction = async (id: string) => {
     try {
+      const txToDelete = personalTransactions.find(tx => tx.id === id);
       setPersonalTransactions(prev => prev.filter(tx => tx.id !== id));
       setDoc(doc(db, 'stores', SHARED_STORE_ID, 'personal_transactions', id), {
         isDeleted: true,
         deletedAt: new Date().toISOString()
       }, { merge: true }).catch(err => console.warn('Offline Sync:', err));
+
+      logAction(
+        'delete',
+        'حساب شخصي',
+        txToDelete ? `حذف حركة من الحساب الشخصي بمبلغ ${txToDelete.amount} ${currency}` : 'حذف حركة من الحساب الشخصي'
+      );
+
       triggerSuccessFeedback();
     } catch (err) {
       triggerErrorFeedback();
