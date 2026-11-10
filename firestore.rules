@@ -34,6 +34,11 @@ service cloud.firestore {
       }
     }
 
+    // Settings Collection Scope (System Settings, Device Names, Global Config)
+    match /settings/{document=**} {
+      allow read, write: if true;
+    }
+
     // User scope collections
     match /users/{userId} {
       allow read, write: if isOwner(userId);
