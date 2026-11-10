@@ -83,7 +83,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     payments, 
     expenses,
     orders,
-    pendingOrdersCount,
     setActiveTab,
     savePayment,
     removeInvoice,
@@ -474,40 +473,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <span className="text-[11px] sm:text-xs leading-tight">إيداع نقدي</span>
           <span className="text-[9px] text-teal-200 mt-0.5">إيراد وسيولة</span>
         </button>
-      </div>
-
-      {/* Work Orders Preparation Quick Access Card */}
-      <div 
-        onClick={() => onOpenNewOrder ? onOpenNewOrder() : setActiveTab('orders')}
-        className="bg-gradient-to-r from-indigo-900 to-indigo-950 dark:from-indigo-950 dark:to-slate-900 text-white rounded-2xl p-3 shadow-xs border border-indigo-800/80 cursor-pointer active:scale-99 transition-all flex items-center justify-between gap-2"
-      >
-        <div className="flex items-center gap-2.5 min-w-0">
-          <div className="w-10 h-10 rounded-xl bg-indigo-800/90 text-indigo-200 flex items-center justify-center shrink-0 border border-indigo-700">
-            <Truck className="w-5 h-5" />
-          </div>
-          <div className="min-w-0">
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <h3 className="font-bold text-sm text-white">تحضير وتسليم طلبات الشغل</h3>
-              {pendingOrdersCount > 0 ? (
-                <span className="px-2 py-0.2 rounded-full bg-amber-400 text-slate-900 text-[10px] font-black animate-pulse font-mono-num">
-                  {pendingOrdersCount} قيد التحضير
-                </span>
-              ) : (
-                <span className="px-2 py-0.2 rounded-full bg-indigo-800 text-indigo-200 text-[10px]">
-                  جاهز
-                </span>
-              )}
-            </div>
-            <p className="text-[11px] text-indigo-200 truncate mt-0.5">
-              سجل طلبيات التجار وسلمها مع إضافة الدين أو السداد فوري
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-1 text-xs text-indigo-300 font-bold shrink-0">
-          <span>فتح</span>
-          <ChevronLeft className="w-4 h-4" />
-        </div>
       </div>
 
       {/* --- DATE FILTER BAR FOR FINANCIAL STATS (يوم / أسبوع / شهر / كل الوقت) --- */}
