@@ -147,7 +147,7 @@ interface AppContextType {
 
   // Notifications
   toastMessage: string | null;
-  showToast: (msg: string) => void;
+  showToast: (msg: string, type?: string) => void;
 
   // Data management
   exportDataJSON: () => string;
@@ -429,7 +429,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } catch {}
   }, []);
 
-  const showToast = useCallback((msg: string) => {
+  const showToast = useCallback((msg: string, _type?: string) => {
     setToastMessage(msg);
     setTimeout(() => {
       setToastMessage(prev => prev === msg ? null : prev);
