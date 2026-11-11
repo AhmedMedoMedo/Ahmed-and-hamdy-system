@@ -15,15 +15,15 @@ export default defineConfig(() => {
         includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'icon.svg'],
         manifest: {
           id: '/',
-          name: 'نظام الحسابات وإدارة التجار والأرشيف الشهري',
-          short_name: 'المحاسب',
+          name: 'Ahmed And Hamdy System',
+          short_name: 'A&H System',
           description: 'نظام محاسبي متكامل وشامل لإدارة التجار، فواتير البيع والخصومات، استلام الدفعات، وأرشيف الشهور أوفلاين.',
-          start_url: './',
-          scope: './',
+          start_url: '/',
+          scope: '/',
           display: 'standalone',
           orientation: 'portrait',
           background_color: '#0f172a',
-          theme_color: '#059669',
+          theme_color: '#0f172a',
           icons: [
             {
               src: '/pwa-192x192.png',
@@ -86,7 +86,8 @@ export default defineConfig(() => {
           ],
         },
         devOptions: {
-          enabled: false,
+          enabled: true,
+          type: 'module',
         },
       }),
     ],
