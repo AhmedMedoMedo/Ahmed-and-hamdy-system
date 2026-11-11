@@ -47,7 +47,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
     isPinEnabled,
     togglePinEnabled,
     lockSystem,
-    showToast
+    showToast,
+    installPrompt,
+    promptInstall
   } = useApp();
 
   const [userNameInput, setUserNameInput] = useState(currentUserName);
@@ -142,7 +144,21 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
         </div>
 
         <div className="space-y-4 text-xs sm:text-sm">
-          
+          {installPrompt && (
+            <div className="mb-4 p-4 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl text-white shadow-lg flex flex-col sm:flex-row items-center justify-between gap-3">
+              <div>
+                <h3 className="font-bold text-sm sm:text-base">تثبيت النظام كتطبيق 📱</h3>
+                <p className="text-[11px] sm:text-xs text-indigo-100 mt-1">قم بتثبيت النظام على جهازك للوصول السريع والعمل بدون إنترنت.</p>
+              </div>
+              <button
+                onClick={promptInstall}
+                className="px-4 py-2 bg-white text-indigo-600 rounded-xl font-bold text-xs shadow-sm hover:bg-indigo-50 active:scale-95 transition-all whitespace-nowrap w-full sm:w-auto cursor-pointer"
+              >
+                تثبيت الآن
+              </button>
+            </div>
+          )}
+
           {/* Cloud Storage & Firebase */}
           <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 space-y-3">
             <div className="flex items-center justify-between">

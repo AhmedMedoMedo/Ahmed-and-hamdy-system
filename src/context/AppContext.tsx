@@ -178,6 +178,10 @@ interface AppContextType {
   // Sensory & Auditory Feedback
   triggerSuccessFeedback: () => void;
   triggerErrorFeedback: () => void;
+
+  // PWA Install Prompt
+  installPrompt: any;
+  promptInstall: () => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -385,6 +389,28 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [personalContacts, setPersonalContacts] = useState<PersonalContact[]>([]);
   const [personalTransactions, setPersonalTransactions] = useState<PersonalTransaction[]>([]);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // PWA Install Prompt State & Listener
+  const [installPrompt, setInstallPrompt] = useState<any>(null);
+
+  useEffect(() => {
+    const handleBeforeInstall = (e: any) => {
+      e.preventDefault();
+      setInstallPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', handleBeforeInstall);
+    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
+  }, []);
+
+  const promptInstall = useCallback(async () => {
+    if (installPrompt) {
+      installPrompt.prompt();
+      const { outcome } = await installPrompt.userChoice;
+      if (outcome === 'accepted') {
+        setInstallPrompt(null);
+      }
+    }
+  }, [installPrompt]);
 
   // User Name & Activity Log & Presence States
   const [currentUserName, setCurrentUserName] = useState<string>(() => {
@@ -2276,6 +2302,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       updateDeviceName,
       systemLogs,
       logAction,
+      installPrompt,
+      promptInstall,
     }}>
       {children}
     </AppContext.Provider>

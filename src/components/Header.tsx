@@ -21,7 +21,6 @@ import {
   Moon
 } from 'lucide-react';
 import { CloudAuthModal } from './CloudAuthModal';
-import { PWAInstallButton } from './PWAInstallButton';
 
 interface HeaderProps {
   onOpenSettings: () => void;
@@ -102,9 +101,6 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onTitleClick }) 
 
             {/* Right Action Buttons */}
             <div className="flex items-center gap-1.5 shrink-0">
-              {/* Install PWA Button */}
-              <PWAInstallButton />
-
               {/* Dark Mode Quick Toggle */}
               <button
                 onClick={toggleDarkMode}
