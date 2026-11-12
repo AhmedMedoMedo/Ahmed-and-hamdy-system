@@ -243,7 +243,7 @@ export const PersonalLedgerView: React.FC = () => {
       
       {/* Top Banner */}
       <div className="bg-gradient-to-r from-indigo-900 to-indigo-950 rounded-2xl p-3.5 text-white shadow-xs">
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0">
           <div>
             <div className="flex items-center gap-1.5 text-indigo-300 text-[11px] font-bold">
               <ShieldCheck className="w-3.5 h-3.5" />
@@ -252,7 +252,7 @@ export const PersonalLedgerView: React.FC = () => {
             <h2 className="text-base font-bold mt-0.5">الحساب الشخصي</h2>
           </div>
 
-          <div className="flex items-center gap-1.5 shrink-0">
+          <div className="flex flex-wrap items-center gap-2 mt-2 sm:mt-0">
             <button
               onClick={() => handleOpenContactModal()}
               className="bg-white/10 hover:bg-white/20 border border-white/20 px-2.5 py-1.5 rounded-xl text-xs font-bold text-white flex items-center gap-1"
@@ -260,22 +260,20 @@ export const PersonalLedgerView: React.FC = () => {
               <Users className="w-3.5 h-3.5" />
               <span>+ اسم</span>
             </button>
-            <div className="flex gap-2">
-              <button
-                onClick={() => handleOpenTxModal('withdraw')}
-                className="bg-rose-600 hover:bg-rose-700 px-2.5 py-1.5 rounded-xl text-xs font-bold text-white shadow-xs flex items-center gap-1 active:scale-95 transition-all"
-              >
-                <ArrowDownRight className="w-3.5 h-3.5" />
-                <span>سحب فلوس</span>
-              </button>
-              <button
-                onClick={() => handleOpenTxModal('deposit')}
-                className="bg-emerald-600 hover:bg-emerald-700 px-2.5 py-1.5 rounded-xl text-xs font-bold text-white shadow-xs flex items-center gap-1 active:scale-95 transition-all"
-              >
-                <ArrowUpRight className="w-3.5 h-3.5" />
-                <span>إضافة فلوس</span>
-              </button>
-            </div>
+            <button
+              onClick={() => handleOpenTxModal('withdraw')}
+              className="bg-rose-600 hover:bg-rose-700 px-2.5 py-1.5 rounded-xl text-xs font-bold text-white shadow-xs flex items-center gap-1 active:scale-95 transition-all"
+            >
+              <ArrowDownRight className="w-3.5 h-3.5" />
+              <span>سحب فلوس</span>
+            </button>
+            <button
+              onClick={() => handleOpenTxModal('deposit')}
+              className="bg-emerald-600 hover:bg-emerald-700 px-2.5 py-1.5 rounded-xl text-xs font-bold text-white shadow-xs flex items-center gap-1 active:scale-95 transition-all"
+            >
+              <ArrowUpRight className="w-3.5 h-3.5" />
+              <span>إضافة فلوس</span>
+            </button>
           </div>
         </div>
       </div>
