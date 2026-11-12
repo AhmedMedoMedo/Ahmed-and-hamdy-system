@@ -170,9 +170,14 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
     };
     setItems([...items, newItem]);
     setTimeout(() => {
-      const element = document.getElementById(`item-card-${items.length}`);
+      // index الصنف الجديد هو طول المصفوفة الحالية قبل التحديث
+      const newIndex = items.length; 
+      const element = document.getElementById(`item-card-${newIndex}`);
       if (element) {
+        // تمرير الشاشة ليكون الكارت في المنتصف
         element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        
+        // محاولة فتح قائمة البحث تلقائياً
         const productSelectBtn = element.querySelector('button[role="combobox"], button.text-right, input[type="text"]');
         if (productSelectBtn) {
           (productSelectBtn as HTMLElement).focus();
@@ -181,7 +186,7 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
           }
         }
       }
-    }, 100);
+    }, 150);
   };
 
   const handleRemoveItem = (idx: number) => {
