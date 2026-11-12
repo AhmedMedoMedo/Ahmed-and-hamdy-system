@@ -170,17 +170,13 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
     };
     setItems([...items, newItem]);
     setTimeout(() => {
-      // 1. التمرير الإجباري للحاوية التي بداخلها السكرول
-      const scrollContainer = document.getElementById('work-order-form') || document.querySelector('.overflow-y-auto');
-      if (scrollContainer) {
-        scrollContainer.scrollTo({ top: scrollContainer.scrollHeight + 1000, behavior: 'smooth' });
-      }
-      
-      // 2. تفعيل البحث بعد استقرار الكيبورد والشاشة
-      setTimeout(() => {
-        const newIndex = items.length; 
-        const element = document.getElementById(`item-card-${newIndex}`);
-        if (element) {
+      const newIndex = items.length; 
+      const element = document.getElementById(`item-card-${newIndex}`);
+      if (element) {
+        // رفع العنصر لأعلى الشاشة لإفساح مجال للقائمة والكيبورد
+        element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        
+        setTimeout(() => {
           const productSelectBtn = element.querySelector('button[role="combobox"], button.text-right, input[type="text"]');
           if (productSelectBtn) {
             (productSelectBtn as HTMLElement).focus();
@@ -188,8 +184,8 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
               (productSelectBtn as HTMLElement).click();
             }
           }
-        }
-      }, 150);
+        }, 50);
+      }
     }, 100);
   };
 
@@ -1048,7 +1044,6 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
                       </div>
                     </div>
                   ))}
-                  <div className="h-64 w-full shrink-0 pointer-events-none"></div>
                 </div>
 
                 <button
