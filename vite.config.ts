@@ -31,9 +31,9 @@ export default defineConfig(() => {
           dir: 'rtl',
           lang: 'ar',
           icons: [
-            { src: 'vite.svg', sizes: '192x192', type: 'image/svg+xml' },
-            { src: 'vite.svg', sizes: '512x512', type: 'image/svg+xml' },
-            { src: 'vite.svg', sizes: '512x512', type: 'image/svg+xml', purpose: 'maskable' }
+            { src: 'app-icon.png', sizes: '192x192', type: 'image/png' },
+            { src: 'app-icon.png', sizes: '512x512', type: 'image/png' },
+            { src: 'app-icon.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' }
           ]
         }
       }),
