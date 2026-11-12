@@ -66,7 +66,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onTitleClick }) 
             
             <div className="flex items-center gap-2 min-w-0">
               <img 
-                src="/app-icon.png" 
+                src={`${import.meta.env.BASE_URL}app-icon.png`} 
                 alt="Logo" 
                 className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl object-contain drop-shadow-md bg-white/5 border border-white/10" 
               />
