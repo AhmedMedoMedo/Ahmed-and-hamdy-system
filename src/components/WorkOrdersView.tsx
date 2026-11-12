@@ -173,10 +173,12 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
       const element = document.getElementById(`item-card-${items.length}`);
       if (element) {
         element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        const qtyInput = document.getElementById(`qty-input-${items.length}`) as HTMLInputElement | null;
-        if (qtyInput) {
-          qtyInput.focus();
-          qtyInput.select();
+        const productSelectBtn = element.querySelector('button[role="combobox"], button.text-right, input[type="text"]');
+        if (productSelectBtn) {
+          (productSelectBtn as HTMLElement).focus();
+          if (productSelectBtn.tagName.toLowerCase() === 'button') {
+            (productSelectBtn as HTMLElement).click();
+          }
         }
       }
     }, 100);
@@ -202,6 +204,13 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
       quantityRemaining: Math.max(0, qtyOrdered - next[idx].quantityDelivered),
     };
     setItems(next);
+    setTimeout(() => {
+      const qtyInput = document.getElementById(`qty-input-${idx}`) as HTMLInputElement;
+      if (qtyInput) {
+        qtyInput.focus();
+        qtyInput.select();
+      }
+    }, 50);
   };
 
   const handleItemChange = (idx: number, field: keyof OrderItem, value: any) => {

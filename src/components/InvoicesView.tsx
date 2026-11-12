@@ -165,9 +165,12 @@ export const InvoicesView: React.FC<InvoicesViewProps> = ({
       const element = document.getElementById(`item-card-${items.length}`);
       if (element) {
         element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        const qtyInput = document.getElementById(`qty-input-${items.length}`) as HTMLInputElement | null;
-        if (qtyInput) {
-          qtyInput.focus();
+        const productSelectBtn = element.querySelector('button[role="combobox"], button.text-right, input[type="text"]');
+        if (productSelectBtn) {
+          (productSelectBtn as HTMLElement).focus();
+          if (productSelectBtn.tagName.toLowerCase() === 'button') {
+            (productSelectBtn as HTMLElement).click();
+          }
         }
       }
     }, 100);
@@ -191,6 +194,13 @@ export const InvoicesView: React.FC<InvoicesViewProps> = ({
       total: prod.price * currentQty,
     };
     setItems(next);
+    setTimeout(() => {
+      const qtyInput = document.getElementById(`qty-input-${idx}`) as HTMLInputElement;
+      if (qtyInput) {
+        qtyInput.focus();
+        qtyInput.select();
+      }
+    }, 50);
   };
 
   const handleItemChange = (idx: number, field: keyof InvoiceItem, value: any) => {
