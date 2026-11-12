@@ -170,23 +170,27 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
     };
     setItems([...items, newItem]);
     setTimeout(() => {
-      // index الصنف الجديد هو طول المصفوفة الحالية قبل التحديث
-      const newIndex = items.length; 
-      const element = document.getElementById(`item-card-${newIndex}`);
-      if (element) {
-        // تمرير الشاشة ليكون الكارت في الأعلى
-        element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        
-        // محاولة فتح قائمة البحث تلقائياً
-        const productSelectBtn = element.querySelector('button[role="combobox"], button.text-right, input[type="text"]');
-        if (productSelectBtn) {
-          (productSelectBtn as HTMLElement).focus();
-          if (productSelectBtn.tagName.toLowerCase() === 'button') {
-            (productSelectBtn as HTMLElement).click();
+      // 1. التمرير الإجباري للحاوية التي بداخلها السكرول
+      const scrollContainer = document.getElementById('work-order-form') || document.querySelector('.overflow-y-auto');
+      if (scrollContainer) {
+        scrollContainer.scrollTo({ top: scrollContainer.scrollHeight + 1000, behavior: 'smooth' });
+      }
+      
+      // 2. تفعيل البحث بعد استقرار الكيبورد والشاشة
+      setTimeout(() => {
+        const newIndex = items.length; 
+        const element = document.getElementById(`item-card-${newIndex}`);
+        if (element) {
+          const productSelectBtn = element.querySelector('button[role="combobox"], button.text-right, input[type="text"]');
+          if (productSelectBtn) {
+            (productSelectBtn as HTMLElement).focus();
+            if (productSelectBtn.tagName.toLowerCase() === 'button') {
+              (productSelectBtn as HTMLElement).click();
+            }
           }
         }
-      }
-    }, 300);
+      }, 150);
+    }, 100);
   };
 
   const handleRemoveItem = (idx: number) => {
@@ -1044,6 +1048,7 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
                       </div>
                     </div>
                   ))}
+                  <div className="h-64 w-full shrink-0 pointer-events-none"></div>
                 </div>
 
                 <button
