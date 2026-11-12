@@ -7,7 +7,8 @@ import {
   UserCheck, 
   Users, 
   Search, 
-  Plus, 
+  ArrowDownRight, 
+  ArrowUpRight, 
   Edit3, 
   Trash2, 
   X, 
@@ -15,7 +16,6 @@ import {
   Calendar,
   Wallet,
   ShieldCheck,
-  CreditCard,
   AlertCircle,
   Clock
 } from 'lucide-react';
@@ -125,22 +125,31 @@ export const PersonalLedgerView: React.FC = () => {
   };
 
   // Open Transaction Modal
-  const handleOpenTxModal = (tx?: PersonalTransaction, preselectedContactId?: string) => {
-    if (tx) {
-      setEditingTx(tx);
-      const isDeposit = tx.type === 'deposit' || (tx.type as string) === 'loan_repaid' || (tx.type as string) === 'debt_paid' || (tx.type as string) === 'personal_income';
+  const handleOpenTxModal = (
+    type: 'withdraw' | 'deposit',
+    existing?: PersonalTransaction,
+    preselectedContactId?: string
+  ) => {
+    const resolvedType: PersonalTransactionType = type === 'deposit' ? 'deposit' : 'withdrawal';
+    if (existing) {
+      setEditingTx(existing);
+      const isDeposit =
+        existing.type === 'deposit' ||
+        (existing.type as string) === 'loan_repaid' ||
+        (existing.type as string) === 'debt_paid' ||
+        (existing.type as string) === 'personal_income';
       setTxForm({
-        contactId: tx.contactId || '',
+        contactId: existing.contactId || '',
         type: isDeposit ? 'deposit' : 'withdrawal',
-        amount: String(tx.amount),
-        date: tx.date,
-        notes: tx.notes || '',
+        amount: String(existing.amount),
+        date: existing.date,
+        notes: existing.notes || '',
       });
     } else {
       setEditingTx(null);
       setTxForm({
         contactId: preselectedContactId || (personalContacts[0]?.id || ''),
-        type: 'withdrawal',
+        type: resolvedType,
         amount: '',
         date: getTodayDateString(),
         notes: '',
@@ -251,13 +260,22 @@ export const PersonalLedgerView: React.FC = () => {
               <Users className="w-3.5 h-3.5" />
               <span>+ اسم</span>
             </button>
-            <button
-              onClick={() => handleOpenTxModal()}
-              className="bg-indigo-500 hover:bg-indigo-600 px-3 py-1.5 rounded-xl text-xs font-bold text-white shadow-xs flex items-center gap-1"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>+ حركة</span>
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={() => handleOpenTxModal('withdraw')}
+                className="bg-rose-600 hover:bg-rose-700 px-2.5 py-1.5 rounded-xl text-xs font-bold text-white shadow-xs flex items-center gap-1 active:scale-95 transition-all"
+              >
+                <ArrowDownRight className="w-3.5 h-3.5" />
+                <span>سحب فلوس</span>
+              </button>
+              <button
+                onClick={() => handleOpenTxModal('deposit')}
+                className="bg-emerald-600 hover:bg-emerald-700 px-2.5 py-1.5 rounded-xl text-xs font-bold text-white shadow-xs flex items-center gap-1 active:scale-95 transition-all"
+              >
+                <ArrowUpRight className="w-3.5 h-3.5" />
+                <span>إضافة فلوس</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -384,7 +402,14 @@ export const PersonalLedgerView: React.FC = () => {
                     </span>
 
                     <button
-                      onClick={() => handleOpenTxModal(tx)}
+                      onClick={() => {
+                        const isDeposit =
+                          tx.type === 'deposit' ||
+                          (tx.type as string) === 'loan_repaid' ||
+                          (tx.type as string) === 'debt_paid' ||
+                          (tx.type as string) === 'personal_income';
+                        handleOpenTxModal(isDeposit ? 'deposit' : 'withdraw', tx);
+                      }}
                       className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
                     >
                       <Edit3 className="w-3.5 h-3.5" />
@@ -476,12 +501,22 @@ export const PersonalLedgerView: React.FC = () => {
                   </div>
                 </div>
 
-                <button
-                  onClick={() => handleOpenTxModal(undefined, contact.id)}
-                  className="w-full py-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 text-xs font-bold transition-colors border border-indigo-100 dark:border-indigo-900/30"
-                >
-                  + تسجيل حركة لهذا الشخص
-                </button>
+                <div className="grid grid-cols-2 gap-1.5">
+                  <button
+                    onClick={() => handleOpenTxModal('withdraw', undefined, contact.id)}
+                    className="py-1.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/50 text-rose-700 dark:text-rose-300 text-xs font-bold transition-colors border border-rose-100 dark:border-rose-900/30 flex items-center justify-center gap-1"
+                  >
+                    <ArrowDownRight className="w-3.5 h-3.5" />
+                    <span>سحب فلوس</span>
+                  </button>
+                  <button
+                    onClick={() => handleOpenTxModal('deposit', undefined, contact.id)}
+                    className="py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 text-xs font-bold transition-colors border border-emerald-100 dark:border-emerald-900/30 flex items-center justify-center gap-1"
+                  >
+                    <ArrowUpRight className="w-3.5 h-3.5" />
+                    <span>إضافة فلوس</span>
+                  </button>
+                </div>
               </div>
             );
           })}
@@ -572,8 +607,20 @@ export const PersonalLedgerView: React.FC = () => {
           <div className="bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-3xl max-w-md w-full p-5 shadow-2xl border border-slate-200 dark:border-slate-800 max-h-[90vh] overflow-y-auto text-slate-900 dark:text-white">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800 mb-3">
               <h3 className="font-bold text-base text-slate-900 dark:text-white flex items-center gap-2">
-                <CreditCard className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-                <span>{editingTx ? 'تعديل حركة شخصية' : 'تسجيل حركة شخصية جديدة'}</span>
+                {txForm.type === 'deposit' ? (
+                  <ArrowUpRight className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                ) : (
+                  <ArrowDownRight className="w-5 h-5 text-rose-600 dark:text-rose-400" />
+                )}
+                <span>
+                  {editingTx
+                    ? txForm.type === 'deposit'
+                      ? 'تعديل إضافة فلوس'
+                      : 'تعديل سحب فلوس'
+                    : txForm.type === 'deposit'
+                    ? 'تسجيل إضافة فلوس'
+                    : 'تسجيل سحب فلوس'}
+                </span>
               </h3>
               <button onClick={() => setIsTxModalOpen(false)} className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
                 <X className="w-5 h-5" />
@@ -581,17 +628,6 @@ export const PersonalLedgerView: React.FC = () => {
             </div>
 
             <form onSubmit={handleSubmitTx} className="space-y-3 text-xs sm:text-sm">
-              <div>
-                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">نوع الحركة *</label>
-                <select
-                  value={txForm.type}
-                  onChange={(e) => setTxForm({ ...txForm, type: e.target.value as PersonalTransactionType })}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-indigo-500 bg-white dark:bg-slate-800 text-slate-900 dark:text-white transition-colors"
-                >
-                  <option value="withdrawal">سحب فلوس (يزيد الدين على الشخص)</option>
-                  <option value="deposit">إضافة فلوس (تنقص الدين من الشخص)</option>
-                </select>
-              </div>
 
               <div>
                 <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">الشخص المرتبط (اختياري)</label>
@@ -658,9 +694,13 @@ export const PersonalLedgerView: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  className="py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-xs transition-colors"
+                  className={`py-2.5 rounded-xl text-white font-bold text-xs shadow-xs transition-colors ${
+                    txForm.type === 'deposit'
+                      ? 'bg-emerald-600 hover:bg-emerald-700'
+                      : 'bg-rose-600 hover:bg-rose-700'
+                  }`}
                 >
-                  {editingTx ? 'حفظ التعديل' : 'تسجيل الحركة'}
+                  {editingTx ? 'حفظ التعديل' : txForm.type === 'deposit' ? 'تسجيل إضافة فلوس' : 'تسجيل سحب فلوس'}
                 </button>
               </div>
             </form>
