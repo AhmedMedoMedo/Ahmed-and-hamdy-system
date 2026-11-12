@@ -15,7 +15,6 @@ import {
   LogIn, 
   LogOut, 
   Settings, 
-  Wallet,
   RotateCcw,
   Sun,
   Moon
@@ -66,9 +65,11 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onTitleClick }) 
           <div className="flex items-center justify-between gap-2">
             
             <div className="flex items-center gap-2 min-w-0">
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 flex items-center justify-center text-white shadow-xs shrink-0">
-                <Wallet className="w-4 h-4" />
-              </div>
+              <img 
+                src="/app-icon.png" 
+                alt="Logo" 
+                className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl object-contain drop-shadow-md bg-white/5 border border-white/10" 
+              />
               <div className="min-w-0">
                 <h1 
                   onClick={onTitleClick}
