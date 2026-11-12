@@ -174,8 +174,8 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
       const newIndex = items.length; 
       const element = document.getElementById(`item-card-${newIndex}`);
       if (element) {
-        // تمرير الشاشة ليكون الكارت في المنتصف
-        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        // تمرير الشاشة ليكون الكارت في الأعلى
+        element.scrollIntoView({ behavior: 'smooth', block: 'start' });
         
         // محاولة فتح قائمة البحث تلقائياً
         const productSelectBtn = element.querySelector('button[role="combobox"], button.text-right, input[type="text"]');
@@ -186,7 +186,7 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
           }
         }
       }
-    }, 150);
+    }, 300);
   };
 
   const handleRemoveItem = (idx: number) => {
@@ -814,7 +814,7 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
               </div>
             )}
 
-            <form onSubmit={handleSubmitForm} id="work-order-form" className="flex-1 overflow-y-auto overscroll-contain space-y-3 text-xs sm:text-sm pr-1">
+            <form onSubmit={handleSubmitForm} id="work-order-form" className="flex-1 overflow-y-auto overscroll-contain space-y-3 text-xs sm:text-sm pr-1 pb-48">
               
               {/* Merchant Selector with Instant 1-Letter Search */}
               <div>

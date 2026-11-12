@@ -166,8 +166,8 @@ export const InvoicesView: React.FC<InvoicesViewProps> = ({
       const newIndex = items.length; 
       const element = document.getElementById(`item-card-${newIndex}`);
       if (element) {
-        // تمرير الشاشة ليكون الكارت في المنتصف
-        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        // تمرير الشاشة ليكون الكارت في الأعلى
+        element.scrollIntoView({ behavior: 'smooth', block: 'start' });
         
         // محاولة فتح قائمة البحث تلقائياً
         const productSelectBtn = element.querySelector('button[role="combobox"], button.text-right, input[type="text"]');
@@ -178,7 +178,7 @@ export const InvoicesView: React.FC<InvoicesViewProps> = ({
           }
         }
       }
-    }, 150);
+    }, 300);
   };
 
   const handleRemoveItem = (idx: number) => {
@@ -603,7 +603,7 @@ export const InvoicesView: React.FC<InvoicesViewProps> = ({
             )}
 
             {/* Scrollable Form Body */}
-            <form onSubmit={handleSubmitInvoice} id="mobile-invoice-form" className="flex-1 overflow-y-auto space-y-3 text-xs sm:text-sm pr-1 overscroll-contain">
+            <form onSubmit={handleSubmitInvoice} id="mobile-invoice-form" className="flex-1 overflow-y-auto space-y-3 text-xs sm:text-sm pr-1 pb-48 overscroll-contain">
               
               {/* Merchant Selection with Instant 1-Letter Search */}
               <div>
