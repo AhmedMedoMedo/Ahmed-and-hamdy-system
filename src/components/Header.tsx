@@ -11,7 +11,6 @@ import {
   ChevronLeft, 
   ChevronRight, 
   Cloud, 
-  CloudOff, 
   LogIn, 
   LogOut, 
   Settings, 
@@ -77,27 +76,6 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onTitleClick }) 
                 >
                   Ahmed And Hamdy
                 </h1>
-                
-                {/* Cloud Status Indicator Button - One click to manage cloud sync */}
-                <button 
-                  onClick={() => setIsCloudModalOpen(true)}
-                  className="flex items-center gap-1 text-[10px] hover:opacity-80 transition-opacity"
-                  title="إدارة الحفظ السحابي في فايربيز"
-                >
-                  {currentUser ? (
-                    <span className="flex items-center gap-0.5 text-emerald-600 dark:text-emerald-400 font-bold truncate">
-                      <Cloud className="w-3 h-3 shrink-0" />
-                      <span className="truncate max-w-[130px]">
-                        {currentUser.email ? currentUser.email.split('@')[0] : 'سحابي دائم'} (محفوظ)
-                      </span>
-                    </span>
-                  ) : (
-                    <span className="flex items-center gap-0.5 text-amber-600 dark:text-amber-400 font-medium bg-amber-50 dark:bg-amber-950/40 px-1 rounded">
-                      <CloudOff className="w-3 h-3 shrink-0" />
-                      <span>تخزين محلي (اضغط للربط السحابي)</span>
-                    </span>
-                  )}
-                </button>
               </div>
             </div>
 
