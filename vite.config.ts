@@ -12,83 +12,30 @@ export default defineConfig(() => {
       tailwindcss(),
       VitePWA({
         registerType: 'autoUpdate',
-        includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'icon.svg'],
-        manifest: {
-          id: '/',
-          name: 'Ahmed And Hamdy System',
-          short_name: 'A&H System',
-          description: 'نظام محاسبي متكامل وشامل لإدارة التجار، فواتير البيع والخصومات، استلام الدفعات، وأرشيف الشهور أوفلاين.',
-          start_url: './',
-          scope: './',
-          display: 'standalone',
-          orientation: 'portrait',
-          background_color: '#0f172a',
-          theme_color: '#0f172a',
-          icons: [
-            {
-              src: '/pwa-192x192.png',
-              sizes: '192x192',
-              type: 'image/png',
-              purpose: 'any',
-            },
-            {
-              src: '/pwa-512x512.png',
-              sizes: '512x512',
-              type: 'image/png',
-              purpose: 'any',
-            },
-            {
-              src: '/pwa-maskable-512x512.png',
-              sizes: '512x512',
-              type: 'image/png',
-              purpose: 'maskable',
-            },
-            {
-              src: '/icon.svg',
-              sizes: 'any',
-              type: 'image/svg+xml',
-              purpose: 'any',
-            },
-          ],
-        },
+        devOptions: { enabled: true },
         workbox: {
           maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
-          globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
-          runtimeCaching: [
-            {
-              urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
-              handler: 'CacheFirst',
-              options: {
-                cacheName: 'google-fonts-cache',
-                expiration: {
-                  maxEntries: 10,
-                  maxAgeSeconds: 60 * 60 * 24 * 365,
-                },
-                cacheableResponse: {
-                  statuses: [0, 200],
-                },
-              },
-            },
-            {
-              urlPattern: /^https:\/\/fonts\.gstatic\.com\/.*/i,
-              handler: 'CacheFirst',
-              options: {
-                cacheName: 'gstatic-fonts-cache',
-                expiration: {
-                  maxEntries: 10,
-                  maxAgeSeconds: 60 * 60 * 24 * 365,
-                },
-                cacheableResponse: {
-                  statuses: [0, 200],
-                },
-              },
-            },
-          ],
+          globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,ttf}']
         },
-        devOptions: {
-          enabled: true,
-          type: 'module',
-        },
+        manifest: {
+          id: 'ahmed-and-hamdy-accounts',
+          name: 'Ahmed and hamdy - إدارة الحسابات',
+          short_name: 'Ahmed & Hamdy',
+          description: 'نظام متكامل لإدارة الحسابات والمعاملات المالية والقيود مع العمل بدون إنترنت والمزامنة السحابية.',
+          display: 'standalone',
+          orientation: 'portrait',
+          start_url: './',
+          scope: './',
+          theme_color: '#0f172a',
+          background_color: '#0f172a',
+          dir: 'rtl',
+          lang: 'ar',
+          icons: [
+            { src: 'vite.svg', sizes: '192x192', type: 'image/svg+xml' },
+            { src: 'vite.svg', sizes: '512x512', type: 'image/svg+xml' },
+            { src: 'vite.svg', sizes: '512x512', type: 'image/svg+xml', purpose: 'maskable' }
+          ]
+        }
       }),
     ],
     resolve: {
