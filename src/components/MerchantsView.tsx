@@ -317,12 +317,18 @@ export const MerchantsView: React.FC<MerchantsViewProps> = ({
     });
 
     let runningBalance = 0;
-    return combined.map(tx => {
+    const withRunningBalance = combined.map(tx => {
       runningBalance += (tx.debit - tx.credit);
       return {
         ...tx,
         balanceAfter: runningBalance
       };
+    });
+
+    return withRunningBalance.sort((a, b) => {
+      const timeDiff = new Date(b.date).getTime() - new Date(a.date).getTime();
+      if (timeDiff !== 0) return timeDiff;
+      return (b.createdAt || '').localeCompare(a.createdAt || '');
     });
   }, [activeMerchantId, invoices, payments]);
 
