@@ -31,8 +31,8 @@ export const TopNav: React.FC<TopNavProps> = ({ showSecretTabs = false }) => {
   const tabs = [
     { id: 'dashboard', label: 'الرئيسية', icon: LayoutDashboard },
     { id: 'orders', label: 'الطلبات', icon: Truck, badge: pendingOrdersCount > 0 ? pendingOrdersCount : undefined },
-    { id: 'debts', label: 'ديون التجار', icon: AlertCircle, badge: debtorMerchantsCount > 0 ? debtorMerchantsCount : undefined },
     { id: 'personal', label: 'شخصي', icon: UserCheck },
+    { id: 'debts', label: 'ديون التجار', icon: AlertCircle, badge: debtorMerchantsCount > 0 ? debtorMerchantsCount : undefined },
     { id: 'merchants', label: 'التجار', icon: Users },
     { id: 'invoices', label: 'الفواتير', icon: FileText },
     { id: 'payments', label: 'الدفعات', icon: HandCoins },
