@@ -154,19 +154,41 @@ export const PrintModal: React.FC<PrintModalProps> = ({
 
   if (!effectiveInvoice && !payment && !expense && !merchantStatement) return null;
 
-  // Format date and time in authentic Egyptian commercial style
-  const getFormattedDateTime = (dateStr: string) => {
-    try {
-      const now = new Date();
-      const hours = now.getHours();
-      const mins = now.getMinutes().toString().padStart(2, '0');
-      const period = hours >= 12 ? 'م' : 'ص';
-      const formattedHours = (hours % 12 || 12).toString().padStart(2, '0');
-      const timeStr = `في ${formattedHours}:${mins} ${period}`;
-      return `${formatDateArabic(dateStr)} ${timeStr}`;
-    } catch {
-      return formatDateArabic(dateStr);
+  // Format a Date object's time in authentic Egyptian 12h commercial style
+  const formatArabicTime = (d: Date) => {
+    const hours = d.getHours();
+    const mins = d.getMinutes().toString().padStart(2, '0');
+    const period = hours >= 12 ? 'م' : 'ص';
+    const formattedHours = (hours % 12 || 12).toString().padStart(2, '0');
+    return `في ${formattedHours}:${mins} ${period}`;
+  };
+
+  // Format actual document date (and its own recorded time if available, never current time)
+  const formatDocumentDateTime = (dateStr: string, createdAt?: string) => {
+    const cleanDate = dateStr ? dateStr.slice(0, 10) : '';
+    const arabicDate = formatDateArabic(cleanDate);
+    if (createdAt) {
+      const parsed = new Date(createdAt);
+      if (!isNaN(parsed.getTime())) {
+        const y = parsed.getFullYear();
+        const m = String(parsed.getMonth() + 1).padStart(2, '0');
+        const day = String(parsed.getDate()).padStart(2, '0');
+        const createdDateOnly = `${y}-${m}-${day}`;
+        if (!cleanDate || createdDateOnly === cleanDate) {
+          return `${arabicDate || formatDateArabic(createdDateOnly)} ${formatArabicTime(parsed)}`;
+        }
+      }
     }
+    return arabicDate;
+  };
+
+  // Format current print date & time using new Date() for document footer
+  const formatPrintNowDateTime = () => {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    return `${formatDateArabic(`${y}-${m}-${day}`)} ${formatArabicTime(now)}`;
   };
 
   const handlePrint = () => {
@@ -251,7 +273,7 @@ ${paymentNewDebt > 0 ? `👉 *الباقي عليك للحساب:* ${formatCurre
 ----------------------------------------
 👤 *التاجر:* ${m.name}
 📱 *الهاتف:* ${m.phone || 'غير مسجل'}
-📅 *تاريخ التقرير:* ${formatDateArabic(merchantStatement.generatedAt || new Date().toISOString())}
+📅 *تاريخ التقرير:* ${formatDateArabic((merchantStatement.generatedAt || new Date().toISOString()).slice(0, 10))}
 ----------------------------------------
 📊 *ملخص الحساب المالي:*
 • إجمالي المسحوبات (فواتير): ${formatCurrency(b.totalInvoicedAllTime, currency)} (${merchantStatement.invoices.length} فاتورة)
@@ -541,9 +563,9 @@ ${b.currentDebt > 0 ? `👉 *المتبقي المطلوب سداده:* ${format
                     <span className="font-black text-black">#{effectiveInvoice.invoiceNumber}</span>
                   </div>
                   <div className="p-1.5 flex justify-between gap-2">
-                    <span className="text-slate-500 font-sans">تاريخ الحركة:</span>
+                    <span className="text-slate-500 font-sans">{order && !invoice ? 'تاريخ الطلب:' : 'تاريخ الفاتورة:'}</span>
                     <span className="font-bold text-black text-[10px]">
-                      {getFormattedDateTime(effectiveInvoice.date)}
+                      {formatDocumentDateTime(effectiveInvoice.date, effectiveInvoice.createdAt)}
                     </span>
                   </div>
                 </div>
@@ -729,8 +751,8 @@ ${b.currentDebt > 0 ? `👉 *المتبقي المطلوب سداده:* ${format
               {/* Printable Footer with Signature Line */}
               <div className="pt-4 border-t border-dashed border-slate-300 flex items-center justify-between text-xs text-slate-500">
                 <div>التوقيع والختم: .......................................</div>
-                <div className="font-mono-num text-[11px]">
-                  {getFormattedDateTime(effectiveInvoice.date)}
+                <div className="font-mono-num text-[10px]">
+                  تاريخ طباعة المستند: {formatPrintNowDateTime()}
                 </div>
               </div>
 
@@ -763,7 +785,7 @@ ${b.currentDebt > 0 ? `👉 *المتبقي المطلوب سداده:* ${format
                   <div className="p-1.5 flex justify-between gap-2">
                     <span className="text-slate-500 font-sans">تاريخ ووقت التنفيذ:</span>
                     <span className="font-bold text-black text-[10px]">
-                      {getFormattedDateTime(payment.date)}
+                      {formatDocumentDateTime(payment.date, payment.createdAt)}
                     </span>
                   </div>
                 </div>
@@ -837,7 +859,7 @@ ${b.currentDebt > 0 ? `👉 *المتبقي المطلوب سداده:* ${format
               <div className="flex items-center justify-between text-[10px] text-slate-500 pt-2">
                 <div>دفعة من التاجر</div>
                 <div className="font-mono-num">
-                  تمت معاينة المستند: {getFormattedDateTime(payment.date)}
+                  تاريخ طباعة المستند: {formatPrintNowDateTime()}
                 </div>
               </div>
 
@@ -877,7 +899,7 @@ ${b.currentDebt > 0 ? `👉 *المتبقي المطلوب سداده:* ${format
                   <div className="p-1.5 flex justify-between gap-2">
                     <span className="text-slate-500 font-sans">تاريخ الصرف:</span>
                     <span className="font-bold text-black text-[10px]">
-                      {getFormattedDateTime(expense.date)}
+                      {formatDocumentDateTime(expense.date, expense.createdAt)}
                     </span>
                   </div>
                 </div>
@@ -919,8 +941,9 @@ ${b.currentDebt > 0 ? `👉 *المتبقي المطلوب سداده:* ${format
                 <div>توقيع أمين الصندوق: .......................................</div>
               </div>
 
-              <div className="text-[9px] text-slate-400 font-mono-num text-right">
-                #صرف-{expense.id.slice(-4)}
+              <div className="flex items-center justify-between text-[9px] text-slate-400 font-mono-num">
+                <span>#صرف-{expense.id.slice(-4)}</span>
+                <span>تاريخ طباعة المستند: {formatPrintNowDateTime()}</span>
               </div>
             </div>
           )}
@@ -941,7 +964,7 @@ ${b.currentDebt > 0 ? `👉 *المتبقي المطلوب سداده:* ${format
 
                 <div className="text-left font-mono-num text-[11px]">
                   <div className="font-bold text-black text-[10px]">
-                    تاريخ الطباعة: {getFormattedDateTime(merchantStatement.generatedAt || new Date().toISOString())}
+                    تاريخ التقرير: {formatDocumentDateTime(merchantStatement.generatedAt || new Date().toISOString(), merchantStatement.generatedAt)}
                   </div>
                   <div className="text-[10px] text-slate-500 font-sans mt-0.5">
                     كود: #كشف-{merchantStatement.merchant.id.slice(0, 6)}
@@ -1085,8 +1108,9 @@ ${b.currentDebt > 0 ? `👉 *المتبقي المطلوب سداده:* ${format
                 <div>توقيع الحسابات / المعتمد: .......................................</div>
               </div>
 
-              <div className="text-[9px] text-slate-400 font-mono-num text-right">
-                #كشف-{merchantStatement.merchant.id.slice(0, 6)}
+              <div className="flex items-center justify-between text-[9px] text-slate-400 font-mono-num">
+                <span>#كشف-{merchantStatement.merchant.id.slice(0, 6)}</span>
+                <span>تاريخ طباعة المستند: {formatPrintNowDateTime()}</span>
               </div>
             </div>
           )}
