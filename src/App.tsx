@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AppProvider, useApp } from './context/AppContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { Header } from './components/Header';
@@ -280,6 +280,81 @@ const MainLayout: React.FC = () => {
 
 const AppGate: React.FC = () => {
   const { isAuthenticated, role, tenantData } = useAuth();
+
+  useEffect(() => {
+    const appName =
+      role === 'tenant' && tenantData?.name
+        ? tenantData.name
+        : 'Ahmed And Hamdy';
+
+    const rawIcon =
+      role === 'tenant' && tenantData?.logoUrl
+        ? tenantData.logoUrl
+        : '/pwa-192x192.png';
+
+    const rawIcon512 =
+      role === 'tenant' && tenantData?.logoUrl
+        ? tenantData.logoUrl
+        : '/pwa-512x512.png';
+
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    const appIcon = rawIcon.startsWith('http') || rawIcon.startsWith('data:')
+      ? rawIcon
+      : `${origin}${rawIcon.startsWith('/') ? rawIcon : `/${rawIcon}`}`;
+    const appIcon512 = rawIcon512.startsWith('http') || rawIcon512.startsWith('data:')
+      ? rawIcon512
+      : `${origin}${rawIcon512.startsWith('/') ? rawIcon512 : `/${rawIcon512}`}`;
+
+    document.title = appName;
+
+    const appleTitleMeta = document.querySelector('meta[name="apple-mobile-web-app-title"]');
+    if (appleTitleMeta) {
+      appleTitleMeta.setAttribute('content', appName);
+    }
+
+    const appleTouchIcon = document.querySelector('link[rel="apple-touch-icon"]') as HTMLLinkElement | null;
+    if (appleTouchIcon) {
+      appleTouchIcon.href = role === 'tenant' && tenantData?.logoUrl ? appIcon : `${origin}/app-icon.png`;
+    }
+
+    const faviconLink = document.querySelector('link[rel="icon"]') as HTMLLinkElement | null;
+    if (faviconLink) {
+      faviconLink.href = role === 'tenant' && tenantData?.logoUrl ? appIcon : `${origin}/app-icon.png`;
+    }
+
+    const manifestObj = {
+      name: appName,
+      short_name: appName,
+      start_url: origin ? `${origin}/` : '/',
+      display: 'standalone',
+      background_color: '#0f172a',
+      theme_color: '#0f172a',
+      icons: [
+        {
+          src: appIcon,
+          sizes: '192x192',
+          type: 'image/png',
+        },
+        {
+          src: appIcon512,
+          sizes: '512x512',
+          type: 'image/png',
+        },
+      ],
+    };
+
+    const blob = new Blob([JSON.stringify(manifestObj)], { type: 'application/json' });
+    const manifestUrl = URL.createObjectURL(blob);
+
+    const manifestLink = document.querySelector('link[rel="manifest"]') as HTMLLinkElement | null;
+    if (manifestLink) {
+      manifestLink.setAttribute('href', manifestUrl);
+    }
+
+    return () => {
+      URL.revokeObjectURL(manifestUrl);
+    };
+  }, [isAuthenticated, role, tenantData]);
 
   if (!isAuthenticated) {
     return <LoginView />;
