@@ -290,20 +290,29 @@ const AppGate: React.FC = () => {
     const rawIcon =
       role === 'tenant' && tenantData?.logoUrl
         ? tenantData.logoUrl
-        : '/pwa-192x192.png';
+        : 'pwa-192x192.png';
 
     const rawIcon512 =
       role === 'tenant' && tenantData?.logoUrl
         ? tenantData.logoUrl
-        : '/pwa-512x512.png';
+        : 'pwa-512x512.png';
 
-    const origin = typeof window !== 'undefined' ? window.location.origin : '';
-    const appIcon = rawIcon.startsWith('http') || rawIcon.startsWith('data:')
-      ? rawIcon
-      : `${origin}${rawIcon.startsWith('/') ? rawIcon : `/${rawIcon}`}`;
-    const appIcon512 = rawIcon512.startsWith('http') || rawIcon512.startsWith('data:')
-      ? rawIcon512
-      : `${origin}${rawIcon512.startsWith('/') ? rawIcon512 : `/${rawIcon512}`}`;
+    const baseHref =
+      typeof window !== 'undefined'
+        ? new URL('.', document.baseURI || window.location.href).href
+        : '.';
+
+    const resolveAssetUrl = (path: string) => {
+      if (path.startsWith('http') || path.startsWith('data:')) return path;
+      const cleanPath = path.replace(/^\/+/, '');
+      return typeof window !== 'undefined'
+        ? new URL(cleanPath, baseHref).href
+        : `./${cleanPath}`;
+    };
+
+    const appIcon = resolveAssetUrl(rawIcon);
+    const appIcon512 = resolveAssetUrl(rawIcon512);
+    const defaultAppIcon = resolveAssetUrl('app-icon.png');
 
     document.title = appName;
 
@@ -314,18 +323,19 @@ const AppGate: React.FC = () => {
 
     const appleTouchIcon = document.querySelector('link[rel="apple-touch-icon"]') as HTMLLinkElement | null;
     if (appleTouchIcon) {
-      appleTouchIcon.href = role === 'tenant' && tenantData?.logoUrl ? appIcon : `${origin}/app-icon.png`;
+      appleTouchIcon.href = role === 'tenant' && tenantData?.logoUrl ? appIcon : defaultAppIcon;
     }
 
     const faviconLink = document.querySelector('link[rel="icon"]') as HTMLLinkElement | null;
     if (faviconLink) {
-      faviconLink.href = role === 'tenant' && tenantData?.logoUrl ? appIcon : `${origin}/app-icon.png`;
+      faviconLink.href = role === 'tenant' && tenantData?.logoUrl ? appIcon : defaultAppIcon;
     }
 
-    const manifestObj = {
+    const dynamicManifest = {
       name: appName,
       short_name: appName,
-      start_url: origin ? `${origin}/` : '/',
+      start_url: baseHref,
+      scope: baseHref,
       display: 'standalone',
       background_color: '#0f172a',
       theme_color: '#0f172a',
@@ -343,7 +353,7 @@ const AppGate: React.FC = () => {
       ],
     };
 
-    const blob = new Blob([JSON.stringify(manifestObj)], { type: 'application/json' });
+    const blob = new Blob([JSON.stringify(dynamicManifest)], { type: 'application/json' });
     const manifestUrl = URL.createObjectURL(blob);
 
     const manifestLink = document.querySelector('link[rel="manifest"]') as HTMLLinkElement | null;
