@@ -60,6 +60,17 @@ service cloud.firestore {
       allow read, write: if true;
     }
 
+    // Global SaaS Master Auth Configuration
+    match /global_settings/{docId} {
+      allow get: if isValidId(docId);
+      allow create, update: if isValidId(docId)
+        && request.resource.data.keys().hasAll(['pin'])
+        && request.resource.data.keys().hasOnly(['pin', 'updatedAt'])
+        && request.resource.data.pin is string
+        && request.resource.data.pin.size() > 0
+        && request.resource.data.pin.size() <= 30;
+    }
+
     // User scope collections
     match /users/{userId} {
       allow read, write: if isOwner(userId);

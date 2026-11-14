@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Lock, Eye, EyeOff, LogIn, AlertCircle, Loader2, ShieldCheck } from 'lucide-react';
+import { Cloud, Lock, Eye, EyeOff, LogIn, AlertCircle, Loader2, ShieldCheck } from 'lucide-react';
 
 export const LoginView: React.FC = () => {
   const { login } = useAuth();
@@ -35,25 +35,23 @@ export const LoginView: React.FC = () => {
       dir="rtl"
     >
       {/* Subtle Ambient Glow */}
-      <div className="absolute -top-32 -right-32 w-80 h-80 rounded-full bg-emerald-600/15 blur-3xl pointer-events-none" />
-      <div className="absolute -bottom-32 -left-32 w-80 h-80 rounded-full bg-indigo-600/15 blur-3xl pointer-events-none" />
+      <div className="absolute -top-32 -right-32 w-80 h-80 rounded-full bg-indigo-600/20 blur-3xl pointer-events-none" />
+      <div className="absolute -bottom-32 -left-32 w-80 h-80 rounded-full bg-blue-600/15 blur-3xl pointer-events-none" />
 
       <div className="w-full max-w-sm relative z-10">
         <div className="bg-slate-900/95 border border-slate-800 rounded-3xl p-6 sm:p-7 shadow-2xl space-y-6">
-          {/* Brand Header */}
+          {/* Neutral SaaS Header */}
           <div className="flex flex-col items-center text-center space-y-3">
-            <img
-              src={`${import.meta.env.BASE_URL}app-icon.png`}
-              alt="Logo"
-              className="w-16 h-16 rounded-2xl object-contain drop-shadow-lg bg-white/5 border border-white/10 p-1"
-            />
+            <div className="w-16 h-16 rounded-2xl bg-indigo-500/10 border border-indigo-400/20 flex items-center justify-center shadow-lg">
+              <Cloud size={40} className="text-indigo-400" />
+            </div>
             <div>
               <h1 className="text-xl font-black text-white tracking-tight">
-                Ahmed And Hamdy
+                النظام المحاسبي السحابي
               </h1>
               <p className="text-xs text-slate-400 mt-1 flex items-center justify-center gap-1.5">
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-                <span>بوابة الدخول المحاسبية السحابية</span>
+                <ShieldCheck className="w-3.5 h-3.5 text-indigo-400" />
+                <span>بوابة الدخول الآمنة</span>
               </p>
             </div>
           </div>
@@ -84,7 +82,7 @@ export const LoginView: React.FC = () => {
                   placeholder="أدخل رمز الدخول..."
                   autoFocus
                   autoComplete="current-password"
-                  className="w-full pr-10 pl-10 py-3 rounded-2xl bg-slate-800/90 border border-slate-700 text-white placeholder:text-slate-500 text-sm font-mono-num tracking-widest focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                  className="w-full pr-10 pl-10 py-3 rounded-2xl bg-slate-800/90 border border-slate-700 text-white placeholder:text-slate-500 text-sm font-mono-num tracking-widest focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all"
                 />
                 <button
                   type="button"
@@ -100,7 +98,7 @@ export const LoginView: React.FC = () => {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 text-white font-bold text-sm shadow-lg shadow-emerald-900/30 flex items-center justify-center gap-2 transition-all active:scale-98 cursor-pointer"
+              className="w-full py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-60 text-white font-bold text-sm shadow-lg shadow-indigo-900/30 flex items-center justify-center gap-2 transition-all active:scale-98 cursor-pointer"
             >
               {isLoading ? (
                 <>

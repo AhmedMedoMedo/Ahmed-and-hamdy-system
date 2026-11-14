@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
-import { collection, getDocs, query, where } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../firebase';
 
 export type AuthRole = 'admin' | 'tenant' | null;
@@ -73,7 +73,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return { success: false, error: 'يرجى إدخال رمز الدخول السري' };
     }
 
-    if (trimmedPin === ADMIN_PIN) {
+    let masterPin = ADMIN_PIN;
+    try {
+      const masterSnap = await getDoc(doc(db, 'global_settings', 'master_auth'));
+      if (masterSnap.exists()) {
+        const storedPin = masterSnap.data()?.pin;
+        if (storedPin !== undefined && storedPin !== null && String(storedPin).trim()) {
+          masterPin = String(storedPin).trim();
+        }
+      }
+    } catch {
+      // Fallback to default master PIN if doc is unreadable/offline
+    }
+
+    if (trimmedPin === masterPin) {
       persistSession({
         isAuthenticated: true,
         role: 'admin',

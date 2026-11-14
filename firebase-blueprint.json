@@ -155,9 +155,23 @@
         "createdAt": { "type": "string" }
       },
       "required": ["name", "pin", "createdAt"]
+    },
+    "MasterAuthConfig": {
+      "title": "MasterAuthConfig",
+      "description": "Dynamic SaaS master admin login PIN configuration",
+      "type": "object",
+      "properties": {
+        "pin": { "type": "string", "maxLength": 30 },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["pin"]
     }
   },
   "firestore": {
+    "/global_settings/{docId}": {
+      "schema": "MasterAuthConfig",
+      "description": "Global SaaS configuration such as dynamic Master Admin PIN"
+    },
     "/tenants/{tenantId}": {
       "schema": "Tenant",
       "description": "SaaS subscriber tenants managed by the system admin"

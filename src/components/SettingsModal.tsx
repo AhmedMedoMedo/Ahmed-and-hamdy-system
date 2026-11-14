@@ -1,4 +1,6 @@
 import React, { useState, useRef } from 'react';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { db } from '../firebase';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
 import { 
@@ -67,11 +69,36 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, setActive
   const [isSavingPin, setIsSavingPin] = useState(false);
   const [tapCount, setTapCount] = useState(0);
   const [showSecretSection, setShowSecretSection] = useState(false);
+  const [masterPinInput, setMasterPinInput] = useState('');
+  const [isSavingMasterPin, setIsSavingMasterPin] = useState(false);
+  const [masterPinSaved, setMasterPinSaved] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   React.useEffect(() => {
     setNewPinValue(systemPin);
   }, [systemPin]);
+
+  React.useEffect(() => {
+    if (role !== 'admin' || !showSecretSection) return;
+    let active = true;
+    const loadMasterPin = async () => {
+      try {
+        const snap = await getDoc(doc(db, 'global_settings', 'master_auth'));
+        if (!active) return;
+        if (snap.exists() && snap.data()?.pin) {
+          setMasterPinInput(String(snap.data().pin));
+        } else {
+          setMasterPinInput('2026');
+        }
+      } catch {
+        if (active) setMasterPinInput('2026');
+      }
+    };
+    loadMasterPin();
+    return () => {
+      active = false;
+    };
+  }, [role, showSecretSection]);
 
   const handleGoogleAuth = async () => {
     try {
@@ -422,32 +449,104 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, setActive
             </>
           )}
 
-          {/* Admin-Only Tenants Management Entry (Secret 5-tap unlock) */}
+          {/* Admin-Only SaaS Master PIN & Tenants Management Entry (Secret 5-tap unlock) */}
           {role === 'admin' && showSecretSection && (
-            <div className="p-4 rounded-xl bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/40 dark:to-orange-950/30 border border-amber-200 dark:border-amber-800/70 space-y-2.5">
-              <div className="flex items-center justify-between">
-                <span className="font-bold text-amber-900 dark:text-amber-300 flex items-center gap-2">
-                  <Crown className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-                  <span>إدارة المشتركين (SaaS)</span>
-                </span>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-200/70 dark:bg-amber-900/60 text-amber-900 dark:text-amber-200">
-                  مدير النظام
-                </span>
+            <div className="space-y-3">
+              {/* SaaS Master Admin PIN Card (Independent from local lock PIN) */}
+              <div className="p-4 rounded-xl bg-gradient-to-r from-indigo-50 to-slate-50 dark:from-indigo-950/40 dark:to-slate-900 border border-indigo-200 dark:border-indigo-800/70 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-indigo-950 dark:text-indigo-200 flex items-center gap-2">
+                    <KeyRound className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                    <span>تغيير رمز المدير (SaaS Master PIN)</span>
+                  </span>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-900/60 text-indigo-800 dark:text-indigo-200">
+                    بوابة الدخول
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-600 dark:text-slate-400">
+                  رمز الدخول الأساسي لمدير منصة الـ SaaS في شاشة تسجيل الدخول الرئيسية (مستقل تماماً عن قفل النظام المحلي).
+                </p>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    dir="ltr"
+                    maxLength={30}
+                    value={masterPinInput}
+                    onChange={(e) => {
+                      setMasterPinInput(e.target.value);
+                      setMasterPinSaved(false);
+                    }}
+                    placeholder="2026"
+                    className="flex-1 px-3 py-2 rounded-xl border border-indigo-200 dark:border-indigo-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs sm:text-sm font-mono font-bold text-center focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    disabled={isSavingMasterPin}
+                    onClick={async () => {
+                      const clean = masterPinInput.trim();
+                      if (!clean) {
+                        showToast('يرجى إدخال رمز المدير الجديد');
+                        return;
+                      }
+                      setIsSavingMasterPin(true);
+                      try {
+                        await setDoc(
+                          doc(db, 'global_settings', 'master_auth'),
+                          {
+                            pin: clean,
+                            updatedAt: new Date().toISOString(),
+                          },
+                          { merge: true }
+                        );
+                        setMasterPinSaved(true);
+                        showToast('تم حفظ رمز الدخول الأساسي للمدير بنجاح 🔐');
+                        setTimeout(() => setMasterPinSaved(false), 2500);
+                      } catch {
+                        showToast('تعذر حفظ رمز المدير في السحابة، يرجى المحاولة مرة أخرى');
+                      } finally {
+                        setIsSavingMasterPin(false);
+                      }
+                    }}
+                    className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs transition-colors shrink-0 disabled:opacity-60 flex items-center gap-1.5"
+                  >
+                    {masterPinSaved ? (
+                      <>
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-300" />
+                        <span>تم الحفظ</span>
+                      </>
+                    ) : (
+                      <span>{isSavingMasterPin ? 'جاري الحفظ...' : 'حفظ'}</span>
+                    )}
+                  </button>
+                </div>
               </div>
-              <p className="text-xs text-amber-800/80 dark:text-amber-300/80">
-                إنشاء حسابات المشتركين الجدد، تعيين رموز الدخول (PIN)، وإدارة العملاء النشطين.
-              </p>
-              <button
-                type="button"
-                onClick={() => {
-                  navigateToTab('tenants');
-                  onClose();
-                }}
-                className="w-full py-2.5 px-4 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-xs flex items-center justify-center gap-2 transition-all active:scale-98 cursor-pointer"
-              >
-                <Crown className="w-4 h-4" />
-                <span>إدارة المشتركين (لوحة التحكم)</span>
-              </button>
+
+              {/* Tenants Management Card */}
+              <div className="p-4 rounded-xl bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/40 dark:to-orange-950/30 border border-amber-200 dark:border-amber-800/70 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-amber-900 dark:text-amber-300 flex items-center gap-2">
+                    <Crown className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                    <span>إدارة المشتركين (SaaS)</span>
+                  </span>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-200/70 dark:bg-amber-900/60 text-amber-900 dark:text-amber-200">
+                    مدير النظام
+                  </span>
+                </div>
+                <p className="text-xs text-amber-800/80 dark:text-amber-300/80">
+                  إنشاء حسابات المشتركين الجدد، تعيين رموز الدخول (PIN)، وإدارة العملاء النشطين.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigateToTab('tenants');
+                    onClose();
+                  }}
+                  className="w-full py-2.5 px-4 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-xs flex items-center justify-center gap-2 transition-all active:scale-98 cursor-pointer"
+                >
+                  <Crown className="w-4 h-4" />
+                  <span>إدارة المشتركين (لوحة التحكم)</span>
+                </button>
+              </div>
             </div>
           )}
 
