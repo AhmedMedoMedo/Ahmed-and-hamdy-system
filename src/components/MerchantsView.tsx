@@ -472,8 +472,8 @@ export const MerchantsView: React.FC<MerchantsViewProps> = ({
               }`}
             >
               <div className="flex items-start justify-between gap-2 mb-2">
-                <div className="min-w-0">
-                  <h3 className="font-bold text-slate-900 dark:text-white text-sm truncate">{merchant.name}</h3>
+                <div className="min-w-0 flex-1">
+                  <h3 className="font-bold text-slate-900 dark:text-white text-xs sm:text-sm text-wrap break-words whitespace-normal">{merchant.name}</h3>
                   {merchant.phone && (
                     <div className="flex items-center gap-1 text-[11px] text-slate-500 dark:text-slate-400 mt-0.5" dir="ltr">
                       <Phone className="w-3 h-3 text-slate-400" />
@@ -673,9 +673,9 @@ export const MerchantsView: React.FC<MerchantsViewProps> = ({
             
             {/* Header */}
             <div>
-              <div className="flex items-center justify-between pb-2.5 border-b border-slate-100 dark:border-slate-800 mb-2">
-                <div className="min-w-0 pr-1">
-                  <h3 className="font-bold text-sm sm:text-base text-slate-900 dark:text-white truncate">كشف حساب: {activeMerchant.name}</h3>
+              <div className="flex items-start justify-between gap-2 pb-2.5 border-b border-slate-100 dark:border-slate-800 mb-2">
+                <div className="min-w-0 flex-1 pr-1">
+                  <h3 className="font-bold text-sm sm:text-base text-slate-900 dark:text-white text-wrap break-words whitespace-normal">كشف حساب: {activeMerchant.name}</h3>
                   <p className="text-[11px] text-slate-500 dark:text-slate-400">حركة الفواتير والدفعات وسجل الحساب التراكمي</p>
                 </div>
 
@@ -787,8 +787,8 @@ export const MerchantsView: React.FC<MerchantsViewProps> = ({
                         }`}
                       >
                         {/* الصف الأول: شارة نوع العملية والبيان يميناً، والمبلغ بخط كبير وعريض يساراً */}
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-1.5 min-w-0">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex items-center gap-1.5 min-w-0 flex-1 flex-wrap">
                             <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${
                               isInv 
                                 ? 'bg-blue-100 dark:bg-blue-900/60 text-blue-800 dark:text-blue-300' 
@@ -796,7 +796,7 @@ export const MerchantsView: React.FC<MerchantsViewProps> = ({
                             }`}>
                               {isInv ? 'فاتورة' : 'سند قبض'}
                             </span>
-                            <span className={`font-bold truncate ${isInv ? 'text-blue-900 dark:text-blue-300' : 'text-emerald-900 dark:text-emerald-300'}`}>
+                            <span className={`font-bold text-xs sm:text-sm text-wrap break-words whitespace-normal ${isInv ? 'text-blue-900 dark:text-blue-300' : 'text-emerald-900 dark:text-emerald-300'}`}>
                               {tx.title}
                             </span>
                             {Boolean(tx.excludeFromStats) && (
@@ -937,7 +937,7 @@ export const MerchantsView: React.FC<MerchantsViewProps> = ({
                         {inv.items && inv.items.length > 0 && (
                           <div className="bg-white/80 dark:bg-slate-800/80 rounded-xl p-2 border border-slate-100 dark:border-slate-800 text-[11px] text-slate-700 dark:text-slate-300">
                             <span className="font-bold text-slate-500 dark:text-slate-400 text-[10px] block mb-0.5">الأصناف ({inv.items.length}):</span>
-                            <div className="truncate">
+                            <div className="text-wrap break-words whitespace-normal leading-relaxed">
                               {inv.items.map(it => `${it.productName} (${it.quantity})`).join(' • ')}
                             </div>
                           </div>

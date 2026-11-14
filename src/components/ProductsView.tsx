@@ -180,7 +180,7 @@ export const ProductsView: React.FC<ProductsViewProps> = ({ onSellProduct }) => 
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5 flex-wrap">
-                    <h3 className="font-bold text-slate-900 dark:text-white text-sm truncate">{product.name}</h3>
+                    <h3 className="font-bold text-slate-900 dark:text-white text-xs sm:text-sm text-wrap break-words whitespace-normal">{product.name}</h3>
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
                       {product.unit}
                     </span>
@@ -195,7 +195,7 @@ export const ProductsView: React.FC<ProductsViewProps> = ({ onSellProduct }) => 
                     )}
                   </div>
                   {product.notes && (
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 line-clamp-1">{product.notes}</p>
+                    <p className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 mt-1 text-wrap break-words whitespace-normal">{product.notes}</p>
                   )}
                 </div>
 

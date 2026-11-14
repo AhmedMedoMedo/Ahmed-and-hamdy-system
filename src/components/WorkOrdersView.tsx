@@ -611,7 +611,7 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
                       onClick={() => {
                         if (onSelectMerchant) onSelectMerchant(order.merchantId);
                       }}
-                      className="font-bold text-slate-900 dark:text-white text-sm truncate hover:text-indigo-600 dark:hover:text-indigo-400 hover:underline cursor-pointer text-right"
+                      className="font-bold text-slate-900 dark:text-white text-xs sm:text-sm text-wrap break-words whitespace-normal hover:text-indigo-600 dark:hover:text-indigo-400 hover:underline cursor-pointer text-right"
                       title="فتح صفحة التاجر"
                     >
                       {order.merchantName}
@@ -662,9 +662,9 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
               {/* Items Breakdown with Remaining Counters */}
               <div className="space-y-1.5 my-2">
                 {order.items.map((it, idx) => (
-                  <div key={idx} className="p-2 bg-slate-50/70 dark:bg-slate-900/60 rounded-xl border border-slate-200/80 dark:border-slate-700/60 flex items-center justify-between text-xs">
-                    <div className="min-w-0 pr-1">
-                      <span className="font-bold text-slate-900 dark:text-slate-100 block truncate">{it.productName}</span>
+                  <div key={idx} className="p-2 bg-slate-50/70 dark:bg-slate-900/60 rounded-xl border border-slate-200/80 dark:border-slate-700/60 flex items-start justify-between gap-2 text-xs">
+                    <div className="min-w-0 flex-1 pr-1">
+                      <span className="font-bold text-slate-900 dark:text-slate-100 block text-wrap break-words whitespace-normal">{it.productName}</span>
                       <span className="text-[10px] text-slate-500 dark:text-slate-400 font-mono-num">
                         سعر الوحدة: {formatCurrency(it.unitPrice, currency)}
                       </span>
@@ -704,7 +704,7 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
               </div>
 
               {order.notes && (
-                <div className="text-[10px] text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-900/60 p-1.5 rounded-lg mb-2 border border-slate-100 dark:border-slate-800">
+                <div className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-900/60 p-1.5 rounded-lg mb-2 border border-slate-100 dark:border-slate-800 text-wrap break-words whitespace-normal">
                   ملاحظات: {order.notes}
                 </div>
               )}
@@ -1193,10 +1193,10 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/60 backdrop-blur-xs">
           <div className="bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-3xl max-w-lg w-full p-4 sm:p-5 shadow-2xl border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white flex flex-col max-h-[85vh] sm:max-h-[90vh] overflow-hidden">
             
-            <div className="flex items-center justify-between pb-2.5 border-b border-slate-100 dark:border-slate-800 mb-2 shrink-0">
-              <div className="min-w-0 pr-1">
-                <h3 className="font-bold text-base text-slate-900 dark:text-white flex items-center gap-1.5 truncate">
-                  <PackageCheck className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+            <div className="flex items-start justify-between gap-2 pb-2.5 border-b border-slate-100 dark:border-slate-800 mb-2 shrink-0">
+              <div className="min-w-0 flex-1 pr-1">
+                <h3 className="font-bold text-sm sm:text-base text-slate-900 dark:text-white flex items-start gap-1.5 text-wrap break-words whitespace-normal">
+                  <PackageCheck className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
                   <span>تسليم طلب الشغل: {deliveryModalOrder.merchantName}</span>
                 </h3>
                 <p className="text-[11px] text-slate-500 dark:text-slate-400">

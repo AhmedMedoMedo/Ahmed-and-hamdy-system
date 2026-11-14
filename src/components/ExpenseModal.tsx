@@ -193,7 +193,7 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({ initialExpense, onCl
                     ) : (
                       <span>{cat.icon as string}</span>
                     )}
-                    <span className="truncate">{cat.label}</span>
+                    <span className="text-wrap break-words whitespace-normal leading-tight">{cat.label}</span>
                   </button>
                 );
               })}

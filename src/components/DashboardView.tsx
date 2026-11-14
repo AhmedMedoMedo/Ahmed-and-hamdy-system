@@ -917,7 +917,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               >
                 {/* Row 1: Main Operation Info (Right: Type + Merchant + Subtitle, Left: Amount) */}
                 <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                  <div className="flex items-start gap-2.5 min-w-0 flex-1">
                     <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 shadow-2xs ${colorConfig.iconBox}`}>
                       {isInv ? (
                         invRaw?.orderId ? <Truck className="w-4 h-4" /> : <Receipt className="w-4 h-4" />
@@ -942,20 +942,20 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                               e.stopPropagation();
                               onSelectMerchant(op.merchantId!);
                             }}
-                            className="font-bold text-slate-900 dark:text-white truncate text-xs sm:text-sm text-right hover:text-emerald-600 dark:hover:text-emerald-400 hover:underline cursor-pointer"
+                            className="font-bold text-slate-900 dark:text-white text-wrap break-words whitespace-normal text-xs sm:text-sm text-right hover:text-emerald-600 dark:hover:text-emerald-400 hover:underline cursor-pointer"
                             title="فتح صفحة وحساب التاجر"
                           >
                             {op.title}
                           </button>
                         ) : (
-                          <span className="font-bold text-slate-900 dark:text-white truncate text-xs sm:text-sm">
+                          <span className="font-bold text-slate-900 dark:text-white text-wrap break-words whitespace-normal text-xs sm:text-sm">
                             {op.title}
                           </span>
                         )}
                       </div>
 
                       {/* Document Reference / Subtitle */}
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400 font-mono-num truncate mt-0.5">
+                      <p className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 font-mono-num text-wrap break-words whitespace-normal mt-0.5">
                         {op.subTitle}
                       </p>
                     </div>

@@ -367,7 +367,7 @@ export const PersonalLedgerView: React.FC = () => {
               return (
                 <div
                   key={tx.id}
-                  className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200/80 dark:border-slate-700 p-3 shadow-2xs flex items-center justify-between gap-2 transition-colors"
+                  className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200/80 dark:border-slate-700 p-3 shadow-2xs flex items-start justify-between gap-2 transition-colors"
                 >
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5 flex-wrap">
@@ -388,7 +388,7 @@ export const PersonalLedgerView: React.FC = () => {
                       {tx.notes && (
                         <>
                           <span>•</span>
-                          <span className="text-slate-600 dark:text-slate-300 truncate">{tx.notes}</span>
+                          <span className="text-slate-600 dark:text-slate-300 text-wrap break-words whitespace-normal text-xs sm:text-sm">{tx.notes}</span>
                         </>
                       )}
                     </div>

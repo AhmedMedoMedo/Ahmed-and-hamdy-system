@@ -73,7 +73,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onTitleClick }) 
           {/* Top line: Brand + Cloud indicator + Dark Toggle + Settings */}
           <div className="flex items-center justify-between gap-2">
             
-            <div className="flex items-center gap-2 min-w-0">
+            <div className="flex items-center gap-2 min-w-0 flex-1">
               {role === 'tenant' ? (
                 <>
                   {tenantData?.logoUrl && !logoLoadError ? (
@@ -88,10 +88,10 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onTitleClick }) 
                       <Store className="w-5 h-5" />
                     </div>
                   )}
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <h1
                       onClick={onTitleClick}
-                      className="text-sm font-bold text-slate-900 dark:text-white truncate leading-tight select-none cursor-pointer active:opacity-70 transition-opacity"
+                      className="text-xs sm:text-sm md:text-base font-bold text-slate-900 dark:text-white text-right leading-tight break-words line-clamp-2 select-none cursor-pointer active:opacity-70 transition-opacity"
                     >
                       {tenantData?.name || 'نظام الحسابات'}
                     </h1>
@@ -102,12 +102,12 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onTitleClick }) 
                   <img 
                     src={`${import.meta.env.BASE_URL}app-icon.png`} 
                     alt="Logo" 
-                    className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl object-contain drop-shadow-md bg-white/5 border border-white/10" 
+                    className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl object-contain drop-shadow-md bg-white/5 border border-white/10 shrink-0" 
                   />
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <h1 
                       onClick={onTitleClick}
-                      className="text-sm font-bold text-slate-900 dark:text-white truncate leading-tight select-none cursor-pointer active:opacity-70 transition-opacity"
+                      className="text-xs sm:text-sm md:text-base font-bold text-slate-900 dark:text-white text-right leading-tight break-words line-clamp-2 select-none cursor-pointer active:opacity-70 transition-opacity"
                     >
                       Ahmed And Hamdy
                     </h1>

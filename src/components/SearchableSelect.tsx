@@ -122,8 +122,8 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
         <div className="min-w-0 flex-1 flex items-center gap-2">
           <Search className="w-3.5 h-3.5 text-slate-400 shrink-0" />
           {selectedOption ? (
-            <div className="min-w-0 flex items-center gap-1.5 flex-1">
-              <span className="font-bold text-slate-900 dark:text-white truncate">
+            <div className="min-w-0 flex items-center gap-1.5 flex-wrap flex-1">
+              <span className="font-bold text-slate-900 dark:text-white text-wrap break-words whitespace-normal text-right text-xs sm:text-sm">
                 {selectedOption.label}
               </span>
               {selectedOption.badge && (
@@ -133,7 +133,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
               )}
             </div>
           ) : (
-            <span className="text-slate-400 dark:text-slate-500 truncate">
+            <span className="text-slate-400 dark:text-slate-500 text-wrap break-words whitespace-normal text-right text-xs sm:text-sm">
               {placeholder}
             </span>
           )}
@@ -208,7 +208,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
                   >
                     <div className="min-w-0 pr-1 flex-1">
                       <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="font-bold text-xs truncate">{opt.label}</span>
+                        <span className="font-bold text-xs sm:text-sm text-wrap break-words whitespace-normal text-right">{opt.label}</span>
                         {opt.badge && (
                           <span className={`text-[10px] px-1.5 py-0.2 rounded-md font-bold font-mono-num ${
                             opt.badgeColor || 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
@@ -218,7 +218,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
                         )}
                       </div>
                       {opt.subLabel && (
-                        <span className="text-[10px] text-slate-400 dark:text-slate-500 block truncate mt-0.5 font-mono-num">
+                        <span className="text-[10px] text-slate-400 dark:text-slate-500 block text-wrap break-words whitespace-normal text-right mt-0.5 font-mono-num">
                           {opt.subLabel}
                         </span>
                       )}

@@ -285,17 +285,17 @@ export const PaymentsView: React.FC<PaymentsViewProps> = ({
             className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200/80 dark:border-slate-700 p-3.5 shadow-2xs hover:border-slate-300 dark:hover:border-slate-600 transition-all"
           >
             <div className="flex items-start justify-between gap-2">
-              <div className="flex items-start gap-2.5 min-w-0">
+              <div className="flex items-start gap-2.5 min-w-0 flex-1">
                 <div className="w-8 h-8 rounded-xl bg-teal-50 dark:bg-teal-950/50 text-teal-700 dark:text-teal-300 flex items-center justify-center shrink-0 mt-0.5">
                   <ArrowDownLeft className="w-4 h-4" />
                 </div>
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                   <button
                     type="button"
                     onClick={() => {
                       if (onSelectMerchant) onSelectMerchant(p.merchantId);
                     }}
-                    className="font-bold text-slate-900 dark:text-white text-sm truncate hover:text-teal-600 dark:hover:text-teal-400 hover:underline cursor-pointer text-right block"
+                    className="font-bold text-slate-900 dark:text-white text-xs sm:text-sm text-wrap break-words whitespace-normal hover:text-teal-600 dark:hover:text-teal-400 hover:underline cursor-pointer text-right block"
                     title="فتح صفحة التاجر"
                   >
                     {p.merchantName}
@@ -313,7 +313,7 @@ export const PaymentsView: React.FC<PaymentsViewProps> = ({
                     <span>•</span>
                     <span className="text-teal-700 dark:text-teal-400 font-bold">{p.paymentMethod}</span>
                   </div>
-                  {p.notes && <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 line-clamp-1">{p.notes}</p>}
+                  {p.notes && <p className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 mt-1 text-wrap break-words whitespace-normal">{p.notes}</p>}
                 </div>
               </div>
 

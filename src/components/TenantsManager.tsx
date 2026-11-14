@@ -469,7 +469,7 @@ export const TenantsManager: React.FC = () => {
                       onChange={() => handleTogglePermission(item.key)}
                       className="w-3.5 h-3.5 rounded text-emerald-600 focus:ring-emerald-500 shrink-0"
                     />
-                    <span className="truncate">{item.label}</span>
+                    <span className="text-wrap break-words whitespace-normal leading-tight">{item.label}</span>
                   </label>
                 );
               })}
@@ -560,8 +560,8 @@ export const TenantsManager: React.FC = () => {
                         <Building2 className="w-4 h-4" />
                       )}
                     </div>
-                    <div className="min-w-0">
-                      <h3 className="font-bold text-slate-900 dark:text-white text-sm truncate">
+                    <div className="min-w-0 flex-1">
+                      <h3 className="font-bold text-slate-900 dark:text-white text-xs sm:text-sm text-wrap break-words whitespace-normal">
                         {tenant.name}
                       </h3>
                       {tenant.createdAt && (

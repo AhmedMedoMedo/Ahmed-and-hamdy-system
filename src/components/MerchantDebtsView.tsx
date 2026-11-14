@@ -225,25 +225,25 @@ export const MerchantDebtsView: React.FC<MerchantDebtsViewProps> = ({
             >
               {/* Header: Name + Debt Amount */}
               <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                   <button
                     onClick={() => onSelectMerchant(merchant.id)}
-                    className="font-bold text-sm text-slate-900 dark:text-white hover:text-rose-600 dark:hover:text-rose-400 text-right truncate block"
+                    className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white hover:text-rose-600 dark:hover:text-rose-400 text-right text-wrap break-words whitespace-normal block"
                   >
                     {merchant.name}
                   </button>
 
-                  <div className="flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400 pt-0.5">
+                  <div className="flex items-start flex-wrap gap-2 text-[11px] text-slate-500 dark:text-slate-400 pt-0.5">
                     {merchant.phone && (
-                      <span className="flex items-center gap-1 font-mono-num" dir="ltr">
+                      <span className="flex items-center gap-1 font-mono-num shrink-0" dir="ltr">
                         <Phone className="w-3 h-3 text-slate-400" />
                         <span>{merchant.phone}</span>
                       </span>
                     )}
                     {merchant.address && (
-                      <span className="flex items-center gap-1 truncate max-w-[150px]">
-                        <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
-                        <span className="truncate">{merchant.address}</span>
+                      <span className="flex items-start gap-1 min-w-0 text-wrap break-words whitespace-normal">
+                        <MapPin className="w-3 h-3 text-slate-400 shrink-0 mt-0.5" />
+                        <span className="text-wrap break-words whitespace-normal">{merchant.address}</span>
                       </span>
                     )}
                   </div>

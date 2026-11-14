@@ -456,7 +456,7 @@ export const InvoicesView: React.FC<InvoicesViewProps> = ({
                       onClick={() => {
                         if (onSelectMerchant) onSelectMerchant(inv.merchantId);
                       }}
-                      className="font-bold text-slate-900 dark:text-white text-sm hover:text-emerald-600 dark:hover:text-emerald-400 hover:underline cursor-pointer text-right"
+                      className="font-bold text-slate-900 dark:text-white text-xs sm:text-sm text-wrap break-words whitespace-normal hover:text-emerald-600 dark:hover:text-emerald-400 hover:underline cursor-pointer text-right"
                       title="فتح صفحة التاجر"
                     >
                       {inv.merchantName}
@@ -532,8 +532,8 @@ export const InvoicesView: React.FC<InvoicesViewProps> = ({
               </div>
 
               {/* Action Buttons */}
-              <div className="pt-2 border-t border-slate-200/60 dark:border-slate-800 flex items-center justify-between gap-2 mt-2">
-                <span className="text-[10px] text-slate-400 truncate">
+              <div className="pt-2 border-t border-slate-200/60 dark:border-slate-800 flex items-start justify-between gap-2 mt-2">
+                <span className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 min-w-0 flex-1 text-wrap break-words whitespace-normal">
                   {inv.notes || `مسدد نقداً: ${formatCurrency(inv.paidAmount, currency)}`}
                 </span>
 

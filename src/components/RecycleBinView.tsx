@@ -343,21 +343,21 @@ export const RecycleBinView: React.FC = () => {
               >
                 {/* Header row */}
                 <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-center gap-2 min-w-0">
+                  <div className="flex items-start gap-2 min-w-0 flex-1">
                     <div className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 shrink-0">
                       {renderCollectionIcon(item.collectionName)}
                     </div>
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-lg border ${getBadgeStyle(item.collectionName)}`}>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-lg border shrink-0 ${getBadgeStyle(item.collectionName)}`}>
                           {item.typeLabel}
                         </span>
-                        <h4 className="font-bold text-slate-900 dark:text-white text-xs truncate">
+                        <h4 className="font-bold text-slate-900 dark:text-white text-xs sm:text-sm text-wrap break-words whitespace-normal">
                           {item.title}
                         </h4>
                       </div>
                       {item.subtitle && (
-                        <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 truncate">
+                        <p className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 mt-0.5 text-wrap break-words whitespace-normal">
                           {item.subtitle}
                         </p>
                       )}
