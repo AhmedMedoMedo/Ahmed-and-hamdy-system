@@ -53,6 +53,7 @@ export const PaymentsView: React.FC<PaymentsViewProps> = ({
     selectedMonth, 
     currency, 
     savePayment, 
+    saveExpense,
     removePayment,
     showToast 
   } = useApp();
@@ -70,6 +71,8 @@ export const PaymentsView: React.FC<PaymentsViewProps> = ({
   const [receiptNumber, setReceiptNumber] = useState('');
   const [notes, setNotes] = useState('');
   const [excludeFromStats, setExcludeFromStats] = useState(false);
+  const [isDirectExpense, setIsDirectExpense] = useState(false);
+  const [expenseReason, setExpenseReason] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
 
   // Delete modal state
@@ -100,6 +103,8 @@ export const PaymentsView: React.FC<PaymentsViewProps> = ({
       setReceiptNumber(existing.receiptNumber || '');
       setNotes(existing.notes || '');
       setExcludeFromStats(Boolean(existing.excludeFromStats));
+      setIsDirectExpense(false);
+      setExpenseReason('');
     } else {
       setEditingPayment(null);
       const chosenMerchant = preselectedMerchantId || (merchants[0]?.id || '');
@@ -110,6 +115,8 @@ export const PaymentsView: React.FC<PaymentsViewProps> = ({
       setReceiptNumber(generateReceiptNumber(payments.length));
       setNotes('');
       setExcludeFromStats(false);
+      setIsDirectExpense(false);
+      setExpenseReason('');
     }
     setIsFormOpen(true);
   };
@@ -117,6 +124,8 @@ export const PaymentsView: React.FC<PaymentsViewProps> = ({
   const handleCloseForm = () => {
     setIsFormOpen(false);
     setEditingPayment(null);
+    setIsDirectExpense(false);
+    setExpenseReason('');
     setFormError(null);
     if (onClearInitialCreate) onClearInitialCreate();
   };
@@ -141,9 +150,15 @@ export const PaymentsView: React.FC<PaymentsViewProps> = ({
       return;
     }
 
+    if (isDirectExpense && expenseReason.trim() === '') {
+      setFormError('يرجى كتابة سبب السحب أو اسم المورد للترحيل المباشر للمسحوبات');
+      return;
+    }
+
     const m = merchants.find(item => item.id === merchantId);
     const mName = m ? m.name : 'تاجر غير محدد';
     const monthKey = getMonthKeyFromDate(paymentDate);
+    const finalReceiptNumber = receiptNumber.trim() || `سند-${Date.now().toString().slice(-4)}`;
 
     try {
       await savePayment({
@@ -154,11 +169,31 @@ export const PaymentsView: React.FC<PaymentsViewProps> = ({
         date: paymentDate,
         monthKey,
         paymentMethod,
-        receiptNumber: receiptNumber.trim() || `سند-${Date.now().toString().slice(-4)}`,
+        receiptNumber: finalReceiptNumber,
         notes: notes.trim(),
         excludeFromStats,
       });
-      showToast(editingPayment ? 'تم تعديل سند القبض' : 'تم استلام الدفعة وتخفيض دين التاجر');
+
+      if (isDirectExpense && expenseReason.trim() !== '') {
+        const trimmedReason = expenseReason.trim();
+        await saveExpense({
+          title: `صرف مباشر من دفعة التاجر (${mName}): ${trimmedReason}`,
+          category: 'مصاريف عامة وتوريد',
+          amount: parsedAmount,
+          date: paymentDate,
+          monthKey,
+          paymentMethod,
+          notes: `ترحيل مباشر من سند قبض #${finalReceiptNumber} للتاجر ${mName}`,
+        });
+      }
+
+      showToast(
+        isDirectExpense && expenseReason.trim() !== ''
+          ? 'تم استلام الدفعة وترحيلها مباشرة للمسحوبات بنجاح'
+          : editingPayment
+          ? 'تم تعديل سند القبض'
+          : 'تم استلام الدفعة وتخفيض دين التاجر'
+      );
     } catch (err: any) {
       console.warn("Payment offline catch:", err);
       showToast('تم حفظ العملية محلياً (أوفلاين) وستتم المزامنة عند عودة الإنترنت');
@@ -503,13 +538,57 @@ export const PaymentsView: React.FC<PaymentsViewProps> = ({
                   type="checkbox"
                   id="pay-exclude-stats"
                   checked={excludeFromStats}
-                  onChange={(e) => setExcludeFromStats(e.target.checked)}
+                  onChange={(e) => {
+                    const checked = e.target.checked;
+                    setExcludeFromStats(checked);
+                    if (checked) setIsDirectExpense(false);
+                  }}
                   className="mt-0.5 w-4 h-4 rounded text-teal-600 focus:ring-teal-500 border-slate-300 dark:border-slate-700 cursor-pointer"
                 />
                 <label htmlFor="pay-exclude-stats" className="text-xs text-amber-900 dark:text-amber-200 font-medium cursor-pointer">
                   <span className="font-bold block">تسجيل في كشف حساب التاجر فقط</span>
                   <span className="text-[11px] text-amber-700 dark:text-amber-300">عدم الإضافة لإيرادات / إحصائيات اليوم (خصم من دين التاجر فقط دون زيادة خزينة اليوم).</span>
                 </label>
+              </div>
+
+              {/* Direct Expense / Withdrawal Transfer Checkbox */}
+              <div className="p-2.5 rounded-xl bg-rose-50/70 dark:bg-rose-950/30 border border-rose-200/80 dark:border-rose-800/60 space-y-2">
+                <div className="flex items-start gap-2">
+                  <input
+                    type="checkbox"
+                    id="pay-direct-expense"
+                    checked={isDirectExpense}
+                    onChange={(e) => {
+                      const checked = e.target.checked;
+                      setIsDirectExpense(checked);
+                      if (checked) setExcludeFromStats(false);
+                      if (formError) setFormError(null);
+                    }}
+                    className="mt-0.5 w-4 h-4 rounded text-rose-600 focus:ring-rose-500 border-slate-300 dark:border-slate-700 cursor-pointer"
+                  />
+                  <label htmlFor="pay-direct-expense" className="text-xs text-rose-900 dark:text-rose-200 font-medium cursor-pointer">
+                    <span className="font-bold block">تحويل الدفعة كمسحوبات مباشرة (دفع لمورد / مصروفات)</span>
+                    <span className="text-[11px] text-rose-700 dark:text-rose-300">
+                      تسجيل الدفعة في حساب التاجر وخصم نفس المبلغ تلقائياً كمسحوبات حتى لا تزيد عهدة الخزينة.
+                    </span>
+                  </label>
+                </div>
+
+                {isDirectExpense && (
+                  <div>
+                    <input
+                      type="text"
+                      required={isDirectExpense}
+                      placeholder="اكتب سبب السحب أو اسم المورد (مثلاً: سداد حساب خامات)..."
+                      value={expenseReason}
+                      onChange={(e) => {
+                        setExpenseReason(e.target.value);
+                        if (formError) setFormError(null);
+                      }}
+                      className="w-full px-3 py-2 rounded-xl border border-rose-200 dark:border-rose-800/70 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:border-rose-500 text-xs"
+                    />
+                  </div>
+                )}
               </div>
 
               <div className="pt-3 pb-8 sm:pb-2 border-t border-slate-100 dark:border-slate-800 grid grid-cols-2 gap-2 mb-2 sm:mb-0">
