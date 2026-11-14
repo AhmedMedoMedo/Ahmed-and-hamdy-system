@@ -31,6 +31,8 @@ import {
   Save,
   X,
   SlidersHorizontal,
+  Upload,
+  Image as ImageIcon,
 } from 'lucide-react';
 
 const PERMISSION_ITEMS: { key: keyof Required<TenantPermissions>; label: string }[] = [
@@ -149,6 +151,61 @@ export const TenantsManager: React.FC = () => {
     }));
   };
 
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result !== 'string') return;
+      const img = new Image();
+      img.onload = () => {
+        const MAX_SIZE = 256;
+        let { width, height } = img;
+
+        if (width > height) {
+          if (width > MAX_SIZE) {
+            height = Math.round((height * MAX_SIZE) / width);
+            width = MAX_SIZE;
+          }
+        } else {
+          if (height > MAX_SIZE) {
+            width = Math.round((width * MAX_SIZE) / height);
+            height = MAX_SIZE;
+          }
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, width);
+        canvas.height = Math.max(1, height);
+
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          setFormError('تعذر معالجة الصورة على هذا المتصفح');
+          return;
+        }
+
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        let compressedDataUrl = canvas.toDataURL('image/webp', 0.8);
+        if (!compressedDataUrl.startsWith('data:image/webp')) {
+          compressedDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+        }
+
+        setLogoUrl(compressedDataUrl);
+        if (formError) setFormError(null);
+      };
+      img.onerror = () => {
+        setFormError('تعذر قراءة ملف الصورة المختار، يرجى اختيار صورة صالحة');
+      };
+      img.src = reader.result;
+    };
+    reader.onerror = () => {
+      setFormError('حدث خطأ أثناء تحميل الصورة من الجهاز');
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleSubmitTenant = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
@@ -173,6 +230,10 @@ export const TenantsManager: React.FC = () => {
       setFormError('رمز الدخول مستخدم بالفعل لمشترك آخر، اختر رمزاً فريداً');
       return;
     }
+    if (trimmedLogoUrl.length > 200000) {
+      setFormError('حجم الشعار بعد الضغط كبير جداً، يرجى اختيار صورة أخرى');
+      return;
+    }
 
     setIsSubmitting(true);
     const isEditing = Boolean(editingTenantId);
@@ -182,7 +243,7 @@ export const TenantsManager: React.FC = () => {
     const payload = {
       name: trimmedName.slice(0, 100),
       pin: trimmedPin.slice(0, 30),
-      ...(trimmedLogoUrl ? { logoUrl: trimmedLogoUrl.slice(0, 500) } : {}),
+      ...(trimmedLogoUrl ? { logoUrl: trimmedLogoUrl } : {}),
       permissions: { ...permissions },
       createdAt: existingTenant?.createdAt || new Date().toISOString(),
     };
@@ -309,21 +370,49 @@ export const TenantsManager: React.FC = () => {
           </div>
 
           <div>
-            <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-              رابط اللوجو / الشعار (اختياري)
-            </label>
+            <span className="block font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+              لوجو / شعار النظام (اختياري)
+            </span>
             <input
-              type="text"
-              dir="ltr"
-              maxLength={500}
-              placeholder="https://example.com/logo.png"
-              value={logoUrl}
-              onChange={(e) => {
-                setLogoUrl(e.target.value);
-                if (formError) setFormError(null);
-              }}
-              className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white text-left focus:outline-none focus:border-emerald-500"
+              type="file"
+              accept="image/*"
+              className="hidden"
+              id="logo-upload"
+              onChange={handleImageUpload}
             />
+            <div className="flex items-center gap-3 flex-wrap">
+              <label
+                htmlFor="logo-upload"
+                className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl border border-dashed border-emerald-300 dark:border-emerald-700 bg-emerald-50/70 dark:bg-emerald-950/30 hover:bg-emerald-100/80 dark:hover:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 font-bold text-xs cursor-pointer transition-colors"
+              >
+                <Upload className="w-4 h-4 shrink-0" />
+                <span>{logoUrl ? 'تغيير صورة الشعار' : 'رفع صورة الشعار من الجهاز'}</span>
+              </label>
+
+              {logoUrl ? (
+                <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-900/80 px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700">
+                  <img
+                    src={logoUrl}
+                    alt="معاينة الشعار"
+                    className="w-12 h-12 rounded-full object-cover border border-slate-200 dark:border-slate-700 shrink-0"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setLogoUrl('')}
+                    className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-rose-50 dark:bg-rose-950/50 hover:bg-rose-100 dark:hover:bg-rose-900/60 text-rose-600 dark:text-rose-400 text-[11px] font-bold transition-colors cursor-pointer"
+                    title="حذف الصورة"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                    <span>حذف</span>
+                  </button>
+                </div>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 text-[11px] text-slate-400 dark:text-slate-500">
+                  <ImageIcon className="w-3.5 h-3.5" />
+                  <span>يتم ضغط الصورة تلقائياً لتناسب الحفظ السحابي</span>
+                </span>
+              )}
+            </div>
           </div>
 
           <div>

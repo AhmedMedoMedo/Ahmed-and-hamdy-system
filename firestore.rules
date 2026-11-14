@@ -49,7 +49,7 @@ service cloud.firestore {
         && data.name is string && data.name.size() > 0 && data.name.size() <= 100
         && data.pin is string && data.pin.size() > 0 && data.pin.size() <= 30
         && data.createdAt is string && data.createdAt.size() <= 50
-        && (!('logoUrl' in data) || (data.logoUrl is string && data.logoUrl.size() <= 500))
+        && (!('logoUrl' in data) || (data.logoUrl is string && data.logoUrl.size() <= 200000))
         && (!('permissions' in data) || isValidTenantPermissions(data.permissions));
     }
 

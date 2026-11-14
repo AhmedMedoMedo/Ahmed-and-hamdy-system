@@ -151,7 +151,7 @@
       "properties": {
         "name": { "type": "string", "maxLength": 100 },
         "pin": { "type": "string", "maxLength": 30 },
-        "logoUrl": { "type": "string", "maxLength": 500 },
+        "logoUrl": { "type": "string", "maxLength": 200000 },
         "permissions": { "type": "object" },
         "createdAt": { "type": "string" }
       },
