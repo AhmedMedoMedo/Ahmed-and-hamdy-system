@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Cloud, Lock, Eye, EyeOff, LogIn, AlertCircle, Loader2, ShieldCheck } from 'lucide-react';
+import { Lock, Eye, EyeOff, LogIn, AlertCircle, Loader2, ShieldCheck } from 'lucide-react';
 
 export const LoginView: React.FC = () => {
   const { login } = useAuth();
@@ -40,20 +40,12 @@ export const LoginView: React.FC = () => {
 
       <div className="w-full max-w-sm relative z-10">
         <div className="bg-slate-900/95 border border-slate-800 rounded-3xl p-6 sm:p-7 shadow-2xl space-y-6">
-          {/* Neutral SaaS Header */}
-          <div className="flex flex-col items-center text-center space-y-3">
-            <div className="w-16 h-16 rounded-2xl bg-indigo-500/10 border border-indigo-400/20 flex items-center justify-center shadow-lg">
-              <Cloud size={40} className="text-indigo-400" />
-            </div>
-            <div>
-              <h1 className="text-xl font-black text-white tracking-tight">
-                النظام المحاسبي السحابي
-              </h1>
-              <p className="text-xs text-slate-400 mt-1 flex items-center justify-center gap-1.5">
-                <ShieldCheck className="w-3.5 h-3.5 text-indigo-400" />
-                <span>بوابة الدخول الآمنة</span>
-              </p>
-            </div>
+          {/* Minimal Centered Header */}
+          <div className="flex items-center justify-center gap-2 text-center pt-1">
+            <ShieldCheck className="w-4 h-4 text-indigo-400 shrink-0" />
+            <span className="text-sm font-bold text-slate-200 tracking-wide">
+              بوابة الدخول الآمنة
+            </span>
           </div>
 
           {/* Error Alert */}
