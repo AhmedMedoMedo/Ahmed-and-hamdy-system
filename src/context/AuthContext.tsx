@@ -148,41 +148,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => unsubscribe();
   }, [session.isAuthenticated, session.role, session.tenantData?.id, persistSession]);
 
-  // Track tenant online/offline presence across tab visibility and app unload
+  // Track tenant online/offline presence across visibility, focus/blur, and mobile pagehide
   useEffect(() => {
     if (!session.isAuthenticated || session.role !== 'tenant' || !session.tenantData?.id) {
       return;
     }
 
-    const tenantDocRef = doc(db, 'tenants', session.tenantData.id);
+    const tenantRef = doc(db, 'tenants', session.tenantData.id);
 
-    const updatePresence = (online: boolean) => {
-      updateDoc(tenantDocRef, {
-        isOnline: online,
+    const updatePresence = (isOnline: boolean) => {
+      updateDoc(tenantRef, {
+        isOnline,
         lastActiveAt: new Date().toISOString(),
       }).catch(() => {
         // Ignore network errors while updating presence
       });
     };
 
-    if (document.visibilityState === 'visible') {
-      updatePresence(true);
-    }
+    const handleVisibility = () => updatePresence(!document.hidden);
+    const handleFocus = () => updatePresence(true);
+    const handleBlur = () => updatePresence(false);
+    const handlePageHide = () => updatePresence(false);
 
-    const handleVisibility = () => {
-      updatePresence(document.visibilityState === 'visible');
-    };
-
-    const handleUnload = () => {
-      updatePresence(false);
-    };
+    updatePresence(true);
 
     document.addEventListener('visibilitychange', handleVisibility);
-    window.addEventListener('beforeunload', handleUnload);
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('blur', handleBlur);
+    window.addEventListener('pagehide', handlePageHide);
 
     return () => {
+      updatePresence(false);
       document.removeEventListener('visibilitychange', handleVisibility);
-      window.removeEventListener('beforeunload', handleUnload);
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('blur', handleBlur);
+      window.removeEventListener('pagehide', handlePageHide);
     };
   }, [session.isAuthenticated, session.role, session.tenantData?.id]);
 
