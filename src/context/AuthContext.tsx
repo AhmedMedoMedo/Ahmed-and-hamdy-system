@@ -1,14 +1,39 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
-import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore';
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import { collection, doc, getDoc, getDocs, onSnapshot, query, where } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../firebase';
 
 export type AuthRole = 'admin' | 'tenant' | null;
+
+export interface TenantPermissions {
+  showHome?: boolean;
+  showMerchants?: boolean;
+  showWorkOrders?: boolean;
+  showPersonal?: boolean;
+  showDebts?: boolean;
+  showArchive?: boolean;
+  showActivityLog?: boolean;
+  showSettings?: boolean;
+  showCloudStatus?: boolean;
+}
+
+export const DEFAULT_TENANT_PERMISSIONS: Required<TenantPermissions> = {
+  showHome: true,
+  showMerchants: true,
+  showWorkOrders: true,
+  showPersonal: true,
+  showDebts: true,
+  showArchive: true,
+  showActivityLog: true,
+  showSettings: true,
+  showCloudStatus: true,
+};
 
 export interface TenantData {
   id: string;
   name: string;
   pin: string;
   logoUrl?: string;
+  permissions?: TenantPermissions;
   createdAt?: string;
 }
 
@@ -30,6 +55,22 @@ const AUTH_STORAGE_KEY = 'ah_saas_auth_session_v1';
 const ADMIN_PIN = '2026';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+function parseTenantPermissions(raw: unknown): TenantPermissions | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const src = raw as Record<string, unknown>;
+  return {
+    showHome: src.showHome !== false,
+    showMerchants: src.showMerchants !== false,
+    showWorkOrders: src.showWorkOrders !== false,
+    showPersonal: src.showPersonal !== false,
+    showDebts: src.showDebts !== false,
+    showArchive: src.showArchive !== false,
+    showActivityLog: src.showActivityLog !== false,
+    showSettings: src.showSettings !== false,
+    showCloudStatus: src.showCloudStatus !== false,
+  };
+}
 
 function readStoredSession(): StoredAuthSession {
   try {
@@ -66,6 +107,40 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Ignore storage quota errors
     }
   }, []);
+
+  // Keep active tenant branding & permissions synced in real-time
+  useEffect(() => {
+    if (!session.isAuthenticated || session.role !== 'tenant' || !session.tenantData?.id) {
+      return;
+    }
+
+    const tenantDocRef = doc(db, 'tenants', session.tenantData.id);
+    const unsubscribe = onSnapshot(
+      tenantDocRef,
+      (snap) => {
+        if (!snap.exists()) return;
+        const data = snap.data();
+        const updatedTenant: TenantData = {
+          id: snap.id,
+          name: String(data.name || ''),
+          pin: String(data.pin || session.tenantData?.pin || ''),
+          logoUrl: typeof data.logoUrl === 'string' && data.logoUrl.trim() ? data.logoUrl.trim() : undefined,
+          permissions: parseTenantPermissions(data.permissions),
+          createdAt: typeof data.createdAt === 'string' ? data.createdAt : session.tenantData?.createdAt,
+        };
+        persistSession({
+          isAuthenticated: true,
+          role: 'tenant',
+          tenantData: updatedTenant,
+        });
+      },
+      () => {
+        // Keep cached session if offline
+      }
+    );
+
+    return () => unsubscribe();
+  }, [session.isAuthenticated, session.role, session.tenantData?.id, persistSession]);
 
   const login = useCallback(async (pin: string): Promise<{ success: boolean; error?: string }> => {
     const trimmedPin = pin.trim();
@@ -107,6 +182,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           name: String(data.name || ''),
           pin: String(data.pin || trimmedPin),
           logoUrl: typeof data.logoUrl === 'string' && data.logoUrl.trim() ? data.logoUrl.trim() : undefined,
+          permissions: parseTenantPermissions(data.permissions),
           createdAt: typeof data.createdAt === 'string' ? data.createdAt : undefined,
         };
 

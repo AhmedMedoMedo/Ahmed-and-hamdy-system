@@ -41,6 +41,12 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onTitleClick }) 
   } = useApp();
   const { role, tenantData, logout } = useAuth();
 
+  const hasPermission = (feature: string) => {
+    if (role === 'admin') return true;
+    if (!tenantData?.permissions) return true;
+    return (tenantData.permissions as Record<string, boolean | undefined>)[feature] !== false;
+  };
+
   const [isCloudModalOpen, setIsCloudModalOpen] = useState(false);
   const [logoLoadError, setLogoLoadError] = useState(false);
   const currentRealMonth = getCurrentMonthKey();
@@ -125,34 +131,38 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onTitleClick }) 
               </button>
 
               {/* Cloud Connection / Login button */}
-              <button
-                onClick={() => setIsCloudModalOpen(true)}
-                className={`flex items-center gap-1 px-2.5 py-1 rounded-xl text-[11px] font-bold transition-all ${
-                  currentUser
-                    ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
-                    : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-2xs'
-                }`}
-              >
-                {currentUser ? (
-                  <>
-                    <Cloud className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
-                    <span>سحابي</span>
-                  </>
-                ) : (
-                  <>
-                    <LogIn className="w-3 h-3" />
-                    <span>دخول</span>
-                  </>
-                )}
-              </button>
+              {hasPermission('showCloudStatus') && (
+                <button
+                  onClick={() => setIsCloudModalOpen(true)}
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded-xl text-[11px] font-bold transition-all ${
+                    currentUser
+                      ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
+                      : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-2xs'
+                  }`}
+                >
+                  {currentUser ? (
+                    <>
+                      <Cloud className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+                      <span>سحابي</span>
+                    </>
+                  ) : (
+                    <>
+                      <LogIn className="w-3 h-3" />
+                      <span>دخول</span>
+                    </>
+                  )}
+                </button>
+              )}
 
-              <button
-                onClick={onOpenSettings}
-                className="p-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors"
-                title="الإعدادات"
-              >
-                <Settings className="w-4 h-4" />
-              </button>
+              {hasPermission('showSettings') && (
+                <button
+                  onClick={onOpenSettings}
+                  className="p-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors"
+                  title="الإعدادات"
+                >
+                  <Settings className="w-4 h-4" />
+                </button>
+              )}
 
               <button
                 onClick={logout}

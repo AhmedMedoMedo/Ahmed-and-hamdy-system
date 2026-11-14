@@ -1,5 +1,6 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useCallback } from 'react';
 import { useApp } from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
 import { 
   LayoutDashboard, 
   Users, 
@@ -20,7 +21,14 @@ interface TopNavProps {
 
 export const TopNav: React.FC<TopNavProps> = ({ showSecretTabs = false }) => {
   const { activeTab, setActiveTab, pendingOrdersCount, debtorMerchantsCount } = useApp();
+  const { role, tenantData } = useAuth();
   const navContainerRef = useRef<HTMLDivElement>(null);
+
+  const hasPermission = useCallback((feature: string) => {
+    if (role === 'admin') return true;
+    if (!tenantData?.permissions) return true;
+    return (tenantData.permissions as Record<string, boolean | undefined>)[feature] !== false;
+  }, [role, tenantData]);
 
   // Drag-to-scroll state refs
   const isDragging = useRef(false);
@@ -29,18 +37,29 @@ export const TopNav: React.FC<TopNavProps> = ({ showSecretTabs = false }) => {
   const hasDragged = useRef(false);
 
   const tabs = [
-    { id: 'dashboard', label: 'الرئيسية', icon: LayoutDashboard },
-    { id: 'orders', label: 'الطلبات', icon: Truck, badge: pendingOrdersCount > 0 ? pendingOrdersCount : undefined },
-    { id: 'personal', label: 'شخصي', icon: UserCheck },
-    { id: 'debts', label: 'ديون التجار', icon: AlertCircle, badge: debtorMerchantsCount > 0 ? debtorMerchantsCount : undefined },
-    { id: 'merchants', label: 'التجار', icon: Users },
+    { id: 'dashboard', label: 'الرئيسية', icon: LayoutDashboard, permissionKey: 'showHome' },
+    { id: 'orders', label: 'الطلبات', icon: Truck, badge: pendingOrdersCount > 0 ? pendingOrdersCount : undefined, permissionKey: 'showWorkOrders' },
+    { id: 'personal', label: 'شخصي', icon: UserCheck, permissionKey: 'showPersonal' },
+    { id: 'debts', label: 'ديون التجار', icon: AlertCircle, badge: debtorMerchantsCount > 0 ? debtorMerchantsCount : undefined, permissionKey: 'showDebts' },
+    { id: 'merchants', label: 'التجار', icon: Users, permissionKey: 'showMerchants' },
     { id: 'invoices', label: 'الفواتير', icon: FileText },
     { id: 'payments', label: 'الدفعات', icon: HandCoins },
     { id: 'products', label: 'المنتجات', icon: Package },
-    { id: 'archive', label: 'الأرشيف', icon: Archive },
-    { id: 'logs', label: 'سجل النشاط', icon: Activity },
+    { id: 'archive', label: 'الأرشيف', icon: Archive, permissionKey: 'showArchive' },
+    { id: 'logs', label: 'سجل النشاط', icon: Activity, permissionKey: 'showActivityLog' },
     { id: 'recycle_bin', label: 'المحذوفات', icon: Trash2 },
   ];
+
+  // If the current active tab is disabled by tenant permissions, move to first allowed tab
+  useEffect(() => {
+    const currentTabDef = tabs.find(t => t.id === activeTab);
+    if (currentTabDef?.permissionKey && !hasPermission(currentTabDef.permissionKey)) {
+      const firstAllowed = tabs.find(t => t.id !== 'logs' && (!t.permissionKey || hasPermission(t.permissionKey)));
+      if (firstAllowed) {
+        setActiveTab(firstAllowed.id);
+      }
+    }
+  }, [activeTab, hasPermission, setActiveTab]);
 
   // Auto-scroll active tab into view horizontally
   useEffect(() => {
@@ -121,7 +140,13 @@ export const TopNav: React.FC<TopNavProps> = ({ showSecretTabs = false }) => {
         className="max-w-md mx-auto flex items-center gap-1.5 px-2.5 pt-0.5 pb-2 overflow-x-auto no-scrollbar cursor-grab active:cursor-grabbing select-none"
       >
         {tabs.map((tab) => {
-          if (tab.id === 'logs' && !showSecretTabs) {
+          if (tab.permissionKey && !hasPermission(tab.permissionKey)) {
+            return null;
+          }
+          if (tab.id === 'logs' && role !== 'tenant' && !showSecretTabs) {
+            return null;
+          }
+          if (tab.id === 'logs' && role === 'tenant' && tenantData?.permissions?.showActivityLog === undefined && !showSecretTabs) {
             return null;
           }
 

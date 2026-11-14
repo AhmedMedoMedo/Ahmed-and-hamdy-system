@@ -7,7 +7,12 @@ import {
   onSnapshot,
 } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../firebase';
-import { useAuth, type TenantData } from '../context/AuthContext';
+import {
+  useAuth,
+  DEFAULT_TENANT_PERMISSIONS,
+  type TenantData,
+  type TenantPermissions,
+} from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
 import { formatDateArabic } from '../utils/formatters';
 import { ConfirmModal } from './ConfirmModal';
@@ -22,7 +27,23 @@ import {
   EyeOff,
   AlertCircle,
   Users,
+  Pencil,
+  Save,
+  X,
+  SlidersHorizontal,
 } from 'lucide-react';
+
+const PERMISSION_ITEMS: { key: keyof Required<TenantPermissions>; label: string }[] = [
+  { key: 'showHome', label: 'الرئيسية' },
+  { key: 'showMerchants', label: 'التجار' },
+  { key: 'showWorkOrders', label: 'الطلبات' },
+  { key: 'showPersonal', label: 'شخصي' },
+  { key: 'showDebts', label: 'ديون التجار' },
+  { key: 'showArchive', label: 'الأرشيف' },
+  { key: 'showActivityLog', label: 'سجل النشاط' },
+  { key: 'showSettings', label: 'الإعدادات (الترس)' },
+  { key: 'showCloudStatus', label: 'حالة السحابة (سحابي)' },
+];
 
 export const TenantsManager: React.FC = () => {
   const { role } = useAuth();
@@ -30,9 +51,13 @@ export const TenantsManager: React.FC = () => {
 
   const [tenants, setTenants] = useState<TenantData[]>([]);
   const [isLoadingList, setIsLoadingList] = useState(true);
+  const [editingTenantId, setEditingTenantId] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [logoUrl, setLogoUrl] = useState('');
   const [pin, setPin] = useState('');
+  const [permissions, setPermissions] = useState<Required<TenantPermissions>>({
+    ...DEFAULT_TENANT_PERMISSIONS,
+  });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [visiblePins, setVisiblePins] = useState<Record<string, boolean>>({});
@@ -47,11 +72,23 @@ export const TenantsManager: React.FC = () => {
       (snapshot) => {
         const list: TenantData[] = snapshot.docs.map((docSnap) => {
           const data = docSnap.data();
+          const rawPerms = (data.permissions || {}) as Record<string, unknown>;
           return {
             id: docSnap.id,
             name: String(data.name || ''),
             pin: String(data.pin || ''),
             logoUrl: typeof data.logoUrl === 'string' ? data.logoUrl : undefined,
+            permissions: {
+              showHome: rawPerms.showHome !== false,
+              showMerchants: rawPerms.showMerchants !== false,
+              showWorkOrders: rawPerms.showWorkOrders !== false,
+              showPersonal: rawPerms.showPersonal !== false,
+              showDebts: rawPerms.showDebts !== false,
+              showArchive: rawPerms.showArchive !== false,
+              showActivityLog: rawPerms.showActivityLog !== false,
+              showSettings: rawPerms.showSettings !== false,
+              showCloudStatus: rawPerms.showCloudStatus !== false,
+            },
             createdAt: typeof data.createdAt === 'string' ? data.createdAt : '',
           };
         });
@@ -76,7 +113,43 @@ export const TenantsManager: React.FC = () => {
     return null;
   }
 
-  const handleAddTenant = async (e: React.FormEvent) => {
+  const resetForm = () => {
+    setEditingTenantId(null);
+    setName('');
+    setLogoUrl('');
+    setPin('');
+    setPermissions({ ...DEFAULT_TENANT_PERMISSIONS });
+    setFormError(null);
+  };
+
+  const handleStartEdit = (tenant: TenantData) => {
+    setEditingTenantId(tenant.id);
+    setName(tenant.name);
+    setLogoUrl(tenant.logoUrl || '');
+    setPin(tenant.pin);
+    setPermissions({
+      showHome: tenant.permissions?.showHome !== false,
+      showMerchants: tenant.permissions?.showMerchants !== false,
+      showWorkOrders: tenant.permissions?.showWorkOrders !== false,
+      showPersonal: tenant.permissions?.showPersonal !== false,
+      showDebts: tenant.permissions?.showDebts !== false,
+      showArchive: tenant.permissions?.showArchive !== false,
+      showActivityLog: tenant.permissions?.showActivityLog !== false,
+      showSettings: tenant.permissions?.showSettings !== false,
+      showCloudStatus: tenant.permissions?.showCloudStatus !== false,
+    });
+    setFormError(null);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleTogglePermission = (key: keyof Required<TenantPermissions>) => {
+    setPermissions((prev) => ({
+      ...prev,
+      [key]: !prev[key],
+    }));
+  };
+
+  const handleSubmitTenant = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
 
@@ -96,29 +169,39 @@ export const TenantsManager: React.FC = () => {
       setFormError('هذا الرمز محجوز لمدير النظام، يرجى اختيار رمز آخر');
       return;
     }
-    if (tenants.some((t) => t.pin === trimmedPin)) {
+    if (tenants.some((t) => t.pin === trimmedPin && t.id !== editingTenantId)) {
       setFormError('رمز الدخول مستخدم بالفعل لمشترك آخر، اختر رمزاً فريداً');
       return;
     }
 
     setIsSubmitting(true);
-    const id = `tenant_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
-    const newTenant = {
+    const isEditing = Boolean(editingTenantId);
+    const existingTenant = isEditing ? tenants.find((t) => t.id === editingTenantId) : null;
+    const id = editingTenantId || `tenant_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+
+    const payload = {
       name: trimmedName.slice(0, 100),
       pin: trimmedPin.slice(0, 30),
       ...(trimmedLogoUrl ? { logoUrl: trimmedLogoUrl.slice(0, 500) } : {}),
-      createdAt: new Date().toISOString(),
+      permissions: { ...permissions },
+      createdAt: existingTenant?.createdAt || new Date().toISOString(),
     };
 
     try {
-      await setDoc(doc(db, 'tenants', id), newTenant);
-      setName('');
-      setLogoUrl('');
-      setPin('');
-      showToast(`تمت إضافة المشترك "${trimmedName}" بنجاح`);
+      await setDoc(doc(db, 'tenants', id), payload);
+      resetForm();
+      showToast(
+        isEditing
+          ? `تم تحديث بيانات وصلاحيات "${trimmedName}" بنجاح`
+          : `تمت إضافة المشترك "${trimmedName}" بنجاح`
+      );
     } catch (error) {
       try {
-        handleFirestoreError(error, OperationType.CREATE, `tenants/${id}`);
+        handleFirestoreError(
+          error,
+          isEditing ? OperationType.UPDATE : OperationType.CREATE,
+          `tenants/${id}`
+        );
       } catch {
         setFormError('تعذر حفظ المشترك في قاعدة البيانات، يرجى المحاولة مرة أخرى');
       }
@@ -134,6 +217,9 @@ export const TenantsManager: React.FC = () => {
 
     try {
       await deleteDoc(doc(db, 'tenants', target.id));
+      if (editingTenantId === target.id) {
+        resetForm();
+      }
       showToast(`تم حذف المشترك "${target.name}"`);
     } catch (error) {
       try {
@@ -146,6 +232,11 @@ export const TenantsManager: React.FC = () => {
 
   const togglePinVisibility = (id: string) => {
     setVisiblePins((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  const countEnabledPermissions = (perms?: TenantPermissions) => {
+    if (!perms) return PERMISSION_ITEMS.length;
+    return PERMISSION_ITEMS.filter((item) => perms[item.key] !== false).length;
   };
 
   return (
@@ -167,11 +258,28 @@ export const TenantsManager: React.FC = () => {
         </div>
       </div>
 
-      {/* Add Tenant Form Card */}
+      {/* Add / Edit Tenant Form Card */}
       <div className="bg-white dark:bg-slate-800/95 rounded-2xl p-4 border border-slate-200 dark:border-slate-700 shadow-2xs space-y-3">
-        <div className="flex items-center gap-2 text-xs font-bold text-slate-800 dark:text-slate-200">
-          <PlusCircle className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-          <span>إضافة مشترك جديد</span>
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 text-xs font-bold text-slate-800 dark:text-slate-200">
+            {editingTenantId ? (
+              <Pencil className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+            ) : (
+              <PlusCircle className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+            )}
+            <span>{editingTenantId ? 'تعديل بيانات وصلاحيات المشترك' : 'إضافة مشترك جديد'}</span>
+          </div>
+
+          {editingTenantId && (
+            <button
+              type="button"
+              onClick={resetForm}
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-[11px] font-bold hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
+            >
+              <X className="w-3 h-3" />
+              <span>إلغاء التعديل</span>
+            </button>
+          )}
         </div>
 
         {formError && (
@@ -181,7 +289,7 @@ export const TenantsManager: React.FC = () => {
           </div>
         )}
 
-        <form onSubmit={handleAddTenant} className="space-y-2.5 text-xs">
+        <form onSubmit={handleSubmitTenant} className="space-y-3 text-xs">
           <div>
             <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
               اسم النظام / الشركة *
@@ -236,15 +344,61 @@ export const TenantsManager: React.FC = () => {
             />
           </div>
 
+          {/* Comprehensive Top Bar & Header Permissions */}
+          <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-700 space-y-2.5">
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5 text-xs">
+                <SlidersHorizontal className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                <span>صلاحيات القائمة العلوية للمشترك</span>
+              </span>
+              <span className="text-[10px] font-mono-num font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-md border border-emerald-200/70 dark:border-emerald-800/60">
+                {PERMISSION_ITEMS.filter((it) => permissions[it.key]).length} / {PERMISSION_ITEMS.length}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {PERMISSION_ITEMS.map((item) => {
+                const checked = permissions[item.key];
+                return (
+                  <label
+                    key={item.key}
+                    className={`flex items-center gap-2 px-2.5 py-2 rounded-xl border text-[11px] font-bold cursor-pointer select-none transition-colors ${
+                      checked
+                        ? 'bg-emerald-50/80 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800/70 text-emerald-900 dark:text-emerald-200'
+                        : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => handleTogglePermission(item.key)}
+                      className="w-3.5 h-3.5 rounded text-emerald-600 focus:ring-emerald-500 shrink-0"
+                    />
+                    <span className="truncate">{item.label}</span>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white font-bold text-xs shadow-xs flex items-center justify-center gap-1.5 transition-all active:scale-98 cursor-pointer"
+            className={`w-full py-2.5 rounded-xl disabled:opacity-60 text-white font-bold text-xs shadow-xs flex items-center justify-center gap-1.5 transition-all active:scale-98 cursor-pointer ${
+              editingTenantId
+                ? 'bg-amber-600 hover:bg-amber-700'
+                : 'bg-emerald-600 hover:bg-emerald-700'
+            }`}
           >
             {isSubmitting ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
                 <span>جاري الحفظ...</span>
+              </>
+            ) : editingTenantId ? (
+              <>
+                <Save className="w-4 h-4" />
+                <span>حفظ التعديلات والصلاحيات</span>
               </>
             ) : (
               <>
@@ -281,6 +435,7 @@ export const TenantsManager: React.FC = () => {
         ) : (
           tenants.map((tenant) => {
             const isPinShown = Boolean(visiblePins[tenant.id]);
+            const enabledCount = countEnabledPermissions(tenant.permissions);
             return (
               <div
                 key={tenant.id}
@@ -311,7 +466,7 @@ export const TenantsManager: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 pt-1">
+                  <div className="flex items-center flex-wrap gap-2 pt-1">
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-[11px] font-mono-num font-bold text-slate-700 dark:text-slate-200">
                       <KeyRound className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
                       <span>PIN: {isPinShown ? tenant.pin : '••••'}</span>
@@ -324,17 +479,31 @@ export const TenantsManager: React.FC = () => {
                     >
                       {isPinShown ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                     </button>
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200/70 dark:border-emerald-800/60 text-[10px] font-bold text-emerald-700 dark:text-emerald-300 font-mono-num">
+                      <SlidersHorizontal className="w-2.5 h-2.5" />
+                      <span>{enabledCount}/{PERMISSION_ITEMS.length} صلاحيات</span>
+                    </span>
                   </div>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => setTenantToDelete(tenant)}
-                  className="p-2 rounded-xl bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/60 text-rose-600 dark:text-rose-400 transition-colors shrink-0"
-                  title="حذف المشترك"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => handleStartEdit(tenant)}
+                    className="p-2 rounded-xl bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100 dark:hover:bg-amber-900/60 text-amber-700 dark:text-amber-400 transition-colors"
+                    title="تعديل البيانات والصلاحيات"
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTenantToDelete(tenant)}
+                    className="p-2 rounded-xl bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/60 text-rose-600 dark:text-rose-400 transition-colors"
+                    title="حذف المشترك"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
             );
           })

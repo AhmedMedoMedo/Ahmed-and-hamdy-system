@@ -146,12 +146,13 @@
     },
     "Tenant": {
       "title": "Tenant",
-      "description": "SaaS subscriber tenant record with organization name, optional logo URL, and login PIN",
+      "description": "SaaS subscriber tenant record with organization name, optional logo URL, permissions, and login PIN",
       "type": "object",
       "properties": {
         "name": { "type": "string", "maxLength": 100 },
         "pin": { "type": "string", "maxLength": 30 },
         "logoUrl": { "type": "string", "maxLength": 500 },
+        "permissions": { "type": "object" },
         "createdAt": { "type": "string" }
       },
       "required": ["name", "pin", "createdAt"]
