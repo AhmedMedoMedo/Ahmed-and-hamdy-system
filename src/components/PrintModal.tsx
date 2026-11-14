@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
+import { useAuth, type TenantData } from '../context/AuthContext';
 import type { Invoice, Payment, WorkOrder, Expense, MerchantStatementPrintData } from '../types';
 import { formatCurrency, formatDateArabic } from '../utils/formatters';
 import { toPng } from 'html-to-image';
@@ -35,6 +36,38 @@ export const PrintModal: React.FC<PrintModalProps> = ({
   onClose,
 }) => {
   const { merchantBalances, storeName, currency, merchants, invoices, showToast } = useApp();
+  const { role, tenantData } = useAuth();
+
+  const resolvedTenant = useMemo<TenantData | null>(() => {
+    if (role === 'tenant' && tenantData) return tenantData;
+    try {
+      const directTenantStr = localStorage.getItem('tenantData');
+      if (directTenantStr) {
+        const parsedDirect = JSON.parse(directTenantStr);
+        if (parsedDirect?.name) return parsedDirect as TenantData;
+      }
+      const sessionRaw = localStorage.getItem('ah_saas_auth_session_v1');
+      if (sessionRaw) {
+        const parsedSession = JSON.parse(sessionRaw);
+        if (parsedSession?.role === 'tenant' && parsedSession?.tenantData) {
+          return parsedSession.tenantData as TenantData;
+        }
+      }
+    } catch {
+      // Ignore malformed storage
+    }
+    return null;
+  }, [role, tenantData]);
+
+  const effectiveBrandName = useMemo(() => {
+    if (resolvedTenant?.name) {
+      if (storeName && storeName !== 'Ahmed And Hamdy') {
+        return storeName;
+      }
+      return resolvedTenant.name;
+    }
+    return storeName || 'Ahmed And Hamdy';
+  }, [resolvedTenant, storeName]);
 
   // Resolve effective full sales invoice to print
   // If an invoice is passed directly, use it.
@@ -231,7 +264,7 @@ export const PrintModal: React.FC<PrintModalProps> = ({
   // Generate Egyptian text summary
   const getEgyptianMessageText = () => {
     if (effectiveInvoice) {
-      return `*${storeName || 'Ahmed And Hamdy'}*
+      return `*${effectiveBrandName}*
 *بيان بيع بضاعة — فاتورة رقم: #${effectiveInvoice.invoiceNumber}*
 ----------------------------------------
 👤 *التاجر/العميل:* ${effectiveInvoice.merchantName}
@@ -251,7 +284,7 @@ ${invoiceNewTotalDebt > 0 ? `👉 *المطلوب سداده بعد الفاتو
 
 شكراً لتعاملكم الراقي معنا.. تسلم وربنا يباركلك في رزقك 🙏`;
     } else if (payment) {
-      return `*${storeName || 'Ahmed And Hamdy'}*
+      return `*${effectiveBrandName}*
 *سند استلام دفعة نقدية — إيصال رقم: #${payment.receiptNumber || 'بدون رقم'}*
 ----------------------------------------
 👤 *استلمنا من التاجر:* ${payment.merchantName}
@@ -268,7 +301,7 @@ ${paymentNewDebt > 0 ? `👉 *الباقي عليك للحساب:* ${formatCurre
     } else if (merchantStatement) {
       const m = merchantStatement.merchant;
       const b = merchantStatement.balances;
-      return `*${storeName || 'Ahmed And Hamdy'}*
+      return `*${effectiveBrandName}*
 *كشف حساب تاجر معتمد — ${m.name}*
 ----------------------------------------
 👤 *التاجر:* ${m.name}
@@ -547,13 +580,22 @@ ${b.currentDebt > 0 ? `👉 *المتبقي المطلوب سداده:* ${format
               <div className="flex items-start justify-between gap-4">
                 
                 {/* Right: Company Name & System */}
-                <div>
-                  <h1 className="text-xl sm:text-2xl font-black text-black tracking-tight leading-tight">
-                    {storeName || 'Ahmed And Hamdy'}
-                  </h1>
-                  <p className="text-[11px] text-slate-600 font-medium mt-0.5">
-                    النظام المحاسبي الداخلي — بيان حركة بيع
-                  </p>
+                <div className="flex items-center gap-2.5">
+                  {resolvedTenant?.logoUrl && (
+                    <img
+                      src={resolvedTenant.logoUrl}
+                      alt={effectiveBrandName}
+                      className="w-10 h-10 rounded-full object-cover border border-slate-200 shrink-0"
+                    />
+                  )}
+                  <div>
+                    <h1 className="text-xl sm:text-2xl font-black text-black tracking-tight leading-tight">
+                      {effectiveBrandName}
+                    </h1>
+                    <p className="text-[11px] text-slate-600 font-medium mt-0.5">
+                      النظام المحاسبي الداخلي — بيان حركة بيع
+                    </p>
+                  </div>
                 </div>
 
                 {/* Left: Box with Invoice Number & Execution Date */}
@@ -767,13 +809,22 @@ ${b.currentDebt > 0 ? `👉 *المتبقي المطلوب سداده:* ${format
               <div className="flex items-start justify-between gap-4">
                 
                 {/* Right: Company Name & System */}
-                <div>
-                  <h1 className="text-xl sm:text-2xl font-black text-black tracking-tight leading-tight">
-                    {storeName || 'Ahmed And Hamdy'}
-                  </h1>
-                  <p className="text-[11px] text-slate-600 font-medium mt-0.5">
-                    النظام المحاسبي الداخلي — حركة مالية
-                  </p>
+                <div className="flex items-center gap-2.5">
+                  {resolvedTenant?.logoUrl && (
+                    <img
+                      src={resolvedTenant.logoUrl}
+                      alt={effectiveBrandName}
+                      className="w-10 h-10 rounded-full object-cover border border-slate-200 shrink-0"
+                    />
+                  )}
+                  <div>
+                    <h1 className="text-xl sm:text-2xl font-black text-black tracking-tight leading-tight">
+                      {effectiveBrandName}
+                    </h1>
+                    <p className="text-[11px] text-slate-600 font-medium mt-0.5">
+                      النظام المحاسبي الداخلي — حركة مالية
+                    </p>
+                  </div>
                 </div>
 
                 {/* Left: Box with Movement Number & Execution Date */}
@@ -882,13 +933,22 @@ ${b.currentDebt > 0 ? `👉 *المتبقي المطلوب سداده:* ${format
           {expense && (
             <div className="space-y-4 w-full">
               <div className="flex items-start justify-between gap-4">
-                <div>
-                  <h1 className="text-xl sm:text-2xl font-black text-black tracking-tight leading-tight">
-                    {storeName || 'Ahmed And Hamdy'}
-                  </h1>
-                  <p className="text-[11px] text-slate-600 font-medium mt-0.5">
-                    النظام المحاسبي الداخلي — إذن صرف ومسحوبات
-                  </p>
+                <div className="flex items-center gap-2.5">
+                  {resolvedTenant?.logoUrl && (
+                    <img
+                      src={resolvedTenant.logoUrl}
+                      alt={effectiveBrandName}
+                      className="w-10 h-10 rounded-full object-cover border border-slate-200 shrink-0"
+                    />
+                  )}
+                  <div>
+                    <h1 className="text-xl sm:text-2xl font-black text-black tracking-tight leading-tight">
+                      {effectiveBrandName}
+                    </h1>
+                    <p className="text-[11px] text-slate-600 font-medium mt-0.5">
+                      النظام المحاسبي الداخلي — إذن صرف ومسحوبات
+                    </p>
+                  </div>
                 </div>
 
                 <div className="border border-slate-300 rounded-md text-[11px] font-mono-num divide-y divide-slate-200 min-w-[190px] text-right">
@@ -953,13 +1013,22 @@ ${b.currentDebt > 0 ? `👉 *المتبقي المطلوب سداده:* ${format
             <div className="space-y-3.5 w-full">
               {/* Header: Simplified and Clean */}
               <div className="flex items-start justify-between gap-4 pb-2 border-b-2 border-black">
-                <div>
-                  <h1 className="text-xl sm:text-2xl font-black text-black tracking-tight leading-tight">
-                    {storeName || 'Ahmed And Hamdy'}
-                  </h1>
-                  <p className="text-[11px] text-slate-600 font-bold mt-0.5">
-                    كشف حساب تاجر — دفتر الأستاذ العام
-                  </p>
+                <div className="flex items-center gap-2.5">
+                  {resolvedTenant?.logoUrl && (
+                    <img
+                      src={resolvedTenant.logoUrl}
+                      alt={effectiveBrandName}
+                      className="w-10 h-10 rounded-full object-cover border border-slate-200 shrink-0"
+                    />
+                  )}
+                  <div>
+                    <h1 className="text-xl sm:text-2xl font-black text-black tracking-tight leading-tight">
+                      {effectiveBrandName}
+                    </h1>
+                    <p className="text-[11px] text-slate-600 font-bold mt-0.5">
+                      كشف حساب تاجر — دفتر الأستاذ العام
+                    </p>
+                  </div>
                 </div>
 
                 <div className="text-left font-mono-num text-[11px]">

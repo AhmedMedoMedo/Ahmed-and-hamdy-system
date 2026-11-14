@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { useApp } from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
 import { 
   Settings, 
   Cloud, 
@@ -18,14 +19,16 @@ import {
   Building2,
   Lock,
   KeyRound,
-  User
+  User,
+  Crown
 } from 'lucide-react';
 
 interface SettingsModalProps {
   onClose: () => void;
+  setActiveTab?: (tab: string) => void;
 }
 
-export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
+export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, setActiveTab: setActiveTabProp }) => {
   const { 
     currentUser, 
     cloudConnected, 
@@ -49,8 +52,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
     lockSystem,
     showToast,
     installPrompt,
-    promptInstall
+    promptInstall,
+    setActiveTab: setActiveTabContext
   } = useApp();
+  const { role, tenantData } = useAuth();
+  const navigateToTab = setActiveTabProp || setActiveTabContext;
 
   const [userNameInput, setUserNameInput] = useState(currentUserName);
   const [userNameSaved, setUserNameSaved] = useState(false);
@@ -262,7 +268,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
               className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs sm:text-sm font-bold focus:ring-2 focus:ring-emerald-500 focus:outline-none"
             />
             <span className="text-[10px] text-slate-500 dark:text-slate-400 block">
-              الاسم الافتراضي: Ahmed And Hamdy (يمكنك تغييره لأي اسم تجاري تريده)
+              الاسم الافتراضي: {role === 'tenant' && tenantData?.name ? tenantData.name : 'Ahmed And Hamdy'} (يمكنك تغييره لأي اسم تجاري تريده)
             </span>
           </div>
 
@@ -414,6 +420,35 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                 </div>
               </div>
             </>
+          )}
+
+          {/* Admin-Only Tenants Management Entry (Secret 5-tap unlock) */}
+          {role === 'admin' && showSecretSection && (
+            <div className="p-4 rounded-xl bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/40 dark:to-orange-950/30 border border-amber-200 dark:border-amber-800/70 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-amber-900 dark:text-amber-300 flex items-center gap-2">
+                  <Crown className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                  <span>إدارة المشتركين (SaaS)</span>
+                </span>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-200/70 dark:bg-amber-900/60 text-amber-900 dark:text-amber-200">
+                  مدير النظام
+                </span>
+              </div>
+              <p className="text-xs text-amber-800/80 dark:text-amber-300/80">
+                إنشاء حسابات المشتركين الجدد، تعيين رموز الدخول (PIN)، وإدارة العملاء النشطين.
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  navigateToTab('tenants');
+                  onClose();
+                }}
+                className="w-full py-2.5 px-4 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-xs flex items-center justify-center gap-2 transition-all active:scale-98 cursor-pointer"
+              >
+                <Crown className="w-4 h-4" />
+                <span>إدارة المشتركين (لوحة التحكم)</span>
+              </button>
+            </div>
           )}
 
           {/* Backup / Export / Import JSON */}

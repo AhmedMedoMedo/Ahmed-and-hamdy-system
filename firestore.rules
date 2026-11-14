@@ -19,9 +19,30 @@ service cloud.firestore {
       return id is string && id.size() > 0 && id.size() <= 128;
     }
 
+    function isValidTenant(data) {
+      return data.keys().hasAll(['name', 'pin', 'createdAt'])
+        && data.keys().hasOnly(['name', 'pin', 'createdAt', 'logoUrl'])
+        && data.name is string && data.name.size() > 0 && data.name.size() <= 100
+        && data.pin is string && data.pin.size() > 0 && data.pin.size() <= 30
+        && data.createdAt is string && data.createdAt.size() <= 50
+        && (!('logoUrl' in data) || (data.logoUrl is string && data.logoUrl.size() <= 500));
+    }
+
     // Connection testing endpoint for boots
     match /test/{docId} {
       allow read: if isSignedIn();
+    }
+
+    // SaaS Tenants Registry & Isolated Subscriber Workspaces
+    match /tenants/{tenantId} {
+      allow get, list: if true;
+      allow create, update: if isValidId(tenantId) && isValidTenant(request.resource.data);
+      allow delete: if isValidId(tenantId);
+
+      match /{subcollection}/{docId} {
+        allow get, list: if isValidId(tenantId);
+        allow create, update, delete: if isValidId(tenantId) && isValidId(docId);
+      }
     }
 
     // Unified Business Store Scope (Shared across all authorized devices of Ahmed and Hamdy)

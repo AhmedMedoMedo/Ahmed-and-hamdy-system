@@ -52,6 +52,13 @@ import {
   getTodayDateString,
   generateInvoiceNumber
 } from '../utils/formatters';
+import {
+  getActiveTenantSession,
+  isTenantSession,
+  getScopedStorageKey,
+  getStoreCollectionRef,
+  getStoreDocRef
+} from '../utils/tenantHelper';
 
 interface AppContextType {
   currentUser: User | null;
@@ -272,7 +279,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Theme state (Dark Mode / Light Mode)
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
     try {
-      return localStorage.getItem(STORAGE_KEYS.theme) === 'dark';
+      return localStorage.getItem(getScopedStorageKey(STORAGE_KEYS.theme)) === 'dark';
     } catch {
       return false;
     }
@@ -282,7 +289,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setIsDarkMode(prev => {
       const next = !prev;
       try {
-        localStorage.setItem(STORAGE_KEYS.theme, next ? 'dark' : 'light');
+        localStorage.setItem(getScopedStorageKey(STORAGE_KEYS.theme), next ? 'dark' : 'light');
       } catch {}
       return next;
     });
@@ -299,7 +306,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Security Lock & PIN State
   const [systemPin, setSystemPin] = useState<string>(() => {
     try {
-      return localStorage.getItem('account_app_system_pin') || '1999';
+      return localStorage.getItem(getScopedStorageKey('account_app_system_pin')) || '1999';
     } catch {
       return '1999';
     }
@@ -307,17 +314,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const [isPinEnabled, setIsPinEnabled] = useState<boolean>(() => {
     try {
-      return localStorage.getItem('account_app_pin_enabled') !== 'false';
+      const val = localStorage.getItem(getScopedStorageKey('account_app_pin_enabled'));
+      if (isTenantSession()) {
+        return val === 'true';
+      }
+      return val !== 'false';
     } catch {
-      return true;
+      return !isTenantSession();
     }
   });
 
   const [isLocked, setIsLocked] = useState<boolean>(() => {
     try {
-      const enabled = localStorage.getItem('account_app_pin_enabled') !== 'false';
+      const enabledVal = localStorage.getItem(getScopedStorageKey('account_app_pin_enabled'));
+      const enabled = isTenantSession() ? enabledVal === 'true' : enabledVal !== 'false';
       if (!enabled) return false;
-      return localStorage.getItem('account_app_pin_verified') !== 'true';
+      return localStorage.getItem(getScopedStorageKey('account_app_pin_verified')) !== 'true';
     } catch {
       return false;
     }
@@ -325,14 +337,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const unlockSystem = useCallback(() => {
     try {
-      localStorage.setItem('account_app_pin_verified', 'true');
+      localStorage.setItem(getScopedStorageKey('account_app_pin_verified'), 'true');
     } catch {}
     setIsLocked(false);
   }, []);
 
   const lockSystem = useCallback(() => {
     try {
-      localStorage.removeItem('account_app_pin_verified');
+      localStorage.removeItem(getScopedStorageKey('account_app_pin_verified'));
     } catch {}
     setIsLocked(true);
   }, []);
@@ -342,11 +354,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (!cleanPin) return;
     setSystemPin(cleanPin);
     try {
-      localStorage.setItem('account_app_system_pin', cleanPin);
-      localStorage.setItem('account_app_pin_verified', 'true');
+      localStorage.setItem(getScopedStorageKey('account_app_system_pin'), cleanPin);
+      localStorage.setItem(getScopedStorageKey('account_app_pin_verified'), 'true');
     } catch {}
     try {
-      await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'config', 'security'), {
+      await setDoc(getStoreDocRef(db, 'config', 'security', SHARED_STORE_ID), {
         pin: cleanPin,
         pinCode: cleanPin,
         isPinEnabled: true,
@@ -360,13 +372,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const togglePinEnabled = useCallback(async (enabled: boolean) => {
     setIsPinEnabled(enabled);
     try {
-      localStorage.setItem('account_app_pin_enabled', enabled ? 'true' : 'false');
+      localStorage.setItem(getScopedStorageKey('account_app_pin_enabled'), enabled ? 'true' : 'false');
       if (!enabled) {
         setIsLocked(false);
       }
     } catch {}
     try {
-      await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'config', 'security'), {
+      await setDoc(getStoreDocRef(db, 'config', 'security', SHARED_STORE_ID), {
         isPinEnabled: enabled,
         updatedAt: new Date().toISOString(),
       }, { merge: true });
@@ -378,7 +390,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [activeTab, setActiveTab] = useState('dashboard');
   const [selectedMonth, setSelectedMonth] = useState<string>(getCurrentMonthKey());
   const [currency, setCurrency] = useState<string>('ج.م');
-  const [storeName, setStoreName] = useState<string>('Ahmed And Hamdy');
+  const [storeName, setStoreName] = useState<string>(() => {
+    try {
+      const saved = localStorage.getItem(getScopedStorageKey(STORAGE_KEYS.storeName));
+      if (saved) return saved;
+      const session = getActiveTenantSession();
+      if (session.isTenant && session.tenantName) return session.tenantName;
+    } catch {}
+    return 'Ahmed And Hamdy';
+  });
 
   const [merchants, setMerchants] = useState<Merchant[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -415,7 +435,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // User Name & Activity Log & Presence States
   const [currentUserName, setCurrentUserName] = useState<string>(() => {
     try {
-      return localStorage.getItem('app_user_name') || 'مستخدم غير معروف';
+      return localStorage.getItem(getScopedStorageKey('app_user_name')) || 'مستخدم غير معروف';
     } catch {
       return 'مستخدم غير معروف';
     }
@@ -425,7 +445,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const clean = name.trim() || 'مستخدم غير معروف';
     setCurrentUserName(clean);
     try {
-      localStorage.setItem('app_user_name', clean);
+      localStorage.setItem(getScopedStorageKey('app_user_name'), clean);
     } catch {}
   }, []);
 
@@ -440,24 +460,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       const clean = newName.trim() || 'مستخدم غير معروف';
       
-      // Update in global settings collection
-      const settingsRef = doc(db, 'settings', 'global');
-      await setDoc(settingsRef, {
+      // Only admin updates global settings doc; tenants store settings in their isolated folder
+      if (!isTenantSession()) {
+        const settingsRef = doc(db, 'settings', 'global');
+        await setDoc(settingsRef, {
+          deviceNames: {
+            [localDeviceId]: clean
+          }
+        }, { merge: true });
+      }
+
+      // Persist in scoped config/settings (Admin: stores/SHARED_STORE_ID/config/settings, Tenant: tenants/tenantId/config/settings)
+      await setDoc(getStoreDocRef(db, 'config', 'settings', SHARED_STORE_ID), {
         deviceNames: {
           [localDeviceId]: clean
         }
       }, { merge: true });
 
-      // Also persist in SHARED_STORE_ID config for multi-store reliability
-      setDoc(doc(db, 'stores', SHARED_STORE_ID, 'config', 'settings'), {
-        deviceNames: {
-          [localDeviceId]: clean
-        }
-      }, { merge: true }).catch(() => {});
-
       setCurrentUserName(clean);
       try {
-        localStorage.setItem('app_user_name', clean);
+        localStorage.setItem(getScopedStorageKey('app_user_name'), clean);
       } catch {}
 
       showToast('تم حفظ اسم الجهاز في السحابة بنجاح');
@@ -486,23 +508,30 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       setSystemLogs(prev => [logRecord, ...prev.slice(0, 99)]);
 
-      setDoc(doc(db, 'stores', SHARED_STORE_ID, 'system_logs', id), logRecord)
+      setDoc(getStoreDocRef(db, 'system_logs', id, SHARED_STORE_ID), logRecord)
         .catch(err => console.warn('Offline Sync log:', err));
     } catch (err) {
       console.warn('logAction error:', err);
     }
   }, [currentUserName]);
 
-  // 1. Initial local load (Strictly sanitizing any mock sample data)
+  // 1. Initial local load (Strictly sanitizing any mock sample data & scoped per tenant)
   useEffect(() => {
     try {
-      const storedCurr = localStorage.getItem(STORAGE_KEYS.currency);
+      const storedCurr = localStorage.getItem(getScopedStorageKey(STORAGE_KEYS.currency));
       if (storedCurr) setCurrency(storedCurr);
 
-      const storedStore = localStorage.getItem(STORAGE_KEYS.storeName);
-      if (storedStore) setStoreName(storedStore);
+      const storedStore = localStorage.getItem(getScopedStorageKey(STORAGE_KEYS.storeName));
+      if (storedStore) {
+        setStoreName(storedStore);
+      } else {
+        const session = getActiveTenantSession();
+        if (session.isTenant && session.tenantName) {
+          setStoreName(session.tenantName);
+        }
+      }
 
-      const m = localStorage.getItem(STORAGE_KEYS.merchants);
+      const m = localStorage.getItem(getScopedStorageKey(STORAGE_KEYS.merchants));
       if (m) {
         const parsed: Merchant[] = JSON.parse(m);
         // Exclude fake sample merchants & deleted items
@@ -516,7 +545,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setMerchants([]);
       }
 
-      const p = localStorage.getItem(STORAGE_KEYS.products);
+      const p = localStorage.getItem(getScopedStorageKey(STORAGE_KEYS.products));
       if (p) {
         const parsed: Product[] = JSON.parse(p);
         const clean = parsed.filter(item => !item.isDeleted && item.id !== 'prod_1' && item.id !== 'prod_2' && item.id !== 'prod_3' && item.id !== 'prod_4');
@@ -525,7 +554,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setProducts([]);
       }
 
-      const inv = localStorage.getItem(STORAGE_KEYS.invoices);
+      const inv = localStorage.getItem(getScopedStorageKey(STORAGE_KEYS.invoices));
       if (inv) {
         const parsed: Invoice[] = JSON.parse(inv);
         setInvoices(parsed.filter(item => !item.isDeleted));
@@ -533,7 +562,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setInvoices([]);
       }
 
-      const pay = localStorage.getItem(STORAGE_KEYS.payments);
+      const pay = localStorage.getItem(getScopedStorageKey(STORAGE_KEYS.payments));
       if (pay) {
         const parsed: Payment[] = JSON.parse(pay);
         setPayments(parsed.filter(item => !item.isDeleted));
@@ -541,7 +570,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setPayments([]);
       }
 
-      const exp = localStorage.getItem(STORAGE_KEYS.expenses);
+      const exp = localStorage.getItem(getScopedStorageKey(STORAGE_KEYS.expenses));
       if (exp) {
         const parsed: Expense[] = JSON.parse(exp);
         setExpenses(parsed.filter(item => !item.isDeleted));
@@ -549,7 +578,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setExpenses([]);
       }
 
-      const ord = localStorage.getItem(STORAGE_KEYS.orders);
+      const ord = localStorage.getItem(getScopedStorageKey(STORAGE_KEYS.orders));
       if (ord) {
         const parsed: WorkOrder[] = JSON.parse(ord);
         setOrders(parsed.filter(item => !item.isDeleted));
@@ -557,7 +586,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setOrders([]);
       }
 
-      const pc = localStorage.getItem(STORAGE_KEYS.personalContacts);
+      const pc = localStorage.getItem(getScopedStorageKey(STORAGE_KEYS.personalContacts));
       if (pc) {
         const parsed: PersonalContact[] = JSON.parse(pc);
         const clean = parsed.filter(item => !item.isDeleted && item.id !== 'pc_1');
@@ -566,7 +595,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setPersonalContacts([]);
       }
 
-      const pt = localStorage.getItem(STORAGE_KEYS.personalTransactions);
+      const pt = localStorage.getItem(getScopedStorageKey(STORAGE_KEYS.personalTransactions));
       if (pt) {
         const parsed: PersonalTransaction[] = JSON.parse(pt);
         setPersonalTransactions(parsed.filter(item => !item.isDeleted));
@@ -578,18 +607,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, []);
 
-  // Sync to local storage for instant offline resilience
+  // Sync to local storage for instant offline resilience (scoped per tenant)
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.currency, currency);
-    localStorage.setItem(STORAGE_KEYS.storeName, storeName);
-    localStorage.setItem(STORAGE_KEYS.merchants, JSON.stringify(merchants));
-    localStorage.setItem(STORAGE_KEYS.products, JSON.stringify(products));
-    localStorage.setItem(STORAGE_KEYS.invoices, JSON.stringify(invoices));
-    localStorage.setItem(STORAGE_KEYS.payments, JSON.stringify(payments));
-    localStorage.setItem(STORAGE_KEYS.expenses, JSON.stringify(expenses));
-    localStorage.setItem(STORAGE_KEYS.orders, JSON.stringify(orders));
-    localStorage.setItem(STORAGE_KEYS.personalContacts, JSON.stringify(personalContacts));
-    localStorage.setItem(STORAGE_KEYS.personalTransactions, JSON.stringify(personalTransactions));
+    localStorage.setItem(getScopedStorageKey(STORAGE_KEYS.currency), currency);
+    localStorage.setItem(getScopedStorageKey(STORAGE_KEYS.storeName), storeName);
+    localStorage.setItem(getScopedStorageKey(STORAGE_KEYS.merchants), JSON.stringify(merchants));
+    localStorage.setItem(getScopedStorageKey(STORAGE_KEYS.products), JSON.stringify(products));
+    localStorage.setItem(getScopedStorageKey(STORAGE_KEYS.invoices), JSON.stringify(invoices));
+    localStorage.setItem(getScopedStorageKey(STORAGE_KEYS.payments), JSON.stringify(payments));
+    localStorage.setItem(getScopedStorageKey(STORAGE_KEYS.expenses), JSON.stringify(expenses));
+    localStorage.setItem(getScopedStorageKey(STORAGE_KEYS.orders), JSON.stringify(orders));
+    localStorage.setItem(getScopedStorageKey(STORAGE_KEYS.personalContacts), JSON.stringify(personalContacts));
+    localStorage.setItem(getScopedStorageKey(STORAGE_KEYS.personalTransactions), JSON.stringify(personalTransactions));
   }, [currency, storeName, merchants, products, invoices, payments, expenses, orders, personalContacts, personalTransactions]);
 
   // 2. Auth listener, Auto Anonymous Sign-In & Online/Offline Network Listeners
@@ -643,9 +672,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
   }, [showToast]);
 
-  // 3. Attach Unified Shared Store Firestore Subscriptions
+  // 3. Attach Unified Shared Store or Isolated Tenant Firestore Subscriptions
   useEffect(() => {
     const unsubs: (() => void)[] = [];
+    const tenantActive = isTenantSession();
 
     const setupStoreListener = <T extends { id: string; isDeleted?: boolean }>(
       subcoll: string, 
@@ -653,7 +683,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       storageKey: string,
       filterClean?: (items: T[]) => T[]
     ) => {
-      const colRef = collection(db, 'stores', SHARED_STORE_ID, subcoll);
+      const colRef = getStoreCollectionRef(db, subcoll, SHARED_STORE_ID);
+      const scopedStorageKey = getScopedStorageKey(storageKey);
       const unsub = onSnapshot(colRef, (snapshot) => {
         let items: T[] = [];
         snapshot.forEach((docSnap) => {
@@ -667,7 +698,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
         setter(items);
         try {
-          localStorage.setItem(storageKey, JSON.stringify(items));
+          localStorage.setItem(scopedStorageKey, JSON.stringify(items));
         } catch {}
       }, (err) => {
         console.warn(`Shared store listener warning on ${subcoll}:`, err);
@@ -688,21 +719,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setupStoreListener<PersonalContact>('personal_contacts', setPersonalContacts, STORAGE_KEYS.personalContacts);
     setupStoreListener<PersonalTransaction>('personal_transactions', setPersonalTransactions, STORAGE_KEYS.personalTransactions);
 
-    // Real-time security PIN & config subscription
-    const secDocRef = doc(db, 'stores', SHARED_STORE_ID, 'config', 'security');
+    // Real-time security PIN & config subscription (isolated per tenant)
+    const secDocRef = getStoreDocRef(db, 'config', 'security', SHARED_STORE_ID);
     const unsubSec = onSnapshot(secDocRef, (snap) => {
       if (snap.exists()) {
         const secData = snap.data();
         const incomingPin = secData?.pin || secData?.pinCode;
+        const pinStorageKey = getScopedStorageKey('account_app_system_pin');
+        const pinVerifiedKey = getScopedStorageKey('account_app_pin_verified');
+        const pinEnabledKey = getScopedStorageKey('account_app_pin_enabled');
+
         if (incomingPin) {
           const cloudPin = String(incomingPin).trim();
-          const localKnownPin = localStorage.getItem('account_app_system_pin');
+          const localKnownPin = localStorage.getItem(pinStorageKey);
 
           // If the cloud PIN changed from what was stored locally on this device, force logout & lock immediately!
           if (localKnownPin && localKnownPin !== cloudPin) {
             try {
-              localStorage.removeItem('account_app_pin_verified');
-              localStorage.setItem('account_app_system_pin', cloudPin);
+              localStorage.removeItem(pinVerifiedKey);
+              localStorage.setItem(pinStorageKey, cloudPin);
             } catch {}
             setSystemPin(cloudPin);
             setIsLocked(true);
@@ -712,15 +747,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
           setSystemPin(cloudPin);
           try {
-            localStorage.setItem('account_app_system_pin', cloudPin);
+            localStorage.setItem(pinStorageKey, cloudPin);
           } catch {}
         }
         if (typeof secData?.isPinEnabled === 'boolean') {
           setIsPinEnabled(secData.isPinEnabled);
           try {
-            localStorage.setItem('account_app_pin_enabled', secData.isPinEnabled ? 'true' : 'false');
+            localStorage.setItem(pinEnabledKey, secData.isPinEnabled ? 'true' : 'false');
             if (!secData.isPinEnabled) {
               setIsLocked(false);
+            } else if (localStorage.getItem(pinVerifiedKey) !== 'true') {
+              setIsLocked(true);
             }
           } catch {}
         }
@@ -728,28 +765,32 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }, (err) => {
       console.warn("Security config listener warning:", err);
     });
-    // Real-time settings subscription for deviceNames sync
-    const settingsGlobalRef = doc(db, 'settings', 'global');
-    const unsubSettings = onSnapshot(settingsGlobalRef, (snap) => {
-      if (snap.exists()) {
-        const data = snap.data();
-        if (data.deviceNames && data.deviceNames[localDeviceId]) {
-          const cloudName = String(data.deviceNames[localDeviceId]).trim();
-          if (cloudName) {
-            setCurrentUserName(cloudName);
-            try {
-              localStorage.setItem('app_user_name', cloudName);
-            } catch {}
+    unsubs.push(unsubSec);
+
+    // Real-time settings subscription for deviceNames sync (global doc only for Admin)
+    if (!tenantActive) {
+      const settingsGlobalRef = doc(db, 'settings', 'global');
+      const unsubSettings = onSnapshot(settingsGlobalRef, (snap) => {
+        if (snap.exists()) {
+          const data = snap.data();
+          if (data.deviceNames && data.deviceNames[localDeviceId]) {
+            const cloudName = String(data.deviceNames[localDeviceId]).trim();
+            if (cloudName) {
+              setCurrentUserName(cloudName);
+              try {
+                localStorage.setItem(getScopedStorageKey('app_user_name'), cloudName);
+              } catch {}
+            }
           }
         }
-      }
-    }, (err) => {
-      console.warn("Global settings listener warning:", err);
-    });
-    unsubs.push(unsubSettings);
+      }, (err) => {
+        console.warn("Global settings listener warning:", err);
+      });
+      unsubs.push(unsubSettings);
+    }
 
-    // Also check store-specific config/settings for deviceNames
-    const storeSettingsRef = doc(db, 'stores', SHARED_STORE_ID, 'config', 'settings');
+    // Store/Tenant-specific config/settings for deviceNames
+    const storeSettingsRef = getStoreDocRef(db, 'config', 'settings', SHARED_STORE_ID);
     const unsubStoreSettings = onSnapshot(storeSettingsRef, (snap) => {
       if (snap.exists()) {
         const data = snap.data();
@@ -758,7 +799,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           if (cloudName) {
             setCurrentUserName(cloudName);
             try {
-              localStorage.setItem('app_user_name', cloudName);
+              localStorage.setItem(getScopedStorageKey('app_user_name'), cloudName);
             } catch {}
           }
         }
@@ -768,9 +809,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
     unsubs.push(unsubStoreSettings);
 
-    // Real-time System Logs Subscription (last 100 entries sorted descending)
+    // Real-time System Logs Subscription (last 100 entries sorted descending, isolated per tenant)
     const logsQuery = query(
-      collection(db, 'stores', SHARED_STORE_ID, 'system_logs'),
+      getStoreCollectionRef(db, 'system_logs', SHARED_STORE_ID),
       orderBy('timestamp', 'desc'),
       limit(100)
     );
@@ -793,8 +834,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
     unsubs.push(unsubLogs);
 
-    // Seamless one-time migration from legacy 'ahmed_and_hamdy' to 'smartscanner_main_store' if newly initialized
+    // Seamless one-time migration from legacy 'ahmed_and_hamdy' to 'smartscanner_main_store' (Admin only)
     const checkAndMigrateLegacyStore = async () => {
+      if (tenantActive) return;
       try {
         const testSnap = await getDocs(collection(db, 'stores', SMARTSCANNER_STORE_ID, 'invoices'));
         if (testSnap.empty) {
@@ -816,27 +858,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return () => {
       unsubs.forEach(fn => fn());
     };
-  }, []);
+  }, [showToast]);
 
-  // Migrate all local state to Firebase Firestore shared store
+  // Migrate all local state to Firebase Firestore store/tenant folder
   const migrateLocalDataToCloud = async (_uid?: string) => {
     try {
       for (const m of merchants) {
         if (m.id !== 'm_1' && m.id !== 'm_2' && m.id !== 'm_3') {
-          await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'merchants', m.id), m, { merge: true });
+          await setDoc(getStoreDocRef(db, 'merchants', m.id, SHARED_STORE_ID), m, { merge: true });
         }
       }
       for (const p of products) {
         if (p.id !== 'prod_1' && p.id !== 'prod_2') {
-          await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'products', p.id), p, { merge: true });
+          await setDoc(getStoreDocRef(db, 'products', p.id, SHARED_STORE_ID), p, { merge: true });
         }
       }
-      for (const inv of invoices) await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'invoices', inv.id), inv, { merge: true });
-      for (const pay of payments) await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'payments', pay.id), pay, { merge: true });
-      for (const exp of expenses) await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'expenses', exp.id), exp, { merge: true });
-      for (const ord of orders) await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'orders', ord.id), ord, { merge: true });
-      for (const c of personalContacts) await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'personal_contacts', c.id), c, { merge: true });
-      for (const tx of personalTransactions) await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'personal_transactions', tx.id), tx, { merge: true });
+      for (const inv of invoices) await setDoc(getStoreDocRef(db, 'invoices', inv.id, SHARED_STORE_ID), inv, { merge: true });
+      for (const pay of payments) await setDoc(getStoreDocRef(db, 'payments', pay.id, SHARED_STORE_ID), pay, { merge: true });
+      for (const exp of expenses) await setDoc(getStoreDocRef(db, 'expenses', exp.id, SHARED_STORE_ID), exp, { merge: true });
+      for (const ord of orders) await setDoc(getStoreDocRef(db, 'orders', ord.id, SHARED_STORE_ID), ord, { merge: true });
+      for (const c of personalContacts) await setDoc(getStoreDocRef(db, 'personal_contacts', c.id, SHARED_STORE_ID), c, { merge: true });
+      for (const tx of personalTransactions) await setDoc(getStoreDocRef(db, 'personal_transactions', tx.id, SHARED_STORE_ID), tx, { merge: true });
     } catch (e) {
       console.warn("Migration warning:", e);
     }
@@ -880,11 +922,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setCurrentUser(null);
   };
 
-  // Direct manual and boot fetch from Cloud Firestore
+  // Direct manual and boot fetch from Cloud Firestore (isolated per tenant)
   const refreshFromCloud = async () => {
     try {
       showToast('جاري سحب وتحديث البيانات من السحابة... ⏳');
-      const mSnap = await getDocs(collection(db, 'stores', SHARED_STORE_ID, 'merchants'));
+      const mSnap = await getDocs(getStoreCollectionRef(db, 'merchants', SHARED_STORE_ID));
       const mItems: Merchant[] = [];
       mSnap.forEach(d => {
         const data = d.data();
@@ -892,27 +934,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       });
       const cleanM = mItems.filter(m => m.id !== 'm_1' && m.id !== 'm_2' && m.id !== 'm_3');
       setMerchants(cleanM);
-      localStorage.setItem(STORAGE_KEYS.merchants, JSON.stringify(cleanM));
+      localStorage.setItem(getScopedStorageKey(STORAGE_KEYS.merchants), JSON.stringify(cleanM));
 
-      const invSnap = await getDocs(collection(db, 'stores', SHARED_STORE_ID, 'invoices'));
+      const invSnap = await getDocs(getStoreCollectionRef(db, 'invoices', SHARED_STORE_ID));
       const invItems: Invoice[] = [];
       invSnap.forEach(d => {
         const data = d.data();
         if (!data.isDeleted) invItems.push({ id: d.id, ...data } as Invoice);
       });
       setInvoices(invItems);
-      localStorage.setItem(STORAGE_KEYS.invoices, JSON.stringify(invItems));
+      localStorage.setItem(getScopedStorageKey(STORAGE_KEYS.invoices), JSON.stringify(invItems));
 
-      const paySnap = await getDocs(collection(db, 'stores', SHARED_STORE_ID, 'payments'));
+      const paySnap = await getDocs(getStoreCollectionRef(db, 'payments', SHARED_STORE_ID));
       const payItems: Payment[] = [];
       paySnap.forEach(d => {
         const data = d.data();
         if (!data.isDeleted) payItems.push({ id: d.id, ...data } as Payment);
       });
       setPayments(payItems);
-      localStorage.setItem(STORAGE_KEYS.payments, JSON.stringify(payItems));
+      localStorage.setItem(getScopedStorageKey(STORAGE_KEYS.payments), JSON.stringify(payItems));
 
-      const pSnap = await getDocs(collection(db, 'stores', SHARED_STORE_ID, 'products'));
+      const pSnap = await getDocs(getStoreCollectionRef(db, 'products', SHARED_STORE_ID));
       const pItems: Product[] = [];
       pSnap.forEach(d => {
         const data = d.data();
@@ -920,58 +962,84 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       });
       const cleanP = pItems.filter(p => p.id !== 'prod_1' && p.id !== 'prod_2' && p.id !== 'prod_3' && p.id !== 'prod_4');
       setProducts(cleanP);
-      localStorage.setItem(STORAGE_KEYS.products, JSON.stringify(cleanP));
+      localStorage.setItem(getScopedStorageKey(STORAGE_KEYS.products), JSON.stringify(cleanP));
 
-      const expSnap = await getDocs(collection(db, 'stores', SHARED_STORE_ID, 'expenses'));
+      const expSnap = await getDocs(getStoreCollectionRef(db, 'expenses', SHARED_STORE_ID));
       const expItems: Expense[] = [];
       expSnap.forEach(d => {
         const data = d.data();
         if (!data.isDeleted) expItems.push({ id: d.id, ...data } as Expense);
       });
       setExpenses(expItems);
-      localStorage.setItem(STORAGE_KEYS.expenses, JSON.stringify(expItems));
+      localStorage.setItem(getScopedStorageKey(STORAGE_KEYS.expenses), JSON.stringify(expItems));
 
-      const ordSnap = await getDocs(collection(db, 'stores', SHARED_STORE_ID, 'orders'));
+      const ordSnap = await getDocs(getStoreCollectionRef(db, 'orders', SHARED_STORE_ID));
       const ordItems: WorkOrder[] = [];
       ordSnap.forEach(d => {
         const data = d.data();
         if (!data.isDeleted) ordItems.push({ id: d.id, ...data } as WorkOrder);
       });
       setOrders(ordItems);
-      localStorage.setItem(STORAGE_KEYS.orders, JSON.stringify(ordItems));
+      localStorage.setItem(getScopedStorageKey(STORAGE_KEYS.orders), JSON.stringify(ordItems));
 
-      // Fetch security config
+      const pcSnap = await getDocs(getStoreCollectionRef(db, 'personal_contacts', SHARED_STORE_ID));
+      const pcItems: PersonalContact[] = [];
+      pcSnap.forEach(d => {
+        const data = d.data();
+        if (!data.isDeleted) pcItems.push({ id: d.id, ...data } as PersonalContact);
+      });
+      setPersonalContacts(pcItems);
+      localStorage.setItem(getScopedStorageKey(STORAGE_KEYS.personalContacts), JSON.stringify(pcItems));
+
+      const ptSnap = await getDocs(getStoreCollectionRef(db, 'personal_transactions', SHARED_STORE_ID));
+      const ptItems: PersonalTransaction[] = [];
+      ptSnap.forEach(d => {
+        const data = d.data();
+        if (!data.isDeleted) ptItems.push({ id: d.id, ...data } as PersonalTransaction);
+      });
+      setPersonalTransactions(ptItems);
+      localStorage.setItem(getScopedStorageKey(STORAGE_KEYS.personalTransactions), JSON.stringify(ptItems));
+
+      // Fetch security config (isolated per tenant)
       try {
-        const secSnap = await getDoc(doc(db, 'stores', SHARED_STORE_ID, 'config', 'security'));
+        const secSnap = await getDoc(getStoreDocRef(db, 'config', 'security', SHARED_STORE_ID));
         if (secSnap.exists()) {
           const secData = secSnap.data();
           const incomingPin = secData?.pin || secData?.pinCode;
+          const pinStorageKey = getScopedStorageKey('account_app_system_pin');
+          const pinVerifiedKey = getScopedStorageKey('account_app_pin_verified');
+          const pinEnabledKey = getScopedStorageKey('account_app_pin_enabled');
+
           if (incomingPin) {
             const pinStr = String(incomingPin).trim();
-            const localKnownPin = localStorage.getItem('account_app_system_pin');
+            const localKnownPin = localStorage.getItem(pinStorageKey);
             if (localKnownPin && localKnownPin !== pinStr) {
               try {
-                localStorage.removeItem('account_app_pin_verified');
-                localStorage.setItem('account_app_system_pin', pinStr);
+                localStorage.removeItem(pinVerifiedKey);
+                localStorage.setItem(pinStorageKey, pinStr);
               } catch {}
               setSystemPin(pinStr);
               setIsLocked(true);
               showToast('تم تغيير رمز الحماية بواسطة المالك، يرجى تسجيل الدخول من جديد');
             } else {
               setSystemPin(pinStr);
-              localStorage.setItem('account_app_system_pin', pinStr);
+              localStorage.setItem(pinStorageKey, pinStr);
             }
           }
           if (typeof secData?.isPinEnabled === 'boolean') {
             setIsPinEnabled(secData.isPinEnabled);
-            localStorage.setItem('account_app_pin_enabled', secData.isPinEnabled ? 'true' : 'false');
+            localStorage.setItem(pinEnabledKey, secData.isPinEnabled ? 'true' : 'false');
           }
         }
       } catch (err) {
         console.warn("Security fetch warning in refreshFromCloud:", err);
       }
 
-      showToast(`تمت المزامنة بنجاح! متصل بسحابة المحل الموحدة ☁️`);
+      showToast(
+        isTenantSession()
+          ? 'تمت المزامنة بنجاح! متصل بمساحة عملك السحابية المعزولة ☁️'
+          : 'تمت المزامنة بنجاح! متصل بسحابة المحل الموحدة ☁️'
+      );
     } catch (e) {
       console.warn("Refresh from cloud error:", e);
     }
@@ -1003,7 +1071,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return [record, ...prev];
       });
 
-      setDoc(doc(db, 'stores', SHARED_STORE_ID, 'merchants', id), record, { merge: true })
+      setDoc(getStoreDocRef(db, 'merchants', id, SHARED_STORE_ID), record, { merge: true })
         .catch(err => console.warn('Offline Sync:', err));
 
       logAction(isEdit ? 'edit' : 'add', 'تاجر', `${isEdit ? 'تعديل بيانات التاجر' : 'إضافة تاجر جديد'}: ${record.name}`);
@@ -1020,7 +1088,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       const merchantToDelete = merchants.find(m => m.id === id);
       setMerchants(prev => prev.filter(m => m.id !== id));
-      setDoc(doc(db, 'stores', SHARED_STORE_ID, 'merchants', id), {
+      setDoc(getStoreDocRef(db, 'merchants', id, SHARED_STORE_ID), {
         isDeleted: true,
         deletedAt: new Date().toISOString()
       }, { merge: true }).catch(err => console.warn('Offline Sync:', err));
@@ -1061,7 +1129,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return [record, ...prev];
       });
 
-      setDoc(doc(db, 'stores', SHARED_STORE_ID, 'products', id), record, { merge: true })
+      setDoc(getStoreDocRef(db, 'products', id, SHARED_STORE_ID), record, { merge: true })
         .catch(err => console.warn('Offline Sync:', err));
 
       logAction(isEdit ? 'edit' : 'add', 'منتج', `${isEdit ? 'تعديل الصنف' : 'إضافة صنف جديد'}: ${record.name} (سعر: ${record.price})`);
@@ -1078,7 +1146,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       const prodToDelete = products.find(p => p.id === id);
       setProducts(prev => prev.filter(p => p.id !== id));
-      setDoc(doc(db, 'stores', SHARED_STORE_ID, 'products', id), {
+      setDoc(getStoreDocRef(db, 'products', id, SHARED_STORE_ID), {
         isDeleted: true,
         deletedAt: new Date().toISOString()
       }, { merge: true }).catch(err => console.warn('Offline Sync:', err));
@@ -1141,7 +1209,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       });
 
       // Non-blocking background sync to Firestore
-      setDoc(doc(db, 'stores', SHARED_STORE_ID, 'invoices', id), record, { merge: true })
+      setDoc(getStoreDocRef(db, 'invoices', id, SHARED_STORE_ID), record, { merge: true })
         .catch(err => console.warn('Offline Sync:', err));
 
       // Automatically deduct stock for sold items from products collection and local state
@@ -1165,7 +1233,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
               const prodId = product.id || item.productId;
               if (prodId) {
-                setDoc(doc(db, 'stores', SHARED_STORE_ID, 'products', prodId), {
+                setDoc(getStoreDocRef(db, 'products', prodId, SHARED_STORE_ID), {
                   stock: newStock,
                   updatedAt: now,
                 }, { merge: true }).catch(err => {
@@ -1224,7 +1292,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       // 1. Remove the invoice from state and Firestore (Soft Delete)
       setInvoices(prev => prev.filter(item => item.id !== id));
-      setDoc(doc(db, 'stores', SHARED_STORE_ID, 'invoices', id), {
+      setDoc(getStoreDocRef(db, 'invoices', id, SHARED_STORE_ID), {
         isDeleted: true,
         deletedAt: new Date().toISOString()
       }, { merge: true }).catch(err => console.warn('Offline Sync:', err));
@@ -1234,7 +1302,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (linkedPayments.length > 0) {
         setPayments(prev => prev.filter(p => p.invoiceId !== id));
         for (const lp of linkedPayments) {
-          setDoc(doc(db, 'stores', SHARED_STORE_ID, 'payments', lp.id), {
+          setDoc(getStoreDocRef(db, 'payments', lp.id, SHARED_STORE_ID), {
             isDeleted: true,
             deletedAt: new Date().toISOString()
           }, { merge: true }).catch(err => console.warn('Offline Sync:', err));
@@ -1269,7 +1337,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             updatedAt: new Date().toISOString(),
           };
           setOrders(prev => prev.map(o => o.id === order.id ? updatedOrder : o));
-          setDoc(doc(db, 'stores', SHARED_STORE_ID, 'orders', order.id), updatedOrder, { merge: true })
+          setDoc(getStoreDocRef(db, 'orders', order.id, SHARED_STORE_ID), updatedOrder, { merge: true })
             .catch(err => console.warn('Offline Sync:', err));
         }
       }
@@ -1315,7 +1383,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return [record, ...prev];
       });
 
-      setDoc(doc(db, 'stores', SHARED_STORE_ID, 'payments', id), record, { merge: true })
+      setDoc(getStoreDocRef(db, 'payments', id, SHARED_STORE_ID), record, { merge: true })
         .catch(err => console.warn('Offline Sync:', err));
 
       const isEdit = Boolean(data.id);
@@ -1338,7 +1406,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       const payToDelete = payments.find(p => p.id === id);
       setPayments(prev => prev.filter(p => p.id !== id));
-      setDoc(doc(db, 'stores', SHARED_STORE_ID, 'payments', id), {
+      setDoc(getStoreDocRef(db, 'payments', id, SHARED_STORE_ID), {
         isDeleted: true,
         deletedAt: new Date().toISOString()
       }, { merge: true }).catch(err => console.warn('Offline Sync:', err));
@@ -1382,7 +1450,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return [record, ...prev];
       });
 
-      setDoc(doc(db, 'stores', SHARED_STORE_ID, 'expenses', id), record, { merge: true })
+      setDoc(getStoreDocRef(db, 'expenses', id, SHARED_STORE_ID), record, { merge: true })
         .catch(err => console.warn('Offline Sync:', err));
 
       logAction(
@@ -1404,7 +1472,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       const expToDelete = expenses.find(e => e.id === id);
       setExpenses(prev => prev.filter(e => e.id !== id));
-      setDoc(doc(db, 'stores', SHARED_STORE_ID, 'expenses', id), {
+      setDoc(getStoreDocRef(db, 'expenses', id, SHARED_STORE_ID), {
         isDeleted: true,
         deletedAt: new Date().toISOString()
       }, { merge: true }).catch(err => console.warn('Offline Sync:', err));
@@ -1461,7 +1529,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return [record, ...prev];
       });
 
-      setDoc(doc(db, 'stores', SHARED_STORE_ID, 'orders', id), record, { merge: true })
+      setDoc(getStoreDocRef(db, 'orders', id, SHARED_STORE_ID), record, { merge: true })
         .catch(err => console.warn('Offline Sync:', err));
 
       const isEdit = Boolean(data.id);
@@ -1484,7 +1552,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       const orderToDelete = orders.find(o => o.id === id);
       setOrders(prev => prev.filter(o => o.id !== id));
-      setDoc(doc(db, 'stores', SHARED_STORE_ID, 'orders', id), {
+      setDoc(getStoreDocRef(db, 'orders', id, SHARED_STORE_ID), {
         isDeleted: true,
         deletedAt: new Date().toISOString()
       }, { merge: true }).catch(err => console.warn('Offline Sync:', err));
@@ -1601,7 +1669,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setOrders(prev => prev.map(o => o.id === orderId ? updatedOrder : o));
 
       // Non-blocking Firestore write
-      setDoc(doc(db, 'stores', SHARED_STORE_ID, 'orders', orderId), updatedOrder, { merge: true })
+      setDoc(getStoreDocRef(db, 'orders', orderId, SHARED_STORE_ID), updatedOrder, { merge: true })
         .catch(err => console.warn('Offline Sync:', err));
 
       const createdInvoice: Invoice = {
@@ -1656,7 +1724,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return [record, ...prev];
       });
 
-      setDoc(doc(db, 'stores', SHARED_STORE_ID, 'personal_contacts', id), record, { merge: true })
+      setDoc(getStoreDocRef(db, 'personal_contacts', id, SHARED_STORE_ID), record, { merge: true })
         .catch(err => console.warn('Offline Sync:', err));
 
       logAction(
@@ -1678,7 +1746,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       const contactToDelete = personalContacts.find(c => c.id === id);
       setPersonalContacts(prev => prev.filter(c => c.id !== id));
-      setDoc(doc(db, 'stores', SHARED_STORE_ID, 'personal_contacts', id), {
+      setDoc(getStoreDocRef(db, 'personal_contacts', id, SHARED_STORE_ID), {
         isDeleted: true,
         deletedAt: new Date().toISOString()
       }, { merge: true }).catch(err => console.warn('Offline Sync:', err));
@@ -1727,7 +1795,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return [record, ...prev];
       });
 
-      setDoc(doc(db, 'stores', SHARED_STORE_ID, 'personal_transactions', id), record, { merge: true })
+      setDoc(getStoreDocRef(db, 'personal_transactions', id, SHARED_STORE_ID), record, { merge: true })
         .catch(err => console.warn('Offline Sync:', err));
 
       logAction(
@@ -1749,7 +1817,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       const txToDelete = personalTransactions.find(tx => tx.id === id);
       setPersonalTransactions(prev => prev.filter(tx => tx.id !== id));
-      setDoc(doc(db, 'stores', SHARED_STORE_ID, 'personal_transactions', id), {
+      setDoc(getStoreDocRef(db, 'personal_transactions', id, SHARED_STORE_ID), {
         isDeleted: true,
         deletedAt: new Date().toISOString()
       }, { merge: true }).catch(err => console.warn('Offline Sync:', err));
@@ -2085,31 +2153,31 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       for (const m of parsed.merchants || []) {
         if (m.id !== 'm_1' && m.id !== 'm_2' && m.id !== 'm_3') {
-          await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'merchants', m.id), m, { merge: true });
+          await setDoc(getStoreDocRef(db, 'merchants', m.id, SHARED_STORE_ID), m, { merge: true });
         }
       }
       for (const p of parsed.products || []) {
         if (p.id !== 'prod_1' && p.id !== 'prod_2') {
-          await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'products', p.id), p, { merge: true });
+          await setDoc(getStoreDocRef(db, 'products', p.id, SHARED_STORE_ID), p, { merge: true });
         }
       }
       for (const inv of parsed.invoices || []) {
-        await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'invoices', inv.id), inv, { merge: true });
+        await setDoc(getStoreDocRef(db, 'invoices', inv.id, SHARED_STORE_ID), inv, { merge: true });
       }
       for (const pay of parsed.payments || []) {
-        await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'payments', pay.id), pay, { merge: true });
+        await setDoc(getStoreDocRef(db, 'payments', pay.id, SHARED_STORE_ID), pay, { merge: true });
       }
       for (const exp of parsed.expenses || []) {
-        await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'expenses', exp.id), exp, { merge: true });
+        await setDoc(getStoreDocRef(db, 'expenses', exp.id, SHARED_STORE_ID), exp, { merge: true });
       }
       for (const ord of parsed.orders || []) {
-        await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'orders', ord.id), ord, { merge: true });
+        await setDoc(getStoreDocRef(db, 'orders', ord.id, SHARED_STORE_ID), ord, { merge: true });
       }
       for (const c of parsed.personalContacts || []) {
-        await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'personal_contacts', c.id), c, { merge: true });
+        await setDoc(getStoreDocRef(db, 'personal_contacts', c.id, SHARED_STORE_ID), c, { merge: true });
       }
       for (const tx of parsed.personalTransactions || []) {
-        await setDoc(doc(db, 'stores', SHARED_STORE_ID, 'personal_transactions', tx.id), tx, { merge: true });
+        await setDoc(getStoreDocRef(db, 'personal_transactions', tx.id, SHARED_STORE_ID), tx, { merge: true });
       }
       return true;
     } catch (e) {
@@ -2136,7 +2204,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     await Promise.all(
       subcollections.map(async ({ coll, label }) => {
         try {
-          const colRef = collection(db, 'stores', SHARED_STORE_ID, coll);
+          const colRef = getStoreCollectionRef(db, coll, SHARED_STORE_ID);
           const snap = await getDocs(colRef);
           snap.forEach(docSnap => {
             const data = docSnap.data();
@@ -2204,7 +2272,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const restoreItem = useCallback(async (collectionName: TrashCollectionType | string, id: string) => {
     try {
-      await setDoc(doc(db, 'stores', SHARED_STORE_ID, collectionName, id), {
+      await setDoc(getStoreDocRef(db, collectionName, id, SHARED_STORE_ID), {
         isDeleted: false,
         restoredAt: new Date().toISOString()
       }, { merge: true });
@@ -2217,7 +2285,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const permanentDelete = useCallback(async (collectionName: TrashCollectionType | string, id: string) => {
     try {
-      await deleteDoc(doc(db, 'stores', SHARED_STORE_ID, collectionName, id));
+      await deleteDoc(getStoreDocRef(db, collectionName, id, SHARED_STORE_ID));
       showToast('تم حذف العنصر نهائياً بنجاح');
     } catch (err) {
       console.warn("Permanent delete error:", err);

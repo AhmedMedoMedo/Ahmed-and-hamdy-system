@@ -143,9 +143,61 @@
         "updatedAt": { "type": "string" }
       },
       "required": ["pin", "updatedAt"]
+    },
+    "Tenant": {
+      "title": "Tenant",
+      "description": "SaaS subscriber tenant record with organization name, optional logo URL, and login PIN",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "maxLength": 100 },
+        "pin": { "type": "string", "maxLength": 30 },
+        "logoUrl": { "type": "string", "maxLength": 500 },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["name", "pin", "createdAt"]
     }
   },
   "firestore": {
+    "/tenants/{tenantId}": {
+      "schema": "Tenant",
+      "description": "SaaS subscriber tenants managed by the system admin"
+    },
+    "/tenants/{tenantId}/merchants/{merchantId}": {
+      "schema": "Merchant",
+      "description": "Isolated merchants catalog for a SaaS tenant"
+    },
+    "/tenants/{tenantId}/products/{productId}": {
+      "schema": "Product",
+      "description": "Isolated products catalog for a SaaS tenant"
+    },
+    "/tenants/{tenantId}/invoices/{invoiceId}": {
+      "schema": "Invoice",
+      "description": "Isolated sales invoices for a SaaS tenant"
+    },
+    "/tenants/{tenantId}/payments/{paymentId}": {
+      "schema": "Payment",
+      "description": "Isolated merchant payments for a SaaS tenant"
+    },
+    "/tenants/{tenantId}/expenses/{expenseId}": {
+      "schema": "Expense",
+      "description": "Isolated expenses and withdrawals for a SaaS tenant"
+    },
+    "/tenants/{tenantId}/orders/{orderId}": {
+      "schema": "WorkOrder",
+      "description": "Isolated work orders for a SaaS tenant"
+    },
+    "/tenants/{tenantId}/personal_contacts/{contactId}": {
+      "schema": "PersonalContact",
+      "description": "Isolated personal ledger contacts for a SaaS tenant"
+    },
+    "/tenants/{tenantId}/personal_transactions/{transactionId}": {
+      "schema": "PersonalTransaction",
+      "description": "Isolated personal ledger transactions for a SaaS tenant"
+    },
+    "/tenants/{tenantId}/config/{configId}": {
+      "schema": "SecurityConfig",
+      "description": "Isolated configuration and security settings for a SaaS tenant"
+    },
     "/users/{userId}/merchants/{merchantId}": {
       "schema": "Merchant",
       "description": "Merchants managed by the authenticated user"

@@ -16,10 +16,12 @@ import {
   Settings, 
   RotateCcw,
   Sun,
-  Moon
+  Moon,
+  Store
 } from 'lucide-react';
 import { CloudAuthModal } from './CloudAuthModal';
 import { PWAInstallButton } from './PWAInstallButton';
+import { useAuth } from '../context/AuthContext';
 
 interface HeaderProps {
   onOpenSettings: () => void;
@@ -37,8 +39,10 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onTitleClick }) 
     isDarkMode,
     toggleDarkMode
   } = useApp();
+  const { role, tenantData, logout } = useAuth();
 
   const [isCloudModalOpen, setIsCloudModalOpen] = useState(false);
+  const [logoLoadError, setLogoLoadError] = useState(false);
   const currentRealMonth = getCurrentMonthKey();
   const isViewingCurrentMonth = selectedMonth === currentRealMonth;
 
@@ -64,19 +68,46 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onTitleClick }) 
           <div className="flex items-center justify-between gap-2">
             
             <div className="flex items-center gap-2 min-w-0">
-              <img 
-                src={`${import.meta.env.BASE_URL}app-icon.png`} 
-                alt="Logo" 
-                className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl object-contain drop-shadow-md bg-white/5 border border-white/10" 
-              />
-              <div className="min-w-0">
-                <h1 
-                  onClick={onTitleClick}
-                  className="text-sm font-bold text-slate-900 dark:text-white truncate leading-tight select-none cursor-pointer active:opacity-70 transition-opacity"
-                >
-                  Ahmed And Hamdy
-                </h1>
-              </div>
+              {role === 'tenant' ? (
+                <>
+                  {tenantData?.logoUrl && !logoLoadError ? (
+                    <img
+                      src={tenantData.logoUrl}
+                      alt={tenantData.name || 'Logo'}
+                      onError={() => setLogoLoadError(true)}
+                      className="w-10 h-10 rounded-full object-cover border border-slate-200 dark:border-slate-700 shadow-2xs shrink-0"
+                    />
+                  ) : (
+                    <div className="w-10 h-10 rounded-full bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 flex items-center justify-center text-emerald-700 dark:text-emerald-400 shrink-0">
+                      <Store className="w-5 h-5" />
+                    </div>
+                  )}
+                  <div className="min-w-0">
+                    <h1
+                      onClick={onTitleClick}
+                      className="text-sm font-bold text-slate-900 dark:text-white truncate leading-tight select-none cursor-pointer active:opacity-70 transition-opacity"
+                    >
+                      {tenantData?.name || 'نظام الحسابات'}
+                    </h1>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <img 
+                    src={`${import.meta.env.BASE_URL}app-icon.png`} 
+                    alt="Logo" 
+                    className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl object-contain drop-shadow-md bg-white/5 border border-white/10" 
+                  />
+                  <div className="min-w-0">
+                    <h1 
+                      onClick={onTitleClick}
+                      className="text-sm font-bold text-slate-900 dark:text-white truncate leading-tight select-none cursor-pointer active:opacity-70 transition-opacity"
+                    >
+                      Ahmed And Hamdy
+                    </h1>
+                  </div>
+                </>
+              )}
             </div>
 
             {/* Right Action Buttons */}
@@ -121,6 +152,14 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onTitleClick }) 
                 title="الإعدادات"
               >
                 <Settings className="w-4 h-4" />
+              </button>
+
+              <button
+                onClick={logout}
+                className="p-1.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/60 text-rose-600 dark:text-rose-400 transition-colors"
+                title="تسجيل الخروج"
+              >
+                <LogOut className="w-4 h-4" />
               </button>
           </div>
         </div>

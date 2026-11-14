@@ -1,7 +1,10 @@
 import React, { useState } from 'react';
 import { AppProvider, useApp } from './context/AppContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import { Header } from './components/Header';
 import { TopNav } from './components/TopNav';
+import { LoginView } from './components/LoginView';
+import { TenantsManager } from './components/TenantsManager';
 import { DashboardView } from './components/DashboardView';
 import { MerchantsView } from './components/MerchantsView';
 import { ProductsView } from './components/ProductsView';
@@ -31,6 +34,7 @@ const MainLayout: React.FC = () => {
     storeName,
     showToast
   } = useApp();
+  const { role } = useAuth();
 
   // Easter Egg: Secret 5-tap reveal for Owner tabs (Activity Log)
   const [headerTapCount, setHeaderTapCount] = useState(0);
@@ -145,6 +149,10 @@ const MainLayout: React.FC = () => {
             />
           )}
 
+          {activeTab === 'tenants' && role === 'admin' && (
+            <TenantsManager />
+          )}
+
           {activeTab === 'orders' && (
             <WorkOrdersView 
               onSelectMerchant={handleSelectMerchant}
@@ -232,7 +240,10 @@ const MainLayout: React.FC = () => {
 
         {/* Settings Modal */}
         {isSettingsOpen && (
-          <SettingsModal onClose={() => setIsSettingsOpen(false)} />
+          <SettingsModal
+            setActiveTab={setActiveTab}
+            onClose={() => setIsSettingsOpen(false)}
+          />
         )}
 
         {/* Printable Invoice / Payment / Order / Expense / Merchant Statement Modal */}
@@ -267,10 +278,26 @@ const MainLayout: React.FC = () => {
   );
 };
 
-export default function App() {
+const AppGate: React.FC = () => {
+  const { isAuthenticated, role, tenantData } = useAuth();
+
+  if (!isAuthenticated) {
+    return <LoginView />;
+  }
+
+  const providerKey = role === 'tenant' ? (tenantData?.pin || tenantData?.id || 'tenant') : 'admin';
+
   return (
-    <AppProvider>
+    <AppProvider key={providerKey}>
       <MainLayout />
     </AppProvider>
+  );
+};
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppGate />
+    </AuthProvider>
   );
 }
