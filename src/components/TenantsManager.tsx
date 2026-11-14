@@ -92,6 +92,9 @@ export const TenantsManager: React.FC = () => {
               showCloudStatus: rawPerms.showCloudStatus !== false,
             },
             createdAt: typeof data.createdAt === 'string' ? data.createdAt : '',
+            isOnline: Boolean(data.isOnline),
+            lastLoginAt: typeof data.lastLoginAt === 'string' ? data.lastLoginAt : undefined,
+            lastActiveAt: typeof data.lastActiveAt === 'string' ? data.lastActiveAt : undefined,
           };
         });
         list.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
@@ -246,6 +249,9 @@ export const TenantsManager: React.FC = () => {
       ...(trimmedLogoUrl ? { logoUrl: trimmedLogoUrl } : {}),
       permissions: { ...permissions },
       createdAt: existingTenant?.createdAt || new Date().toISOString(),
+      ...(existingTenant?.isOnline !== undefined ? { isOnline: existingTenant.isOnline } : {}),
+      ...(existingTenant?.lastLoginAt ? { lastLoginAt: existingTenant.lastLoginAt } : {}),
+      ...(existingTenant?.lastActiveAt ? { lastActiveAt: existingTenant.lastActiveAt } : {}),
     };
 
     try {
@@ -525,12 +531,23 @@ export const TenantsManager: React.FC = () => {
           tenants.map((tenant) => {
             const isPinShown = Boolean(visiblePins[tenant.id]);
             const enabledCount = countEnabledPermissions(tenant.permissions);
+            const { isOnline, lastLoginAt, lastActiveAt } = tenant;
+            const lastSeenSource = lastActiveAt || lastLoginAt;
+            const parsedLastSeen = lastSeenSource ? new Date(lastSeenSource) : null;
+            const lastSeenFormatted =
+              parsedLastSeen && !Number.isNaN(parsedLastSeen.getTime())
+                ? parsedLastSeen.toLocaleString('ar-EG', {
+                    dateStyle: 'short',
+                    timeStyle: 'short',
+                  })
+                : 'لم يسجل دخوله بعد';
+
             return (
               <div
                 key={tenant.id}
                 className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200/80 dark:border-slate-700 p-3.5 shadow-2xs flex items-center justify-between gap-3 transition-colors"
               >
-                <div className="min-w-0 flex-1 space-y-1">
+                <div className="min-w-0 flex-1 space-y-1.5">
                   <div className="flex items-center gap-2">
                     <div className="w-8 h-8 rounded-xl bg-amber-50 dark:bg-amber-950/50 border border-amber-200/70 dark:border-amber-800/60 flex items-center justify-center text-amber-700 dark:text-amber-400 shrink-0 overflow-hidden">
                       {tenant.logoUrl ? (
@@ -555,7 +572,32 @@ export const TenantsManager: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="flex items-center flex-wrap gap-2 pt-1">
+                  {/* Presence Status & Last Seen */}
+                  <div className="space-y-0.5 pt-0.5">
+                    <div className="flex items-center gap-1.5">
+                      <span
+                        className={`w-2 h-2 rounded-full shrink-0 ${
+                          isOnline
+                            ? 'bg-emerald-500 animate-pulse'
+                            : 'bg-slate-400 dark:bg-slate-500'
+                        }`}
+                      />
+                      <span
+                        className={`text-[11px] font-bold ${
+                          isOnline
+                            ? 'text-emerald-600 dark:text-emerald-400'
+                            : 'text-slate-500 dark:text-slate-400'
+                        }`}
+                      >
+                        {isOnline ? 'متصل الآن' : 'غير متصل'}
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400">
+                      آخر ظهور: <span className="font-mono-num">{lastSeenFormatted}</span>
+                    </p>
+                  </div>
+
+                  <div className="flex items-center flex-wrap gap-2 pt-0.5">
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-[11px] font-mono-num font-bold text-slate-700 dark:text-slate-200">
                       <KeyRound className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
                       <span>PIN: {isPinShown ? tenant.pin : '••••'}</span>

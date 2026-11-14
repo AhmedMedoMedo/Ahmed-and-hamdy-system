@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
-import { collection, doc, getDoc, getDocs, onSnapshot, query, where } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, onSnapshot, query, updateDoc, where } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../firebase';
 
 export type AuthRole = 'admin' | 'tenant' | null;
@@ -35,6 +35,9 @@ export interface TenantData {
   logoUrl?: string;
   permissions?: TenantPermissions;
   createdAt?: string;
+  isOnline?: boolean;
+  lastLoginAt?: string;
+  lastActiveAt?: string;
 }
 
 interface StoredAuthSession {
@@ -127,6 +130,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           logoUrl: typeof data.logoUrl === 'string' && data.logoUrl.trim() ? data.logoUrl.trim() : undefined,
           permissions: parseTenantPermissions(data.permissions),
           createdAt: typeof data.createdAt === 'string' ? data.createdAt : session.tenantData?.createdAt,
+          isOnline: typeof data.isOnline === 'boolean' ? data.isOnline : session.tenantData?.isOnline,
+          lastLoginAt: typeof data.lastLoginAt === 'string' ? data.lastLoginAt : session.tenantData?.lastLoginAt,
+          lastActiveAt: typeof data.lastActiveAt === 'string' ? data.lastActiveAt : session.tenantData?.lastActiveAt,
         };
         persistSession({
           isAuthenticated: true,
@@ -141,6 +147,44 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     return () => unsubscribe();
   }, [session.isAuthenticated, session.role, session.tenantData?.id, persistSession]);
+
+  // Track tenant online/offline presence across tab visibility and app unload
+  useEffect(() => {
+    if (!session.isAuthenticated || session.role !== 'tenant' || !session.tenantData?.id) {
+      return;
+    }
+
+    const tenantDocRef = doc(db, 'tenants', session.tenantData.id);
+
+    const updatePresence = (online: boolean) => {
+      updateDoc(tenantDocRef, {
+        isOnline: online,
+        lastActiveAt: new Date().toISOString(),
+      }).catch(() => {
+        // Ignore network errors while updating presence
+      });
+    };
+
+    if (document.visibilityState === 'visible') {
+      updatePresence(true);
+    }
+
+    const handleVisibility = () => {
+      updatePresence(document.visibilityState === 'visible');
+    };
+
+    const handleUnload = () => {
+      updatePresence(false);
+    };
+
+    document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('beforeunload', handleUnload);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('beforeunload', handleUnload);
+    };
+  }, [session.isAuthenticated, session.role, session.tenantData?.id]);
 
   const login = useCallback(async (pin: string): Promise<{ success: boolean; error?: string }> => {
     const trimmedPin = pin.trim();
@@ -177,6 +221,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (!snap.empty) {
         const docSnap = snap.docs[0];
         const data = docSnap.data();
+        const nowIso = new Date().toISOString();
+
+        try {
+          await updateDoc(doc(db, 'tenants', docSnap.id), {
+            isOnline: true,
+            lastLoginAt: nowIso,
+          });
+        } catch {
+          // Non-fatal if presence update cannot be written immediately
+        }
+
         const tenant: TenantData = {
           id: docSnap.id,
           name: String(data.name || ''),
@@ -184,6 +239,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           logoUrl: typeof data.logoUrl === 'string' && data.logoUrl.trim() ? data.logoUrl.trim() : undefined,
           permissions: parseTenantPermissions(data.permissions),
           createdAt: typeof data.createdAt === 'string' ? data.createdAt : undefined,
+          isOnline: true,
+          lastLoginAt: nowIso,
+          lastActiveAt: typeof data.lastActiveAt === 'string' ? data.lastActiveAt : undefined,
         };
 
         persistSession({
@@ -212,12 +270,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [persistSession]);
 
   const logout = useCallback(() => {
+    if (session.role === 'tenant' && session.tenantData?.id) {
+      const tenantDocRef = doc(db, 'tenants', session.tenantData.id);
+      updateDoc(tenantDocRef, {
+        isOnline: false,
+        lastActiveAt: new Date().toISOString(),
+      }).catch(() => {
+        // Ignore network errors during logout
+      });
+    }
+
     persistSession({
       isAuthenticated: false,
       role: null,
       tenantData: null,
     });
-  }, [persistSession]);
+  }, [session.role, session.tenantData?.id, persistSession]);
 
   return (
     <AuthContext.Provider

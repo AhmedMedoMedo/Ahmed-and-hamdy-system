@@ -153,7 +153,10 @@
         "pin": { "type": "string", "maxLength": 30 },
         "logoUrl": { "type": "string", "maxLength": 200000 },
         "permissions": { "type": "object" },
-        "createdAt": { "type": "string" }
+        "createdAt": { "type": "string" },
+        "isOnline": { "type": "boolean" },
+        "lastLoginAt": { "type": "string" },
+        "lastActiveAt": { "type": "string" }
       },
       "required": ["name", "pin", "createdAt"]
     },
