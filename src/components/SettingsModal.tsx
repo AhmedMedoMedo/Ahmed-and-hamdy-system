@@ -54,8 +54,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, setActive
     togglePinEnabled,
     lockSystem,
     showToast,
-    installPrompt,
-    promptInstall,
     setActiveTab: setActiveTabContext
   } = useApp();
   const { role, tenantData, logout } = useAuth();
@@ -230,26 +228,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, setActive
             </button>
           )}
 
-          {/* PWA Install Banner (Always visible with automatic or manual fallback) */}
-          <div className="mb-4 p-4 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl text-white shadow-lg flex flex-col sm:flex-row items-center justify-between gap-3">
-            <div>
-              <h3 className="font-bold text-sm sm:text-base">تثبيت النظام كتطبيق 📱</h3>
-              <p className="text-[11px] sm:text-xs text-indigo-100 mt-1">قم بتثبيت النظام على جهازك للوصول السريع والعمل بدون إنترنت.</p>
-            </div>
-            <button
-              onClick={() => {
-                if (installPrompt && promptInstall) {
-                  promptInstall();
-                } else {
-                  showToast('لتثبيت النظام: اضغط على القائمة (⋮) أعلى المتصفح، ثم اختر "تثبيت التطبيق" أو "Add to Home screen"', 'success');
-                }
-              }}
-              className="px-4 py-2 bg-white text-indigo-600 rounded-xl font-bold text-xs shadow-sm hover:bg-indigo-50 active:scale-95 transition-all whitespace-nowrap w-full sm:w-auto cursor-pointer"
-            >
-              تثبيت الآن
-            </button>
-          </div>
-
           {/* Cloud Storage & Firebase */}
           <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 space-y-3">
             <div className="flex items-center justify-between">
@@ -270,27 +248,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, setActive
                 : 'قم بتسجيل الدخول بحساب Google لضمان حفظ التجار، الفواتير، والدفعات في السحاب للأبد وبشكل فوري.'}
             </p>
 
-            <button
-              onClick={handleGoogleAuth}
-              disabled={authWorking}
-              className={`w-full py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 text-xs transition-all ${
-                currentUser
-                  ? 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400 hover:bg-rose-100 border border-rose-200 dark:border-rose-900/60'
-                  : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-xs'
-              }`}
-            >
-              {currentUser ? (
-                <>
-                  <LogOut className="w-4 h-4" />
-                  <span>تسجيل الخروج ({currentUser.email?.slice(0, 15)}...)</span>
-                </>
-              ) : (
-                <>
-                  <LogIn className="w-4 h-4" />
-                  <span>تسجيل الدخول بحساب Google للحفظ الأبدي</span>
-                </>
-              )}
-            </button>
+            {!currentUser && (
+              <button
+                onClick={handleGoogleAuth}
+                disabled={authWorking}
+                className="w-full py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 text-xs transition-all bg-emerald-600 text-white hover:bg-emerald-700 shadow-xs"
+              >
+                <LogIn className="w-4 h-4" />
+                <span>تسجيل الدخول بحساب Google للحفظ الأبدي</span>
+              </button>
+            )}
           </div>
 
           {/* Theme Mode Toggle (Dark / Light) */}
@@ -375,6 +342,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, setActive
               ))}
             </div>
           </div>
+
+          {/* System Logout Button (General Section) */}
+          <button
+            type="button"
+            onClick={() => {
+              onClose();
+              logout();
+            }}
+            className="w-full py-3 px-4 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 border border-red-500/20 font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all active:scale-98 cursor-pointer"
+          >
+            <LogOut className="w-4 h-4" />
+            <span>تسجيل الخروج من النظام</span>
+          </button>
 
           {/* Security & Owner Configuration (Secret Section - unlocked with 5 taps) */}
           {showSecretSection && (
@@ -603,6 +583,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, setActive
             </div>
           )}
 
+          {/* Secret Firebase Cloud Logout Button (Unlocked with 5 taps) */}
+          {showSecretSection && currentUser && (
+            <button
+              type="button"
+              onClick={handleGoogleAuth}
+              disabled={authWorking}
+              className="w-full py-2.5 px-4 rounded-xl bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/60 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-900/60 font-bold text-xs flex items-center justify-center gap-2 transition-all active:scale-98 cursor-pointer animate-in fade-in duration-300"
+            >
+              <LogOut className="w-4 h-4" />
+              <span>تسجيل الخروج من السحابة ({currentUser.email ? `${currentUser.email.slice(0, 15)}...` : 'Firebase'})</span>
+            </button>
+          )}
+
           {/* Backup / Export / Import JSON */}
           <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 space-y-2.5">
             <span className="font-bold text-slate-800 dark:text-white flex items-center gap-2">
@@ -644,19 +637,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, setActive
               </div>
             )}
           </div>
-
-          {/* Logout Action Button */}
-          <button
-            type="button"
-            onClick={() => {
-              onClose();
-              logout();
-            }}
-            className="w-full py-3 px-4 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all active:scale-98 cursor-pointer"
-          >
-            <LogOut className="w-4 h-4" />
-            <span>تسجيل الخروج</span>
-          </button>
 
         </div>
 
