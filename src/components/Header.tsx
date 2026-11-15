@@ -10,16 +10,12 @@ import {
   Calendar, 
   ChevronLeft, 
   ChevronRight, 
-  Cloud, 
-  LogIn, 
-  LogOut, 
   Settings, 
   RotateCcw,
   Sun,
   Moon,
   Store
 } from 'lucide-react';
-import { CloudAuthModal } from './CloudAuthModal';
 import { PWAInstallButton } from './PWAInstallButton';
 import { useAuth } from '../context/AuthContext';
 
@@ -32,14 +28,11 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onTitleClick }) 
   const { 
     selectedMonth, 
     setSelectedMonth, 
-    currentUser, 
-    loginWithGoogle, 
-    logoutUser,
     showToast,
     isDarkMode,
     toggleDarkMode
   } = useApp();
-  const { role, tenantData, logout } = useAuth();
+  const { role, tenantData } = useAuth();
 
   const hasPermission = (feature: string) => {
     if (role === 'admin') return true;
@@ -47,7 +40,6 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onTitleClick }) 
     return (tenantData.permissions as Record<string, boolean | undefined>)[feature] !== false;
   };
 
-  const [isCloudModalOpen, setIsCloudModalOpen] = useState(false);
   const [logoLoadError, setLogoLoadError] = useState(false);
   const currentRealMonth = getCurrentMonthKey();
   const isViewingCurrentMonth = selectedMonth === currentRealMonth;
@@ -66,8 +58,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onTitleClick }) 
   };
 
   return (
-    <>
-      <header className="bg-white dark:bg-slate-900">
+    <header className="bg-white dark:bg-slate-900">
         <div className="max-w-md mx-auto px-3 pt-2 pb-1 space-y-1.5">
           
           {/* Top line: Brand + Cloud indicator + Dark Toggle + Settings */}
@@ -130,30 +121,6 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onTitleClick }) 
                 {isDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
               </button>
 
-              {/* Cloud Connection / Login button */}
-              {hasPermission('showCloudStatus') && (
-                <button
-                  onClick={() => setIsCloudModalOpen(true)}
-                  className={`flex items-center gap-1 px-2.5 py-1 rounded-xl text-[11px] font-bold transition-all ${
-                    currentUser
-                      ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
-                      : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-2xs'
-                  }`}
-                >
-                  {currentUser ? (
-                    <>
-                      <Cloud className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
-                      <span>سحابي</span>
-                    </>
-                  ) : (
-                    <>
-                      <LogIn className="w-3 h-3" />
-                      <span>دخول</span>
-                    </>
-                  )}
-                </button>
-              )}
-
               {hasPermission('showSettings') && (
                 <button
                   onClick={onOpenSettings}
@@ -163,14 +130,6 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onTitleClick }) 
                   <Settings className="w-4 h-4" />
                 </button>
               )}
-
-              <button
-                onClick={logout}
-                className="p-1.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/60 text-rose-600 dark:text-rose-400 transition-colors"
-                title="تسجيل الخروج"
-              >
-                <LogOut className="w-4 h-4" />
-              </button>
           </div>
         </div>
 
@@ -208,12 +167,5 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onTitleClick }) 
         </div>
       </div>
     </header>
-
-      {/* Cloud Authentication & Sync Modal */}
-      <CloudAuthModal 
-        isOpen={isCloudModalOpen} 
-        onClose={() => setIsCloudModalOpen(false)} 
-      />
-    </>
   );
 };
