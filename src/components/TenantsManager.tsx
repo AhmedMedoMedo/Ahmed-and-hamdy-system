@@ -45,6 +45,7 @@ const PERMISSION_ITEMS: { key: keyof Required<TenantPermissions>; label: string 
   { key: 'showActivityLog', label: 'سجل النشاط' },
   { key: 'showSettings', label: 'الإعدادات (الترس)' },
   { key: 'showCloudStatus', label: 'حالة السحابة (سحابي)' },
+  { key: 'showTrendLines', label: 'إظهار خطوط الاتجاه (الرسوم البيانية)' },
 ];
 
 export const TenantsManager: React.FC = () => {
@@ -90,6 +91,7 @@ export const TenantsManager: React.FC = () => {
               showActivityLog: rawPerms.showActivityLog !== false,
               showSettings: rawPerms.showSettings !== false,
               showCloudStatus: rawPerms.showCloudStatus !== false,
+              showTrendLines: rawPerms.showTrendLines === true,
             },
             createdAt: typeof data.createdAt === 'string' ? data.createdAt : '',
             isOnline: Boolean(data.isOnline),
@@ -142,6 +144,7 @@ export const TenantsManager: React.FC = () => {
       showActivityLog: tenant.permissions?.showActivityLog !== false,
       showSettings: tenant.permissions?.showSettings !== false,
       showCloudStatus: tenant.permissions?.showCloudStatus !== false,
+      showTrendLines: tenant.permissions?.showTrendLines === true,
     });
     setFormError(null);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -302,8 +305,12 @@ export const TenantsManager: React.FC = () => {
   };
 
   const countEnabledPermissions = (perms?: TenantPermissions) => {
-    if (!perms) return PERMISSION_ITEMS.length;
-    return PERMISSION_ITEMS.filter((item) => perms[item.key] !== false).length;
+    if (!perms) {
+      return PERMISSION_ITEMS.filter((item) => DEFAULT_TENANT_PERMISSIONS[item.key]).length;
+    }
+    return PERMISSION_ITEMS.filter((item) =>
+      item.key === 'showTrendLines' ? perms[item.key] === true : perms[item.key] !== false
+    ).length;
   };
 
   return (

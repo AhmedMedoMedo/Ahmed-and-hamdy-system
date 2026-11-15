@@ -14,6 +14,7 @@ export interface TenantPermissions {
   showActivityLog?: boolean;
   showSettings?: boolean;
   showCloudStatus?: boolean;
+  showTrendLines?: boolean;
 }
 
 export const DEFAULT_TENANT_PERMISSIONS: Required<TenantPermissions> = {
@@ -26,6 +27,7 @@ export const DEFAULT_TENANT_PERMISSIONS: Required<TenantPermissions> = {
   showActivityLog: true,
   showSettings: true,
   showCloudStatus: true,
+  showTrendLines: false,
 };
 
 export interface TenantData {
@@ -72,6 +74,7 @@ function parseTenantPermissions(raw: unknown): TenantPermissions | undefined {
     showActivityLog: src.showActivityLog !== false,
     showSettings: src.showSettings !== false,
     showCloudStatus: src.showCloudStatus !== false,
+    showTrendLines: src.showTrendLines === true,
   };
 }
 

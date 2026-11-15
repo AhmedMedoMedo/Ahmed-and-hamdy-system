@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
 import type { Invoice, Payment, Expense, WorkOrder } from '../types';
 import { 
   formatCurrency, 
@@ -59,6 +60,44 @@ interface DashboardViewProps {
 type PeriodFilter = 'today' | 'week' | 'month' | 'all';
 type TransactionFilter = 'all' | 'invoices' | 'payments' | 'expenses';
 
+const MiniTrendChart = ({
+  data,
+  colorClass,
+  fillClass,
+}: {
+  data: number[];
+  colorClass: string;
+  fillClass: string;
+}) => {
+  if (!data || data.length < 2) return <div className="h-10 w-full mt-2"></div>;
+  const max = Math.max(...data);
+  const min = Math.min(...data);
+  const range = max - min || 1;
+  const height = 40;
+  const width = 100;
+  const points = data.map((val, i) => {
+    const x = (i / (data.length - 1)) * width;
+    const y = height - ((val - min) / range) * height * 0.8 - 4;
+    return `${x},${y}`;
+  });
+  const polylinePoints = points.join(' ');
+  const polygonPoints = `0,${height} ${polylinePoints} ${width},${height}`;
+  return (
+    <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-10 mt-2 preserve-3d" preserveAspectRatio="none">
+      <polygon points={polygonPoints} className={fillClass} opacity="0.2" />
+      <polyline
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        points={polylinePoints}
+        className={colorClass}
+      />
+    </svg>
+  );
+};
+
 export const DashboardView: React.FC<DashboardViewProps> = ({
   onOpenNewInvoice,
   onOpenNewPayment,
@@ -91,6 +130,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     removeWorkOrder,
     showToast
   } = useApp();
+  const { role, tenantData } = useAuth();
+  const canShowTrends = role === 'admin' || tenantData?.permissions?.showTrendLines === true;
 
   // Period filter applied to BOTH top statistics cards AND recent operations
   const [periodFilter, setPeriodFilter] = useState<PeriodFilter>('month');
@@ -364,6 +405,37 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     };
   }, [periodOperations]);
 
+  // Daily trend series (sorted chronologically) for KPI card sparklines
+  const { salesTrend, paymentsTrend, withdrawalsTrend } = useMemo(() => {
+    const salesByDate: Record<string, number> = {};
+    const paymentsByDate: Record<string, number> = {};
+    const withdrawalsByDate: Record<string, number> = {};
+
+    periodOperations.forEach((op) => {
+      const isExcluded = Boolean((op.raw as { excludeFromStats?: boolean })?.excludeFromStats);
+      if (isExcluded || !op.date) return;
+
+      if (op.type === 'invoice') {
+        salesByDate[op.date] = (salesByDate[op.date] || 0) + (Number(op.amount) || 0);
+      } else if (op.type === 'payment') {
+        paymentsByDate[op.date] = (paymentsByDate[op.date] || 0) + (Number(op.amount) || 0);
+      } else if (op.type === 'expense') {
+        withdrawalsByDate[op.date] = (withdrawalsByDate[op.date] || 0) + (Number(op.amount) || 0);
+      }
+    });
+
+    const toSortedValues = (map: Record<string, number>) =>
+      Object.keys(map)
+        .sort((a, b) => a.localeCompare(b))
+        .map((dateKey) => map[dateKey]);
+
+    return {
+      salesTrend: toSortedValues(salesByDate),
+      paymentsTrend: toSortedValues(paymentsByDate),
+      withdrawalsTrend: toSortedValues(withdrawalsByDate),
+    };
+  }, [periodOperations]);
+
   // Totals for filtered operations (powers the mini summary banner inside the recent operations card)
   const recentTotals = useMemo(() => {
     let sales = 0;
@@ -559,6 +631,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <span>{periodFilter === 'month' ? currentMonthSummary.invoicesCount : periodStats.invoiceCount}</span>
             <span>فاتورة بيع مسجلة</span>
           </div>
+          {canShowTrends && <MiniTrendChart data={salesTrend} colorClass="text-blue-400" fillClass="fill-blue-400" />}
         </div>
 
         {/* Card 2: Collections in selected period (Emerald Green for Cash In / Payments) */}
@@ -582,6 +655,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <span>{periodFilter === 'month' ? currentMonthSummary.paymentsCount : periodStats.paymentCount}</span>
             <span>دفعة تحصيل مستلمة</span>
           </div>
+          {canShowTrends && <MiniTrendChart data={paymentsTrend} colorClass="text-emerald-400" fillClass="fill-emerald-400" />}
         </div>
 
         {/* Card 3: Expenses / Withdrawals in selected period (Amber for Withdrawals / Expenses) */}
@@ -605,6 +679,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <span>{periodFilter === 'month' ? currentMonthSummary.expensesCount : periodStats.expenseCount}</span>
             <span>عملية سحب ومصروف</span>
           </div>
+          {canShowTrends && <MiniTrendChart data={withdrawalsTrend} colorClass="text-orange-400" fillClass="fill-orange-400" />}
         </div>
 
         {/* Card 4: Net Collection (Collections minus Withdrawals) */}

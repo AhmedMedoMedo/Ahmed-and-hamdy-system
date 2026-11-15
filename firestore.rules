@@ -30,7 +30,8 @@ service cloud.firestore {
           'showArchive',
           'showActivityLog',
           'showSettings',
-          'showCloudStatus'
+          'showCloudStatus',
+          'showTrendLines'
         ])
         && (!('showHome' in p) || p.showHome is bool)
         && (!('showMerchants' in p) || p.showMerchants is bool)
@@ -40,7 +41,8 @@ service cloud.firestore {
         && (!('showArchive' in p) || p.showArchive is bool)
         && (!('showActivityLog' in p) || p.showActivityLog is bool)
         && (!('showSettings' in p) || p.showSettings is bool)
-        && (!('showCloudStatus' in p) || p.showCloudStatus is bool);
+        && (!('showCloudStatus' in p) || p.showCloudStatus is bool)
+        && (!('showTrendLines' in p) || p.showTrendLines is bool);
     }
 
     function isValidTenant(data) {
