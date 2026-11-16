@@ -466,35 +466,80 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     };
   }, [periodOperations]);
 
-  // Daily trend series with date labels (sorted chronologically) for KPI card sparklines
-  const buildTrendData = (items: typeof periodOperations, filterType?: 'invoice' | 'payment' | 'expense') => {
-    const grouped = items.reduce((acc: Record<string, number>, item) => {
+  // Dynamic timeframe trend series (sorted chronologically) for KPI card sparklines
+  const buildTrendData = (
+    items: typeof periodOperations,
+    filterType: 'invoice' | 'payment' | 'expense' | undefined,
+    dateFilter: PeriodFilter
+  ) => {
+    const grouped = items.reduce<Record<string, { amount: number; label: string; sortVal: number }>>((acc, item) => {
       if (Boolean((item.raw as { excludeFromStats?: boolean })?.excludeFromStats)) return acc;
       if (filterType && item.type !== filterType) return acc;
-      const dateStr = item.date || item.createdAt;
-      if (!dateStr) return acc;
-      const d = new Date(dateStr);
+
+      const rawDateStr = dateFilter === 'today' ? item.createdAt || item.date : item.date || item.createdAt;
+      if (!rawDateStr) return acc;
+
+      let d: Date;
+      if (/^\d{4}-\d{2}-\d{2}$/.test(rawDateStr)) {
+        const [y, m, day] = rawDateStr.split('-').map(Number);
+        d = new Date(y, m - 1, day);
+      } else {
+        d = new Date(rawDateStr);
+      }
       if (Number.isNaN(d.getTime())) return acc;
-      const key = d.toISOString().split('T')[0];
+
+      let key = '';
+      let label = '';
+      let sortVal = d.getTime();
+
+      if (dateFilter === 'today') {
+        key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}-${d.getHours()}`;
+        label = `${d.getHours()}:00`;
+        sortVal = new Date(d.getFullYear(), d.getMonth(), d.getDate(), d.getHours(), 0, 0, 0).getTime();
+      } else if (dateFilter === 'week') {
+        key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        const days = ['أحد', 'إثنين', 'ثلاثاء', 'أربعاء', 'خميس', 'جمعة', 'سبت'];
+        label = days[d.getDay()];
+        sortVal = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+      } else if (dateFilter === 'month') {
+        const weekNum = Math.ceil(d.getDate() / 7);
+        key = `${d.getFullYear()}-${d.getMonth()}-W${weekNum}`;
+        label = `أسبوع ${weekNum}`;
+        sortVal = new Date(d.getFullYear(), d.getMonth(), (weekNum - 1) * 7 + 1).getTime();
+      } else {
+        key = `${d.getFullYear()}-${d.getMonth()}`;
+        label = `${d.getMonth() + 1}/${d.getFullYear().toString().slice(2)}`;
+        sortVal = new Date(d.getFullYear(), d.getMonth(), 1).getTime();
+      }
+
       const amount = Number(item.amount || 0);
-      acc[key] = (acc[key] || 0) + amount;
+      if (!acc[key]) {
+        acc[key] = { amount: 0, label, sortVal };
+      }
+      acc[key].amount += amount;
       return acc;
     }, {});
 
-    return Object.entries(grouped)
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([date, value]) => {
-        const [, monthStr, dayStr] = date.split('-');
-        return {
-          value,
-          label: `${Number(dayStr)}/${Number(monthStr)}`,
-        };
-      });
+    return Object.values(grouped)
+      .sort((a, b) => a.sortVal - b.sortVal)
+      .map((item) => ({
+        value: item.amount,
+        label: item.label,
+      }));
   };
 
-  const salesTrend = useMemo(() => buildTrendData(periodOperations, 'invoice'), [periodOperations]);
-  const paymentsTrend = useMemo(() => buildTrendData(periodOperations, 'payment'), [periodOperations]);
-  const withdrawalsTrend = useMemo(() => buildTrendData(periodOperations, 'expense'), [periodOperations]);
+  const salesTrend = useMemo(
+    () => buildTrendData(periodOperations, 'invoice', periodFilter),
+    [periodOperations, periodFilter]
+  );
+  const paymentsTrend = useMemo(
+    () => buildTrendData(periodOperations, 'payment', periodFilter),
+    [periodOperations, periodFilter]
+  );
+  const withdrawalsTrend = useMemo(
+    () => buildTrendData(periodOperations, 'expense', periodFilter),
+    [periodOperations, periodFilter]
+  );
 
   // Totals for filtered operations (powers the mini summary banner inside the recent operations card)
   const recentTotals = useMemo(() => {
