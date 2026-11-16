@@ -30,7 +30,8 @@ try {
     {
       localCache: persistentLocalCache({
         tabManager: persistentMultipleTabManager()
-      })
+      }),
+      experimentalForceLongPolling: true,
     },
     firebaseConfig.firestoreDatabaseId
   );
@@ -100,8 +101,12 @@ export async function testConnection(): Promise<boolean> {
     await getDocFromServer(doc(db, 'test', 'connection'));
     return true;
   } catch (error) {
-    if (error instanceof Error && error.message.includes('the client is offline')) {
-      console.warn("Firestore client is offline, check connection.");
+    const err = error as { code?: string; message?: string };
+    if (
+      err?.code === 'unavailable' ||
+      (err?.message && (err.message.includes('the client is offline') || err.message.includes('unavailable')))
+    ) {
+      console.warn("Firestore client is offline or unavailable, check connection.");
       return false;
     }
     // Return true even if document doesn't exist; connecting to server succeeded

@@ -65,21 +65,33 @@ const MiniTrendChart = ({
   colorClass,
   fillClass,
 }: {
-  data: number[];
+  data: { value: number; label: string }[];
   colorClass: string;
   fillClass: string;
 }) => {
-  const [chartType, setChartType] = useState<'line' | 'candle' | 'none'>('line');
+  const [chartType, setChartType] = useState<'line' | 'candle' | 'none'>(() => {
+    try {
+      const saved = localStorage.getItem('preferredChartType');
+      if (saved === 'line' || saved === 'candle' || saved === 'none') {
+        return saved;
+      }
+    } catch {
+      // Ignore storage access issues
+    }
+    return 'line';
+  });
+
   if (!data || data.length < 2) return <div className="h-10 w-full mt-2"></div>;
 
-  const max = Math.max(...data);
-  const min = Math.min(...data);
+  const values = data.map((d) => d.value);
+  const max = Math.max(...values);
+  const min = Math.min(...values);
   const range = max - min || 1;
   const height = 40;
   const width = 100;
 
-  const points = data.map((val, i) => {
-    const x = (i / (data.length - 1)) * width;
+  const points = values.map((val, i) => {
+    const x = (i / (values.length - 1)) * width;
     const y = height - ((val - min) / range) * height * 0.8 - 4;
     return `${x},${y}`;
   });
@@ -87,43 +99,61 @@ const MiniTrendChart = ({
   const polygonPoints = `0,${height} ${polylinePoints} ${width},${height}`;
 
   const toggleChart = () => {
-    setChartType((prev) => (prev === 'line' ? 'candle' : prev === 'candle' ? 'none' : 'line'));
+    setChartType((prev) => {
+      const next = prev === 'line' ? 'candle' : prev === 'candle' ? 'none' : 'line';
+      try {
+        localStorage.setItem('preferredChartType', next);
+      } catch {
+        // Ignore storage write issues
+      }
+      return next;
+    });
   };
 
   return (
     <div
       onClick={toggleChart}
-      className="w-full mt-2 cursor-pointer transition-all duration-300 hover:opacity-80 flex items-end justify-center min-h-[16px]"
+      className="w-full mt-2 flex flex-col cursor-pointer transition-all duration-300 hover:opacity-80"
       title="اضغط لتبديل شكل الرسم أو إخفائه"
     >
       {chartType === 'none' ? (
-        <div className="h-1 w-12 bg-gray-300 dark:bg-gray-600 rounded-full opacity-30 hover:opacity-100 transition-opacity mb-1"></div>
+        <div className="h-1 w-12 bg-gray-300 dark:bg-gray-600 rounded-full opacity-30 hover:opacity-100 transition-opacity mb-1 self-center mt-9"></div>
       ) : (
-        <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-10 preserve-3d" preserveAspectRatio="none">
-          {chartType === 'line' ? (
-            <>
-              <polygon points={polygonPoints} className={fillClass} opacity="0.2" />
-              <polyline
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                points={polylinePoints}
-                className={colorClass}
-              />
-            </>
-          ) : (
-            data.map((val, i) => {
-              const step = width / data.length;
-              const barW = Math.max(0.5, step * 0.7);
-              const x = i * step + (step - barW) / 2;
-              const y = height - ((val - min) / range) * height * 0.8 - 4;
-              const barH = Math.max(1, height - y);
-              return <rect key={i} x={x} y={y} width={barW} height={barH} className={fillClass} rx="0.5" />;
-            })
-          )}
-        </svg>
+        <>
+          <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-10 preserve-3d" preserveAspectRatio="none">
+            {chartType === 'line' ? (
+              <>
+                <polygon points={polygonPoints} className={fillClass} opacity="0.2" />
+                <polyline
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  points={polylinePoints}
+                  className={colorClass}
+                />
+              </>
+            ) : (
+              values.map((val, i) => {
+                const step = width / values.length;
+                const barW = Math.max(0.5, step * 0.7);
+                const x = i * step + (step - barW) / 2;
+                const y = height - ((val - min) / range) * height * 0.8 - 4;
+                const barH = Math.max(1, height - y);
+                return <rect key={i} x={x} y={y} width={barW} height={barH} className={fillClass} rx="0.5" />;
+              })
+            )}
+          </svg>
+          <div
+            dir="ltr"
+            className="flex justify-between w-full text-[9px] text-gray-400 dark:text-gray-500 mt-1 px-1 font-medium font-mono-num"
+          >
+            <span>{data[0].label}</span>
+            {data.length > 2 && <span>{data[Math.floor(data.length / 2)].label}</span>}
+            {data.length > 1 && <span>{data[data.length - 1].label}</span>}
+          </div>
+        </>
       )}
     </div>
   );
@@ -436,36 +466,35 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     };
   }, [periodOperations]);
 
-  // Daily trend series (sorted chronologically) for KPI card sparklines
-  const { salesTrend, paymentsTrend, withdrawalsTrend } = useMemo(() => {
-    const salesByDate: Record<string, number> = {};
-    const paymentsByDate: Record<string, number> = {};
-    const withdrawalsByDate: Record<string, number> = {};
+  // Daily trend series with date labels (sorted chronologically) for KPI card sparklines
+  const buildTrendData = (items: typeof periodOperations, filterType?: 'invoice' | 'payment' | 'expense') => {
+    const grouped = items.reduce((acc: Record<string, number>, item) => {
+      if (Boolean((item.raw as { excludeFromStats?: boolean })?.excludeFromStats)) return acc;
+      if (filterType && item.type !== filterType) return acc;
+      const dateStr = item.date || item.createdAt;
+      if (!dateStr) return acc;
+      const d = new Date(dateStr);
+      if (Number.isNaN(d.getTime())) return acc;
+      const key = d.toISOString().split('T')[0];
+      const amount = Number(item.amount || 0);
+      acc[key] = (acc[key] || 0) + amount;
+      return acc;
+    }, {});
 
-    periodOperations.forEach((op) => {
-      const isExcluded = Boolean((op.raw as { excludeFromStats?: boolean })?.excludeFromStats);
-      if (isExcluded || !op.date) return;
+    return Object.entries(grouped)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, value]) => {
+        const [, monthStr, dayStr] = date.split('-');
+        return {
+          value,
+          label: `${Number(dayStr)}/${Number(monthStr)}`,
+        };
+      });
+  };
 
-      if (op.type === 'invoice') {
-        salesByDate[op.date] = (salesByDate[op.date] || 0) + (Number(op.amount) || 0);
-      } else if (op.type === 'payment') {
-        paymentsByDate[op.date] = (paymentsByDate[op.date] || 0) + (Number(op.amount) || 0);
-      } else if (op.type === 'expense') {
-        withdrawalsByDate[op.date] = (withdrawalsByDate[op.date] || 0) + (Number(op.amount) || 0);
-      }
-    });
-
-    const toSortedValues = (map: Record<string, number>) =>
-      Object.keys(map)
-        .sort((a, b) => a.localeCompare(b))
-        .map((dateKey) => map[dateKey]);
-
-    return {
-      salesTrend: toSortedValues(salesByDate),
-      paymentsTrend: toSortedValues(paymentsByDate),
-      withdrawalsTrend: toSortedValues(withdrawalsByDate),
-    };
-  }, [periodOperations]);
+  const salesTrend = useMemo(() => buildTrendData(periodOperations, 'invoice'), [periodOperations]);
+  const paymentsTrend = useMemo(() => buildTrendData(periodOperations, 'payment'), [periodOperations]);
+  const withdrawalsTrend = useMemo(() => buildTrendData(periodOperations, 'expense'), [periodOperations]);
 
   // Totals for filtered operations (powers the mini summary banner inside the recent operations card)
   const recentTotals = useMemo(() => {

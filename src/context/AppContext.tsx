@@ -625,12 +625,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => {
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
       setCloudConnected(false);
-    } else {
-      testConnection().then((ok) => setCloudConnected(ok));
     }
 
     const handleOnline = () => {
-      setCloudConnected(true);
+      testConnection().then((ok) => setCloudConnected(ok));
       showToast('تمت استعادة الاتصال.. جاري مزامنة البيانات السحابية ☁️');
     };
 
@@ -645,20 +643,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
       if (user) {
         setCurrentUser(user);
-        if (typeof navigator === 'undefined' || navigator.onLine) {
-          setCloudConnected(true);
-        }
         setAuthLoading(false);
+        testConnection().then((ok) => setCloudConnected(ok));
       } else {
         // Automatically authenticate anonymously so all devices sync without manual clicks
         try {
           const anonUser = await signInAnonymouslyUser();
           setCurrentUser(anonUser);
-          if (typeof navigator === 'undefined' || navigator.onLine) {
-            setCloudConnected(true);
-          }
+          testConnection().then((ok) => setCloudConnected(ok));
         } catch (e) {
           console.error("Auto sign-in error:", e);
+          setCloudConnected(false);
         } finally {
           setAuthLoading(false);
         }
@@ -674,6 +669,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // 3. Attach Unified Shared Store or Isolated Tenant Firestore Subscriptions
   useEffect(() => {
+    if (authLoading) return;
     const unsubs: (() => void)[] = [];
     const tenantActive = isTenantSession();
 
@@ -858,7 +854,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return () => {
       unsubs.forEach(fn => fn());
     };
-  }, [showToast]);
+  }, [authLoading, showToast]);
 
   // Migrate all local state to Firebase Firestore store/tenant folder
   const migrateLocalDataToCloud = async (_uid?: string) => {
