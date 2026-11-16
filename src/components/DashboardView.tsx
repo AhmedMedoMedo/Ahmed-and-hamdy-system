@@ -69,12 +69,15 @@ const MiniTrendChart = ({
   colorClass: string;
   fillClass: string;
 }) => {
+  const [chartType, setChartType] = useState<'line' | 'candle' | 'none'>('line');
   if (!data || data.length < 2) return <div className="h-10 w-full mt-2"></div>;
+
   const max = Math.max(...data);
   const min = Math.min(...data);
   const range = max - min || 1;
   const height = 40;
   const width = 100;
+
   const points = data.map((val, i) => {
     const x = (i / (data.length - 1)) * width;
     const y = height - ((val - min) / range) * height * 0.8 - 4;
@@ -82,19 +85,47 @@ const MiniTrendChart = ({
   });
   const polylinePoints = points.join(' ');
   const polygonPoints = `0,${height} ${polylinePoints} ${width},${height}`;
+
+  const toggleChart = () => {
+    setChartType((prev) => (prev === 'line' ? 'candle' : prev === 'candle' ? 'none' : 'line'));
+  };
+
   return (
-    <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-10 mt-2 preserve-3d" preserveAspectRatio="none">
-      <polygon points={polygonPoints} className={fillClass} opacity="0.2" />
-      <polyline
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        points={polylinePoints}
-        className={colorClass}
-      />
-    </svg>
+    <div
+      onClick={toggleChart}
+      className="w-full mt-2 cursor-pointer transition-all duration-300 hover:opacity-80 flex items-end justify-center min-h-[16px]"
+      title="اضغط لتبديل شكل الرسم أو إخفائه"
+    >
+      {chartType === 'none' ? (
+        <div className="h-1 w-12 bg-gray-300 dark:bg-gray-600 rounded-full opacity-30 hover:opacity-100 transition-opacity mb-1"></div>
+      ) : (
+        <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-10 preserve-3d" preserveAspectRatio="none">
+          {chartType === 'line' ? (
+            <>
+              <polygon points={polygonPoints} className={fillClass} opacity="0.2" />
+              <polyline
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                points={polylinePoints}
+                className={colorClass}
+              />
+            </>
+          ) : (
+            data.map((val, i) => {
+              const step = width / data.length;
+              const barW = Math.max(0.5, step * 0.7);
+              const x = i * step + (step - barW) / 2;
+              const y = height - ((val - min) / range) * height * 0.8 - 4;
+              const barH = Math.max(1, height - y);
+              return <rect key={i} x={x} y={y} width={barW} height={barH} className={fillClass} rx="0.5" />;
+            })
+          )}
+        </svg>
+      )}
+    </div>
   );
 };
 
