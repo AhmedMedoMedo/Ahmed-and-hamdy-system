@@ -157,7 +157,8 @@
         "isOnline": { "type": "boolean" },
         "lastLoginAt": { "type": "string" },
         "lastActiveAt": { "type": "string" },
-        "forceLogout": { "type": "boolean" }
+        "forceLogout": { "type": "boolean" },
+        "isBanned": { "type": "boolean" }
       },
       "required": ["name", "pin", "createdAt"]
     },

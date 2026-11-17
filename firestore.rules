@@ -56,7 +56,8 @@ service cloud.firestore {
           'isOnline',
           'lastLoginAt',
           'lastActiveAt',
-          'forceLogout'
+          'forceLogout',
+          'isBanned'
         ])
         && data.name is string && data.name.size() > 0 && data.name.size() <= 100
         && data.pin is string && data.pin.size() > 0 && data.pin.size() <= 30
@@ -66,7 +67,8 @@ service cloud.firestore {
         && (!('isOnline' in data) || data.isOnline is bool)
         && (!('lastLoginAt' in data) || (data.lastLoginAt is string && data.lastLoginAt.size() <= 50))
         && (!('lastActiveAt' in data) || (data.lastActiveAt is string && data.lastActiveAt.size() <= 50))
-        && (!('forceLogout' in data) || data.forceLogout is bool);
+        && (!('forceLogout' in data) || data.forceLogout is bool)
+        && (!('isBanned' in data) || data.isBanned is bool);
     }
 
     // Connection testing endpoint for boots

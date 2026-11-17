@@ -41,6 +41,7 @@ export interface TenantData {
   lastLoginAt?: string;
   lastActiveAt?: string;
   forceLogout?: boolean;
+  isBanned?: boolean;
 }
 
 interface StoredAuthSession {
@@ -144,6 +145,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           isOnline: typeof data.isOnline === 'boolean' ? data.isOnline : session.tenantData?.isOnline,
           lastLoginAt: typeof data.lastLoginAt === 'string' ? data.lastLoginAt : session.tenantData?.lastLoginAt,
           lastActiveAt: typeof data.lastActiveAt === 'string' ? data.lastActiveAt : session.tenantData?.lastActiveAt,
+          isBanned: Boolean(data.isBanned),
         };
         persistSession({
           isAuthenticated: true,
@@ -233,6 +235,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (!snap.empty) {
         const docSnap = snap.docs[0];
         const data = docSnap.data();
+
+        if (data.isBanned === true) {
+          return {
+            success: false,
+            error: 'مرحباً.. تم إيقاف هذا الحساب مؤقتاً من قبل الإدارة.',
+          };
+        }
+
         const nowIso = new Date().toISOString();
 
         try {
@@ -301,7 +311,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   }, [session.role, session.tenantData?.id, persistSession]);
 
-  // Listen for remote forceLogout signal from admin dashboard
+  // Listen for remote forceLogout or isBanned signal from admin dashboard
   useEffect(() => {
     if (!session.isAuthenticated || session.role !== 'tenant' || !session.tenantData?.id) {
       return;
@@ -315,18 +325,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       async (docSnap) => {
         if (handled || !docSnap.exists()) return;
         const data = docSnap.data();
-        if (data?.forceLogout === true) {
+        const shouldForceLogout = data?.forceLogout === true;
+        const shouldBan = data?.isBanned === true;
+
+        if (shouldForceLogout || shouldBan) {
           handled = true;
           try {
-            await updateDoc(tenantRef, {
-              forceLogout: false,
-              isOnline: false,
-              lastActiveAt: new Date().toISOString(),
-            });
+            if (shouldForceLogout) {
+              await updateDoc(tenantRef, {
+                forceLogout: false,
+                isOnline: false,
+                lastActiveAt: new Date().toISOString(),
+              });
+            } else {
+              await updateDoc(tenantRef, {
+                isOnline: false,
+                lastActiveAt: new Date().toISOString(),
+              });
+            }
           } catch {
             // Proceed with local session termination even if write fails offline
           }
-          setForcedLogoutNotice('تم إنهاء جلستك بواسطة مدير النظام');
+          setForcedLogoutNotice(
+            shouldBan
+              ? 'مرحباً.. تم إيقاف هذا الحساب مؤقتاً من قبل الإدارة.'
+              : 'تم إنهاء جلستك بواسطة مدير النظام'
+          );
           logout();
         }
       },

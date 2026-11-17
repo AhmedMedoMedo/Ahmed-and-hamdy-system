@@ -35,6 +35,8 @@ import {
   Upload,
   Image as ImageIcon,
   LogOut,
+  Ban,
+  CheckCircle,
 } from 'lucide-react';
 
 const PERMISSION_ITEMS: { key: keyof Required<TenantPermissions>; label: string }[] = [
@@ -68,6 +70,7 @@ export const TenantsManager: React.FC = () => {
   const [visiblePins, setVisiblePins] = useState<Record<string, boolean>>({});
   const [tenantToDelete, setTenantToDelete] = useState<TenantData | null>(null);
   const [tenantToForceLogout, setTenantToForceLogout] = useState<TenantData | null>(null);
+  const [tenantToToggleBan, setTenantToToggleBan] = useState<TenantData | null>(null);
 
   useEffect(() => {
     if (role !== 'admin') return;
@@ -100,6 +103,7 @@ export const TenantsManager: React.FC = () => {
             isOnline: Boolean(data.isOnline),
             lastLoginAt: typeof data.lastLoginAt === 'string' ? data.lastLoginAt : undefined,
             lastActiveAt: typeof data.lastActiveAt === 'string' ? data.lastActiveAt : undefined,
+            isBanned: Boolean(data.isBanned),
           };
         });
         list.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
@@ -258,6 +262,7 @@ export const TenantsManager: React.FC = () => {
       ...(existingTenant?.isOnline !== undefined ? { isOnline: existingTenant.isOnline } : {}),
       ...(existingTenant?.lastLoginAt ? { lastLoginAt: existingTenant.lastLoginAt } : {}),
       ...(existingTenant?.lastActiveAt ? { lastActiveAt: existingTenant.lastActiveAt } : {}),
+      ...(existingTenant?.isBanned !== undefined ? { isBanned: existingTenant.isBanned } : {}),
     };
 
     try {
@@ -318,6 +323,30 @@ export const TenantsManager: React.FC = () => {
         handleFirestoreError(error, OperationType.UPDATE, `tenants/${target.id}`);
       } catch {
         showToast('تعذر إرسال إشارة تسجيل الخروج الإجباري، يرجى المحاولة مجدداً');
+      }
+    }
+  };
+
+  const handleConfirmToggleBan = async () => {
+    if (!tenantToToggleBan) return;
+    const target = tenantToToggleBan;
+    const nextBanned = !target.isBanned;
+    setTenantToToggleBan(null);
+
+    try {
+      await updateDoc(doc(db, 'tenants', target.id), {
+        isBanned: nextBanned,
+      });
+      showToast(
+        nextBanned
+          ? `تم حظر حساب "${target.name}" وإيقافه بنجاح`
+          : `تم فك الحظر عن حساب "${target.name}" بنجاح`
+      );
+    } catch (error) {
+      try {
+        handleFirestoreError(error, OperationType.UPDATE, `tenants/${target.id}`);
+      } catch {
+        showToast('تعذر تحديث حالة الحظر، يرجى المحاولة مجدداً');
       }
     }
   };
@@ -603,7 +632,7 @@ export const TenantsManager: React.FC = () => {
 
                   {/* Presence Status & Last Seen */}
                   <div className="space-y-0.5 pt-0.5">
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1.5 flex-wrap">
                       <span
                         className={`w-2 h-2 rounded-full shrink-0 ${
                           isOnline
@@ -620,6 +649,11 @@ export const TenantsManager: React.FC = () => {
                       >
                         {isOnline ? 'متصل الآن' : 'غير متصل'}
                       </span>
+                      {tenant.isBanned && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-rose-100 dark:bg-rose-950/70 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800 text-[10px] font-bold">
+                          محظور 🔴
+                        </span>
+                      )}
                     </div>
                     <p className="text-[10px] text-slate-500 dark:text-slate-400">
                       آخر ظهور: <span className="font-mono-num">{lastSeenFormatted}</span>
@@ -647,6 +681,18 @@ export const TenantsManager: React.FC = () => {
                 </div>
 
                 <div className="flex items-center gap-1.5 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setTenantToToggleBan(tenant)}
+                    className={`p-2 rounded-lg transition-colors ${
+                      tenant.isBanned
+                        ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20'
+                        : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 hover:bg-rose-500/20'
+                    }`}
+                    title={tenant.isBanned ? 'فك حظر المستخدم' : 'حظر المستخدم وإيقاف الحساب'}
+                  >
+                    {tenant.isBanned ? <CheckCircle size={16} /> : <Ban size={16} />}
+                  </button>
                   <button
                     type="button"
                     onClick={() => setTenantToForceLogout(tenant)}
@@ -695,6 +741,20 @@ export const TenantsManager: React.FC = () => {
         confirmText="نعم، طرد وإخراج الآن"
         onConfirm={handleConfirmForceLogout}
         onClose={() => setTenantToForceLogout(null)}
+      />
+
+      {/* Ban / Unban Confirmation Modal */}
+      <ConfirmModal
+        isOpen={Boolean(tenantToToggleBan)}
+        title={
+          tenantToToggleBan?.isBanned
+            ? `فك الحظر عن "${tenantToToggleBan?.name || ''}"`
+            : `حظر "${tenantToToggleBan?.name || ''}"`
+        }
+        message="هل أنت متأكد من حظر/فك حظر هذا المستخدم؟"
+        confirmText={tenantToToggleBan?.isBanned ? 'نعم، فك الحظر' : 'نعم، حظر الآن'}
+        onConfirm={handleConfirmToggleBan}
+        onClose={() => setTenantToToggleBan(null)}
       />
     </div>
   );
