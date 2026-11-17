@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { Lock, Eye, EyeOff, LogIn, AlertCircle, Loader2, ShieldCheck } from 'lucide-react';
 
 export const LoginView: React.FC = () => {
-  const { login } = useAuth();
+  const { login, forcedLogoutNotice, clearForcedLogoutNotice } = useAuth();
   const [pin, setPin] = useState('');
   const [showPin, setShowPin] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -48,11 +48,11 @@ export const LoginView: React.FC = () => {
             </span>
           </div>
 
-          {/* Error Alert */}
-          {error && (
+          {/* Error or Forced Logout Alert */}
+          {(error || forcedLogoutNotice) && (
             <div className="p-3 rounded-2xl bg-rose-950/60 border border-rose-800/80 text-rose-300 text-xs font-bold flex items-center gap-2 animate-in fade-in duration-150">
               <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
-              <span>{error}</span>
+              <span>{error || forcedLogoutNotice}</span>
             </div>
           )}
 
@@ -70,6 +70,7 @@ export const LoginView: React.FC = () => {
                   onChange={(e) => {
                     setPin(e.target.value);
                     if (error) setError(null);
+                    if (forcedLogoutNotice) clearForcedLogoutNotice();
                   }}
                   placeholder="أدخل رمز الدخول..."
                   autoFocus

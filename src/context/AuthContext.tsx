@@ -40,6 +40,7 @@ export interface TenantData {
   isOnline?: boolean;
   lastLoginAt?: string;
   lastActiveAt?: string;
+  forceLogout?: boolean;
 }
 
 interface StoredAuthSession {
@@ -52,6 +53,8 @@ interface AuthContextType {
   isAuthenticated: boolean;
   role: AuthRole;
   tenantData: TenantData | null;
+  forcedLogoutNotice: string | null;
+  clearForcedLogoutNotice: () => void;
   login: (pin: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
 }
@@ -100,6 +103,11 @@ function readStoredSession(): StoredAuthSession {
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [session, setSession] = useState<StoredAuthSession>(() => readStoredSession());
+  const [forcedLogoutNotice, setForcedLogoutNotice] = useState<string | null>(null);
+
+  const clearForcedLogoutNotice = useCallback(() => {
+    setForcedLogoutNotice(null);
+  }, []);
 
   const persistSession = useCallback((nextSession: StoredAuthSession) => {
     setSession(nextSession);
@@ -209,6 +217,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     if (trimmedPin === masterPin) {
+      setForcedLogoutNotice(null);
       persistSession({
         isAuthenticated: true,
         role: 'admin',
@@ -229,6 +238,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         try {
           await updateDoc(doc(db, 'tenants', docSnap.id), {
             isOnline: true,
+            forceLogout: false,
             lastLoginAt: nowIso,
           });
         } catch {
@@ -247,6 +257,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           lastActiveAt: typeof data.lastActiveAt === 'string' ? data.lastActiveAt : undefined,
         };
 
+        setForcedLogoutNotice(null);
         persistSession({
           isAuthenticated: true,
           role: 'tenant',
@@ -290,12 +301,51 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   }, [session.role, session.tenantData?.id, persistSession]);
 
+  // Listen for remote forceLogout signal from admin dashboard
+  useEffect(() => {
+    if (!session.isAuthenticated || session.role !== 'tenant' || !session.tenantData?.id) {
+      return;
+    }
+
+    const tenantRef = doc(db, 'tenants', session.tenantData.id);
+    let handled = false;
+
+    const unsubscribe = onSnapshot(
+      tenantRef,
+      async (docSnap) => {
+        if (handled || !docSnap.exists()) return;
+        const data = docSnap.data();
+        if (data?.forceLogout === true) {
+          handled = true;
+          try {
+            await updateDoc(tenantRef, {
+              forceLogout: false,
+              isOnline: false,
+              lastActiveAt: new Date().toISOString(),
+            });
+          } catch {
+            // Proceed with local session termination even if write fails offline
+          }
+          setForcedLogoutNotice('تم إنهاء جلستك بواسطة مدير النظام');
+          logout();
+        }
+      },
+      () => {
+        // Ignore transient listener warnings
+      }
+    );
+
+    return () => unsubscribe();
+  }, [session.isAuthenticated, session.role, session.tenantData?.id, logout]);
+
   return (
     <AuthContext.Provider
       value={{
         isAuthenticated: session.isAuthenticated,
         role: session.role,
         tenantData: session.tenantData,
+        forcedLogoutNotice,
+        clearForcedLogoutNotice,
         login,
         logout,
       }}

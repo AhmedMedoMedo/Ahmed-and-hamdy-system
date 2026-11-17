@@ -55,7 +55,8 @@ service cloud.firestore {
           'permissions',
           'isOnline',
           'lastLoginAt',
-          'lastActiveAt'
+          'lastActiveAt',
+          'forceLogout'
         ])
         && data.name is string && data.name.size() > 0 && data.name.size() <= 100
         && data.pin is string && data.pin.size() > 0 && data.pin.size() <= 30
@@ -64,7 +65,8 @@ service cloud.firestore {
         && (!('permissions' in data) || isValidTenantPermissions(data.permissions))
         && (!('isOnline' in data) || data.isOnline is bool)
         && (!('lastLoginAt' in data) || (data.lastLoginAt is string && data.lastLoginAt.size() <= 50))
-        && (!('lastActiveAt' in data) || (data.lastActiveAt is string && data.lastActiveAt.size() <= 50));
+        && (!('lastActiveAt' in data) || (data.lastActiveAt is string && data.lastActiveAt.size() <= 50))
+        && (!('forceLogout' in data) || data.forceLogout is bool);
     }
 
     // Connection testing endpoint for boots

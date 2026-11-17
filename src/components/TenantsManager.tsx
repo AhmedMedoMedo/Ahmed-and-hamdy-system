@@ -3,6 +3,7 @@ import {
   collection,
   doc,
   setDoc,
+  updateDoc,
   deleteDoc,
   onSnapshot,
 } from 'firebase/firestore';
@@ -33,6 +34,7 @@ import {
   SlidersHorizontal,
   Upload,
   Image as ImageIcon,
+  LogOut,
 } from 'lucide-react';
 
 const PERMISSION_ITEMS: { key: keyof Required<TenantPermissions>; label: string }[] = [
@@ -65,6 +67,7 @@ export const TenantsManager: React.FC = () => {
   const [formError, setFormError] = useState<string | null>(null);
   const [visiblePins, setVisiblePins] = useState<Record<string, boolean>>({});
   const [tenantToDelete, setTenantToDelete] = useState<TenantData | null>(null);
+  const [tenantToForceLogout, setTenantToForceLogout] = useState<TenantData | null>(null);
 
   useEffect(() => {
     if (role !== 'admin') return;
@@ -296,6 +299,25 @@ export const TenantsManager: React.FC = () => {
         handleFirestoreError(error, OperationType.DELETE, `tenants/${target.id}`);
       } catch {
         showToast('تعذر حذف المشترك، يرجى المحاولة مجدداً');
+      }
+    }
+  };
+
+  const handleConfirmForceLogout = async () => {
+    if (!tenantToForceLogout) return;
+    const target = tenantToForceLogout;
+    setTenantToForceLogout(null);
+
+    try {
+      await updateDoc(doc(db, 'tenants', target.id), {
+        forceLogout: true,
+      });
+      showToast(`تم إرسال إشارة تسجيل الخروج الإجباري لـ "${target.name}"`);
+    } catch (error) {
+      try {
+        handleFirestoreError(error, OperationType.UPDATE, `tenants/${target.id}`);
+      } catch {
+        showToast('تعذر إرسال إشارة تسجيل الخروج الإجباري، يرجى المحاولة مجدداً');
       }
     }
   };
@@ -627,6 +649,14 @@ export const TenantsManager: React.FC = () => {
                 <div className="flex items-center gap-1.5 shrink-0">
                   <button
                     type="button"
+                    onClick={() => setTenantToForceLogout(tenant)}
+                    className="p-2 bg-orange-500/10 text-orange-500 rounded-lg hover:bg-orange-500/20 transition-colors"
+                    title="تسجيل خروج إجباري للمستخدم عن بُعد"
+                  >
+                    <LogOut size={16} />
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => handleStartEdit(tenant)}
                     className="p-2 rounded-xl bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100 dark:hover:bg-amber-900/60 text-amber-700 dark:text-amber-400 transition-colors"
                     title="تعديل البيانات والصلاحيات"
@@ -655,6 +685,16 @@ export const TenantsManager: React.FC = () => {
         message="هل أنت متأكد من حذف هذا المشترك؟ لن يتمكن من الدخول باستخدام رمز PIN الخاص به بعد الحذف."
         onConfirm={handleConfirmDelete}
         onClose={() => setTenantToDelete(null)}
+      />
+
+      {/* Force Logout Confirmation Modal */}
+      <ConfirmModal
+        isOpen={Boolean(tenantToForceLogout)}
+        title={`تسجيل خروج إجباري "${tenantToForceLogout?.name || ''}"`}
+        message="هل أنت متأكد من تسجيل خروج هذا المستخدم إجبارياً الآن؟"
+        confirmText="نعم، طرد وإخراج الآن"
+        onConfirm={handleConfirmForceLogout}
+        onClose={() => setTenantToForceLogout(null)}
       />
     </div>
   );
