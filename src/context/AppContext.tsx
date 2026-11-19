@@ -141,7 +141,8 @@ interface AppContextType {
     paymentType: 'debt' | 'paid_full' | 'paid_partial', 
     paidAmountInput?: number, 
     notes?: string,
-    fallbackOrder?: WorkOrder
+    fallbackOrder?: WorkOrder,
+    discountInput?: number
   ) => Promise<{ invoiceId: string; newStatus: OrderStatus; invoice?: Invoice }>;
 
   // Personal Contacts CRUD
@@ -1567,7 +1568,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     paymentType: 'debt' | 'paid_full' | 'paid_partial',
     paidAmountInput?: number,
     notes?: string,
-    fallbackOrder?: WorkOrder
+    fallbackOrder?: WorkOrder,
+    discountInput?: number
   ): Promise<{ invoiceId: string; newStatus: OrderStatus; invoice?: Invoice }> => {
     try {
       const order = fallbackOrder || orders.find(o => o.id === orderId);
@@ -1578,7 +1580,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       const now = new Date().toISOString();
       const invoiceItems: InvoiceItem[] = [];
-      let batchDeliveryTotal = 0;
+      let subTotal = 0;
 
       // Clone items and update delivered & remaining quantities
       const updatedItems: OrderItem[] = order.items.map(item => {
@@ -1587,7 +1589,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         
         if (qtyNow > 0) {
           const lineTotal = qtyNow * item.unitPrice;
-          batchDeliveryTotal += lineTotal;
+          subTotal += lineTotal;
           invoiceItems.push({
             id: `inv_it_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
             productId: item.productId || '',
@@ -1615,10 +1617,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return { invoiceId: '', newStatus: order.status };
       }
 
+      // Compute safe discount and net total
+      const discountAmount = Math.max(0, Math.min(subTotal, Number(discountInput) || 0));
+      const finalTotal = subTotal - discountAmount;
+
       // Calculate new status
       const hasRemaining = updatedItems.some(it => it.quantityRemaining > 0);
       const newStatus: OrderStatus = hasRemaining ? 'partially_delivered' : 'delivered';
-      const newDeliveredTotal = (order.deliveredTotalAmount || 0) + batchDeliveryTotal;
+      const newDeliveredTotal = (order.deliveredTotalAmount || 0) + finalTotal;
 
       // Update order record
       const updatedOrder: WorkOrder = {
@@ -1629,14 +1635,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         updatedAt: now,
       };
 
-      // Determine invoice payment amounts
+      // Determine invoice payment amounts based on finalTotal
       let paidAmount = 0;
       if (paymentType === 'paid_full') {
-        paidAmount = batchDeliveryTotal;
+        paidAmount = finalTotal;
       } else if (paymentType === 'paid_partial') {
-        paidAmount = Math.min(Number(paidAmountInput) || 0, batchDeliveryTotal);
+        paidAmount = Math.max(0, Math.min(Number(paidAmountInput) || 0, finalTotal));
       }
-      const remainingDebt = Math.max(0, batchDeliveryTotal - paidAmount);
+      const remainingDebt = Math.max(0, finalTotal - paidAmount);
+
+      const baseNote = notes
+        ? `تسليم من طلب الشغل #${order.orderNumber}: ${notes}`
+        : `تسليم من طلب الشغل #${order.orderNumber} (${newStatus === 'delivered' ? 'تسليم كامل' : 'تسليم جزئي'})`;
+      const finalNotes = discountAmount > 0
+        ? `${baseNote} (شامل خصم تسليم بقيمة ${discountAmount} ${currency})`
+        : baseNote;
 
       // Automatically record sales invoice for this delivery batch
       const invData: Omit<Invoice, 'id' | 'createdAt' | 'updatedAt'> = {
@@ -1646,16 +1659,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         date: getTodayDateString(),
         monthKey: getMonthKeyFromDate(getTodayDateString()),
         items: invoiceItems,
-        subtotal: batchDeliveryTotal,
+        subtotal: subTotal,
         discountType: 'amount',
-        discountValue: 0,
-        discount: 0,
-        total: batchDeliveryTotal,
+        discountValue: discountAmount,
+        discount: discountAmount,
+        total: finalTotal,
         paidAmount,
         remainingAmount: remainingDebt,
-        notes: notes 
-          ? `تسليم من طلب الشغل #${order.orderNumber}: ${notes}` 
-          : `تسليم من طلب الشغل #${order.orderNumber} (${newStatus === 'delivered' ? 'تسليم كامل' : 'تسليم جزئي'})`,
+        notes: finalNotes,
         orderId: order.id || '',
       };
 

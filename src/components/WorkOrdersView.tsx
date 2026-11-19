@@ -95,6 +95,7 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
   const [deliveryInputs, setDeliveryInputs] = useState<Record<string, number>>({});
   const [deliveryPaymentType, setDeliveryPaymentType] = useState<'debt' | 'paid_full' | 'paid_partial'>('debt');
   const [deliveryPaidAmount, setDeliveryPaidAmount] = useState<string>('');
+  const [discount, setDiscount] = useState<string>('');
   const [deliveryNotes, setDeliveryNotes] = useState('');
   const [deliveryError, setDeliveryError] = useState<string | null>(null);
 
@@ -387,6 +388,7 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
     setDeliveryError(null);
     setDeliveryPaymentType('debt');
     setDeliveryPaidAmount('');
+    setDiscount('');
     setDeliveryNotes('');
 
     // Pre-fill delivery inputs with the remaining quantity by default for fast 1-click delivery
@@ -397,14 +399,23 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
     setDeliveryInputs(initialInputs);
   };
 
-  // Compute total for what is currently set to be delivered
-  const currentBatchTotal = useMemo(() => {
+  const handleCloseDelivery = () => {
+    setDeliveryModalOrder(null);
+    setDiscount('');
+    setDeliveryError(null);
+  };
+
+  // Compute subtotal, safe discount, and net final total for what is currently set to be delivered
+  const subTotal = useMemo(() => {
     if (!deliveryModalOrder) return 0;
     return deliveryModalOrder.items.reduce((sum, it) => {
       const deliveringQty = Math.max(0, Number(deliveryInputs[it.id]) || 0);
       return sum + (deliveringQty * it.unitPrice);
     }, 0);
   }, [deliveryModalOrder, deliveryInputs]);
+
+  const discountAmount = Math.max(0, Math.min(subTotal, Number(discount) || 0));
+  const finalTotal = subTotal - discountAmount;
 
   // Submit Delivery Batch
   const handleConfirmDelivery = async () => {
@@ -432,7 +443,8 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
         deliveryPaymentType,
         deliveryPaidAmount ? parseFloat(deliveryPaidAmount) : undefined,
         deliveryNotes,
-        deliveryModalOrder
+        deliveryModalOrder,
+        discountAmount
       );
       invoiceToPrint = invoice;
 
@@ -441,13 +453,13 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
           ? 'تم تسليم كامل الطلب وإصدار الفاتورة وتحديث الحسابات بنجاح!'
           : 'تم تسليم الجزء المحدد وإصدار فاتورة به، وبقي الباقي قيد التحضير!'
       );
-      setDeliveryModalOrder(null);
+      handleCloseDelivery();
     } catch (err: any) {
       console.warn("Delivery offline catch:", err);
       showToast('تم حفظ العملية محلياً (أوفلاين) وستتم المزامنة عند عودة الإنترنت');
-      setDeliveryModalOrder(null);
+      handleCloseDelivery();
     } finally {
-      setDeliveryModalOrder(null);
+      handleCloseDelivery();
       if (invoiceToPrint && onPrintInvoice) {
         onPrintInvoice(invoiceToPrint);
       }
@@ -1203,7 +1215,7 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
                   حدد ما تم تسليمه فعلياً، واشترط هل هو دين على الحساب أم مدفوع كاش فوري.
                 </p>
               </div>
-              <button onClick={() => setDeliveryModalOrder(null)} className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+              <button onClick={handleCloseDelivery} className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -1280,12 +1292,55 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
                 })}
               </div>
 
+              {/* Optional Discount Input for this Delivery Batch */}
+              <div className="p-2.5 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl space-y-1.5">
+                <label className="font-bold text-slate-700 dark:text-slate-300 block text-xs">
+                  خصم على هذه الدفعة (اختياري)
+                </label>
+                <div className="relative flex items-center">
+                  <input
+                    type="number"
+                    step="any"
+                    min="0"
+                    max={subTotal}
+                    placeholder="0"
+                    value={discount}
+                    onChange={(e) => setDiscount(e.target.value)}
+                    className="w-full px-2.5 py-1.5 pl-12 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 font-mono-num text-xs font-bold text-orange-600 dark:text-orange-400 focus:outline-none focus:border-orange-500"
+                  />
+                  <span className="absolute left-3 text-[11px] font-bold text-slate-400 dark:text-slate-500 pointer-events-none">
+                    {currency}
+                  </span>
+                </div>
+              </div>
+
               {/* Total of Delivered Batch */}
-              <div className="p-2.5 bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 rounded-xl flex items-center justify-between font-mono-num">
-                <span className="text-indigo-900 dark:text-indigo-200 font-bold text-xs">إجمالي قيمة التسليم الحالي:</span>
-                <span className="text-base font-black text-indigo-700 dark:text-indigo-300">
-                  {formatCurrency(currentBatchTotal, currency)}
-                </span>
+              <div className="p-2.5 bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 rounded-xl font-mono-num space-y-1.5">
+                {discountAmount > 0 ? (
+                  <>
+                    <div className="flex items-center justify-between text-[11px] text-slate-600 dark:text-slate-300">
+                      <span className="font-sans">المجموع قبل الخصم:</span>
+                      <span className="font-bold">{formatCurrency(subTotal, currency)}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-[11px] text-orange-600 dark:text-orange-400 font-bold">
+                      <span className="font-sans">الخصم:</span>
+                      <span>-{formatCurrency(discountAmount, currency)}</span>
+                    </div>
+                    <div className="pt-1.5 border-t border-indigo-200/80 dark:border-indigo-800/80 flex items-center justify-between">
+                      <span className="font-sans text-indigo-900 dark:text-indigo-200 font-bold text-xs">الصافي المطلوب:</span>
+                      <span className="text-base font-black text-indigo-700 dark:text-indigo-300">
+                        {formatCurrency(finalTotal, currency)}
+                      </span>
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex items-center justify-between">
+                    <span className="font-sans text-indigo-900 dark:text-indigo-200 font-bold text-xs">إجمالي قيمة التسليم الحالي:</span>
+                    <span className="text-base font-black text-indigo-700 dark:text-indigo-300">
+                      {formatCurrency(finalTotal, currency)}
+                    </span>
+                  </div>
+                )}
               </div>
 
               {/* Payment Type Selection (Crucial user requirement: دين أم مدفوع) */}
@@ -1334,13 +1389,13 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
 
                 {deliveryPaymentType === 'debt' && (
                   <p className="text-[11px] text-rose-700 dark:text-rose-400 font-medium">
-                    • سيتم إصدار فاتورة بيع بالمبلغ ({formatCurrency(currentBatchTotal, currency)}) وإضافتها كدين مستحق على التاجر.
+                    • سيتم إصدار فاتورة بيع بالمبلغ ({formatCurrency(finalTotal, currency)}) وإضافتها كدين مستحق على التاجر.
                   </p>
                 )}
 
                 {deliveryPaymentType === 'paid_full' && (
                   <p className="text-[11px] text-emerald-700 dark:text-emerald-400 font-medium">
-                    • سيتم إصدار فاتورة بيع وتسجيل استلام المبلغ نقداً ({formatCurrency(currentBatchTotal, currency)}) كإيراد دون زيادة دين.
+                    • سيتم إصدار فاتورة بيع وتسجيل استلام المبلغ نقداً ({formatCurrency(finalTotal, currency)}) كإيراد دون زيادة دين.
                   </p>
                 )}
 
@@ -1353,14 +1408,14 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
                       type="number"
                       step="any"
                       min="0"
-                      max={currentBatchTotal}
+                      max={finalTotal}
                       placeholder="0"
                       value={deliveryPaidAmount}
                       onChange={(e) => setDeliveryPaidAmount(e.target.value)}
                       className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 font-mono-num text-xs font-bold text-teal-700 dark:text-teal-400"
                     />
                     <div className="text-[11px] text-slate-500 dark:text-slate-400 font-mono-num">
-                      المتبقي دين: <b>{formatCurrency(Math.max(0, currentBatchTotal - (parseFloat(deliveryPaidAmount) || 0)), currency)}</b>
+                      المتبقي دين: <b>{formatCurrency(Math.max(0, finalTotal - (parseFloat(deliveryPaidAmount) || 0)), currency)}</b>
                     </div>
                   </div>
                 )}
@@ -1370,10 +1425,10 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
                   const mBal = merchantBalances[deliveryModalOrder.merchantId];
                   const currentMerchantDebt = mBal ? Math.max(0, mBal.currentDebt) : 0;
                   const addedDebt = deliveryPaymentType === 'debt'
-                    ? currentBatchTotal
+                    ? finalTotal
                     : deliveryPaymentType === 'paid_full'
                     ? 0
-                    : Math.max(0, currentBatchTotal - (parseFloat(deliveryPaidAmount) || 0));
+                    : Math.max(0, finalTotal - (parseFloat(deliveryPaidAmount) || 0));
                   const projectedDebt = currentMerchantDebt + addedDebt;
 
                   return (
@@ -1416,7 +1471,7 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
               <div className="grid grid-cols-2 gap-2 mb-2 sm:mb-0">
                 <button
                   type="button"
-                  onClick={() => setDeliveryModalOrder(null)}
+                  onClick={handleCloseDelivery}
                   className="py-3 sm:py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs active:scale-95 transition-all"
                 >
                   إلغاء
