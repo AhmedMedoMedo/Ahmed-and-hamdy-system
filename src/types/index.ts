@@ -75,6 +75,7 @@ export interface Payment {
   invoiceId?: string;
   receiptNumber?: string;
   excludeFromStats?: boolean; // استبعاد من إحصائيات الخزينة والتحصيلات (تسجيل في كشف الحساب فقط)
+  isDiscount?: boolean;       // خصم مسموح به للتاجر (لا يُضاف للخزينة ويُخصم من دين التاجر)
   isDeleted?: boolean;
   deletedAt?: string;
   createdAt: string;

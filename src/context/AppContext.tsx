@@ -1366,6 +1366,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         invoiceId: data.invoiceId || '',
         receiptNumber: data.receiptNumber || `سند-${Date.now().toString().slice(-4)}`,
         excludeFromStats: data.excludeFromStats !== undefined ? Boolean(data.excludeFromStats) : false,
+        ...(data.isDiscount ? { isDiscount: true } : {}),
         createdAt: (data as any).createdAt || now,
         updatedAt: now,
       };
@@ -1386,8 +1387,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const isEdit = Boolean(data.id);
       logAction(
         isEdit ? 'edit' : 'add', 
-        'دفعة', 
-        `${isEdit ? 'تعديل دفعة' : 'تسجيل دفعة جديدة'}: ${record.amount} ${currency} من التاجر ${record.merchantName} (${record.receiptNumber})`
+        record.isDiscount ? 'خصم مسموح به' : 'دفعة', 
+        record.isDiscount
+          ? `${isEdit ? 'تعديل خصم مسموح به' : 'تسجيل خصم مسموح به'}: ${record.amount} ${currency} للتاجر ${record.merchantName} (${record.receiptNumber})`
+          : `${isEdit ? 'تعديل دفعة' : 'تسجيل دفعة جديدة'}: ${record.amount} ${currency} من التاجر ${record.merchantName} (${record.receiptNumber})`
       );
 
       triggerSuccessFeedback();

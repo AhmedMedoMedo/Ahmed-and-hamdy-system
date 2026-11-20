@@ -25,7 +25,8 @@ import {
   Smartphone,
   ArrowDownLeft,
   AlertCircle,
-  Clock
+  Clock,
+  Percent
 } from 'lucide-react';
 import { SearchableSelect } from './SearchableSelect';
 
@@ -66,6 +67,7 @@ export const PaymentsView: React.FC<PaymentsViewProps> = ({
   // Form State
   const [merchantId, setMerchantId] = useState(initialMerchantId || '');
   const [amount, setAmount] = useState<string>('');
+  const [discount, setDiscount] = useState<string>('');
   const [paymentDate, setPaymentDate] = useState(getTodayDateString());
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('كاش');
   const [receiptNumber, setReceiptNumber] = useState('');
@@ -74,6 +76,11 @@ export const PaymentsView: React.FC<PaymentsViewProps> = ({
   const [isDirectExpense, setIsDirectExpense] = useState(false);
   const [expenseReason, setExpenseReason] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
+
+  // Safe numeric calculations for cash & allowed discount
+  const cashAmount = Math.max(0, Number(amount) || 0);
+  const discountAmount = Math.max(0, Number(discount) || 0);
+  const totalDeductedFromMerchant = cashAmount + discountAmount;
 
   // Delete modal state
   const [paymentToDelete, setPaymentToDelete] = useState<Payment | null>(null);
@@ -94,6 +101,7 @@ export const PaymentsView: React.FC<PaymentsViewProps> = ({
 
   const handleOpenForm = (existing?: Payment, preselectedMerchantId?: string) => {
     setFormError(null);
+    setDiscount('');
     if (existing) {
       setEditingPayment(existing);
       setMerchantId(existing.merchantId);
@@ -124,6 +132,7 @@ export const PaymentsView: React.FC<PaymentsViewProps> = ({
   const handleCloseForm = () => {
     setIsFormOpen(false);
     setEditingPayment(null);
+    setDiscount('');
     setIsDirectExpense(false);
     setExpenseReason('');
     setFormError(null);
@@ -144,13 +153,13 @@ export const PaymentsView: React.FC<PaymentsViewProps> = ({
       setFormError('يرجى اختيار التاجر أولاً');
       return;
     }
-    const parsedAmount = parseFloat(amount);
-    if (!parsedAmount || parsedAmount <= 0) {
-      setFormError('يرجى إدخال مبلغ صحيح أكبر من الصفر');
+
+    if (cashAmount <= 0 && discountAmount <= 0) {
+      setFormError('يرجى إدخال المبلغ المستلم أو قيمة الخصم المسموح به');
       return;
     }
 
-    if (isDirectExpense && expenseReason.trim() === '') {
+    if (cashAmount > 0 && isDirectExpense && expenseReason.trim() === '') {
       setFormError('يرجى كتابة سبب السحب أو اسم المورد للترحيل المباشر للمسحوبات');
       return;
     }
@@ -159,41 +168,82 @@ export const PaymentsView: React.FC<PaymentsViewProps> = ({
     const mName = m ? m.name : 'تاجر غير محدد';
     const monthKey = getMonthKeyFromDate(paymentDate);
     const finalReceiptNumber = receiptNumber.trim() || `سند-${Date.now().toString().slice(-4)}`;
+    const trimmedNotes = notes.trim();
 
     try {
-      await savePayment({
-        ...(editingPayment ? { id: editingPayment.id } : {}),
-        merchantId,
-        merchantName: mName,
-        amount: parsedAmount,
-        date: paymentDate,
-        monthKey,
-        paymentMethod,
-        receiptNumber: finalReceiptNumber,
-        notes: notes.trim(),
-        excludeFromStats,
-      });
+      // 1) الدفعة النقدية الفعلية (تُضاف للخزينة والإحصائيات ما لم يتم استبعادها، وتُرحل للمسحوبات إذا تم تفعيل الخيار)
+      if (cashAmount > 0) {
+        const cashNotes = discountAmount > 0
+          ? (trimmedNotes
+              ? `${trimmedNotes} (مع خصم مسموح به بقيمة ${discountAmount} ${currency})`
+              : `مع خصم مسموح به بقيمة ${discountAmount} ${currency}`)
+          : trimmedNotes;
 
-      if (isDirectExpense && expenseReason.trim() !== '') {
-        const trimmedReason = expenseReason.trim();
-        await saveExpense({
-          title: `صرف مباشر من دفعة التاجر (${mName}): ${trimmedReason}`,
-          category: 'مصاريف عامة وتوريد',
-          amount: parsedAmount,
+        await savePayment({
+          ...(editingPayment ? { id: editingPayment.id } : {}),
+          merchantId,
+          merchantName: mName,
+          amount: cashAmount,
           date: paymentDate,
           monthKey,
           paymentMethod,
-          notes: `ترحيل مباشر من سند قبض #${finalReceiptNumber} للتاجر ${mName}`,
+          receiptNumber: finalReceiptNumber,
+          notes: cashNotes,
+          excludeFromStats,
+          ...(editingPayment?.isDiscount ? { isDiscount: true } : {}),
+        });
+
+        if (isDirectExpense && expenseReason.trim() !== '') {
+          const trimmedReason = expenseReason.trim();
+          await saveExpense({
+            title: `صرف مباشر من دفعة التاجر (${mName}): ${trimmedReason}`,
+            category: 'مصاريف عامة وتوريد',
+            amount: cashAmount,
+            date: paymentDate,
+            monthKey,
+            paymentMethod,
+            notes: `ترحيل مباشر من سند قبض #${finalReceiptNumber} للتاجر ${mName}`,
+          });
+        }
+      }
+
+      // 2) حركة الخصم المسموح به (تُخصم من دين التاجر فقط ولا تدخل الخزينة أو إحصائيات التحصيل)
+      if (discountAmount > 0) {
+        const discountReceipt = cashAmount > 0
+          ? `${finalReceiptNumber}-خصم`
+          : `خصم-${Date.now().toString().slice(-4)}`;
+
+        await savePayment({
+          merchantId,
+          merchantName: mName,
+          amount: discountAmount,
+          date: paymentDate,
+          monthKey,
+          paymentMethod,
+          receiptNumber: discountReceipt,
+          notes: trimmedNotes ? `خصم مسموح به للتاجر - ${trimmedNotes}` : 'خصم مسموح به للتاجر',
+          excludeFromStats: true,
+          isDiscount: true,
         });
       }
 
-      showToast(
-        isDirectExpense && expenseReason.trim() !== ''
-          ? 'تم استلام الدفعة وترحيلها مباشرة للمسحوبات بنجاح'
-          : editingPayment
-          ? 'تم تعديل سند القبض'
-          : 'تم استلام الدفعة وتخفيض دين التاجر'
-      );
+      if (cashAmount > 0 && discountAmount > 0) {
+        showToast(
+          isDirectExpense && expenseReason.trim() !== ''
+            ? 'تم استلام الدفعة وترحيلها للمسحوبات مع تسجيل الخصم المسموح به'
+            : 'تم استلام الدفعة وتسجيل الخصم المسموح به وتحديث حساب التاجر'
+        );
+      } else if (discountAmount > 0) {
+        showToast('تم تسجيل الخصم المسموح به وتخفيض دين التاجر دون التأثير على الخزينة');
+      } else {
+        showToast(
+          isDirectExpense && expenseReason.trim() !== ''
+            ? 'تم استلام الدفعة وترحيلها مباشرة للمسحوبات بنجاح'
+            : editingPayment
+            ? 'تم تعديل سند القبض'
+            : 'تم استلام الدفعة وتخفيض دين التاجر'
+        );
+      }
     } catch (err: any) {
       console.warn("Payment offline catch:", err);
       showToast('تم حفظ العملية محلياً (أوفلاين) وستتم المزامنة عند عودة الإنترنت');
@@ -321,20 +371,31 @@ export const PaymentsView: React.FC<PaymentsViewProps> = ({
           >
             <div className="flex items-start justify-between gap-2">
               <div className="flex items-start gap-2.5 min-w-0 flex-1">
-                <div className="w-8 h-8 rounded-xl bg-teal-50 dark:bg-teal-950/50 text-teal-700 dark:text-teal-300 flex items-center justify-center shrink-0 mt-0.5">
+                <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${
+                  p.isDiscount
+                    ? 'bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400'
+                    : 'bg-teal-50 dark:bg-teal-950/50 text-teal-700 dark:text-teal-300'
+                }`}>
                   <ArrowDownLeft className="w-4 h-4" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (onSelectMerchant) onSelectMerchant(p.merchantId);
-                    }}
-                    className="font-bold text-slate-900 dark:text-white text-xs sm:text-sm text-wrap break-words whitespace-normal hover:text-teal-600 dark:hover:text-teal-400 hover:underline cursor-pointer text-right block"
-                    title="فتح صفحة التاجر"
-                  >
-                    {p.merchantName}
-                  </button>
+                  <div className="flex items-center flex-wrap gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (onSelectMerchant) onSelectMerchant(p.merchantId);
+                      }}
+                      className="font-bold text-slate-900 dark:text-white text-xs sm:text-sm text-wrap break-words whitespace-normal hover:text-teal-600 dark:hover:text-teal-400 hover:underline cursor-pointer text-right block"
+                      title="فتح صفحة التاجر"
+                    >
+                      {p.merchantName}
+                    </button>
+                    {p.isDiscount && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-amber-100 dark:bg-amber-950/70 text-amber-700 dark:text-amber-300 font-bold">
+                        خصم مسموح به
+                      </span>
+                    )}
+                  </div>
                   <div className="flex items-center flex-wrap gap-1.5 text-[11px] text-slate-400 dark:text-slate-400 mt-0.5">
                     <span className="flex items-center gap-0.5">
                       <Calendar className="w-3 h-3" />
@@ -353,9 +414,15 @@ export const PaymentsView: React.FC<PaymentsViewProps> = ({
               </div>
 
               <div className="text-left shrink-0 pl-1 font-mono-num">
-                <div className="text-xs text-slate-500 dark:text-slate-400 font-semibold">المبلغ المستلم</div>
-                <div className="text-base font-black text-emerald-600 dark:text-emerald-400">
-                  +{formatCurrency(p.amount, currency)}
+                <div className="text-xs text-slate-500 dark:text-slate-400 font-semibold">
+                  {p.isDiscount ? 'خصم مسموح به' : 'المبلغ المستلم'}
+                </div>
+                <div className={`text-base font-black ${
+                  p.isDiscount
+                    ? 'text-amber-600 dark:text-amber-400'
+                    : 'text-emerald-600 dark:text-emerald-400'
+                }`}>
+                  {p.isDiscount ? '-' : '+'}{formatCurrency(p.amount, currency)}
                 </div>
               </div>
             </div>
@@ -473,23 +540,83 @@ export const PaymentsView: React.FC<PaymentsViewProps> = ({
 
               {/* Amount */}
               <div>
-                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">المبلغ المستلم *</label>
+                <label className="text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1.5 mb-1.5">
+                  <Banknote className="w-4 h-4 shrink-0" />
+                  <span>المبلغ المستلم</span>
+                </label>
                 <div className="relative">
                   <input
                     type="number"
                     step="any"
-                    min="0.1"
-                    required
+                    min="0"
                     placeholder="0.00"
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-teal-700 dark:text-teal-400 focus:outline-none focus:border-teal-500 font-mono-num text-left font-bold text-base"
+                    className="w-full pl-14 pr-4 py-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/40 focus:outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-500/20 text-emerald-700 dark:text-emerald-300 placeholder:text-emerald-600/45 dark:placeholder:text-emerald-300/40 font-mono-num text-right font-bold text-lg transition-all"
                   />
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 dark:text-slate-500">
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-xs font-bold text-emerald-600/80 dark:text-emerald-400/80">
                     {currency}
                   </span>
                 </div>
               </div>
+
+              {/* Allowed Discount */}
+              <div>
+                <label className="text-amber-600 dark:text-amber-400 font-bold flex items-center gap-1.5 mb-1.5">
+                  <Percent className="w-4 h-4 shrink-0" />
+                  <span>خصم مسموح به للتاجر (اختياري)</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    step="any"
+                    min="0"
+                    placeholder="0.00"
+                    value={discount}
+                    onChange={(e) => setDiscount(e.target.value)}
+                    className="w-full pl-14 pr-4 py-2.5 rounded-xl bg-amber-500/10 border border-dashed border-amber-500/50 focus:outline-none focus:border-solid focus:border-amber-400 focus:ring-2 focus:ring-amber-500/20 text-amber-700 dark:text-amber-300 placeholder:text-amber-600/45 dark:placeholder:text-amber-300/40 font-mono-num text-right font-bold text-lg transition-all"
+                  />
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-xs font-bold text-amber-600/80 dark:text-amber-400/80">
+                    {currency}
+                  </span>
+                </div>
+              </div>
+
+              {/* Live Accounting Summary when Discount > 0 */}
+              {discountAmount > 0 && (
+                <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 space-y-1.5 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-600 dark:text-slate-400 font-semibold">المبلغ النقدي للخزينة:</span>
+                    <span className="font-mono-num font-bold text-emerald-600 dark:text-emerald-400">
+                      {formatCurrency(cashAmount, currency)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-amber-700 dark:text-amber-400 font-semibold">قيمة الخصم المسموح به:</span>
+                    <span className="font-mono-num font-bold text-amber-600 dark:text-amber-400">
+                      {formatCurrency(discountAmount, currency)}
+                    </span>
+                  </div>
+                  <div className="pt-1.5 border-t border-slate-200 dark:border-slate-700 flex items-center justify-between">
+                    <span className="text-slate-800 dark:text-slate-200 font-bold">إجمالي المخصوم من حساب التاجر:</span>
+                    <span className="font-mono-num font-black text-teal-700 dark:text-teal-400">
+                      {formatCurrency(totalDeductedFromMerchant, currency)}
+                    </span>
+                  </div>
+                  {merchantId && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-600 dark:text-slate-400 font-semibold">حساب التاجر المتبقي بعد العملية:</span>
+                      <span className={`font-mono-num font-black ${
+                        selectedMerchantDebt - totalDeductedFromMerchant > 0
+                          ? 'text-rose-600 dark:text-rose-400'
+                          : 'text-emerald-600 dark:text-emerald-400'
+                      }`}>
+                        {formatCurrency(selectedMerchantDebt - totalDeductedFromMerchant, currency)}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Date & Method */}
               <div className="grid grid-cols-2 gap-2">
@@ -578,7 +705,7 @@ export const PaymentsView: React.FC<PaymentsViewProps> = ({
                   <div>
                     <input
                       type="text"
-                      required={isDirectExpense}
+                      required={isDirectExpense && cashAmount > 0}
                       placeholder="اكتب سبب السحب أو اسم المورد (مثلاً: سداد حساب خامات)..."
                       value={expenseReason}
                       onChange={(e) => {
@@ -601,7 +728,8 @@ export const PaymentsView: React.FC<PaymentsViewProps> = ({
                 </button>
                 <button
                   type="submit"
-                  className="py-3 sm:py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs shadow-md active:scale-95 transition-all"
+                  disabled={cashAmount <= 0 && discountAmount <= 0}
+                  className="py-3 sm:py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-xs shadow-md active:scale-95 transition-all"
                 >
                   {editingPayment ? 'حفظ التعديل' : 'تأكيد استلام الدفعة'}
                 </button>
