@@ -74,6 +74,7 @@ export const PaymentsView: React.FC<PaymentsViewProps> = ({
   const [isDirectExpense, setIsDirectExpense] = useState(false);
   const [expenseReason, setExpenseReason] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
+  const [showAllMerchants, setShowAllMerchants] = useState(false);
 
   // Safe numeric calculations for cash & allowed discount
   const cashAmount = Math.max(0, Number(amount) || 0);
@@ -97,9 +98,55 @@ export const PaymentsView: React.FC<PaymentsViewProps> = ({
     }
   }, [initialOpenCreate, initialMerchantId, initialEditingPayment]);
 
+  const sortedDebtorMerchants = useMemo(() => {
+    return merchants
+      .filter((m) => (merchantBalances[m.id]?.currentDebt || 0) > 0)
+      .sort((a, b) => (merchantBalances[b.id]?.currentDebt || 0) - (merchantBalances[a.id]?.currentDebt || 0));
+  }, [merchants, merchantBalances]);
+
+  const merchantSelectOptions = useMemo(() => {
+    const sourceList = showAllMerchants
+      ? [...merchants].sort(
+          (a, b) => (merchantBalances[b.id]?.currentDebt || 0) - (merchantBalances[a.id]?.currentDebt || 0)
+        )
+      : sortedDebtorMerchants;
+
+    return sourceList.map((m) => {
+      const debt = merchantBalances[m.id]?.currentDebt || 0;
+      return {
+        id: m.id,
+        label: m.name,
+        subLabel: m.phone ? `هاتف: ${m.phone}` : undefined,
+        badge: debt > 0 ? `دين: ${formatCurrency(debt, currency)}` : 'خالص',
+        badgeColor:
+          debt > 0
+            ? 'bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-400'
+            : 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400',
+      };
+    });
+  }, [merchants, sortedDebtorMerchants, merchantBalances, showAllMerchants, currency]);
+
+  const selectedMerchantFallback = useMemo(() => {
+    if (!merchantId) return undefined;
+    const m = merchants.find((item) => item.id === merchantId);
+    if (!m) return undefined;
+    const debt = merchantBalances[m.id]?.currentDebt || 0;
+    return {
+      id: m.id,
+      label: m.name,
+      subLabel: m.phone ? `هاتف: ${m.phone}` : undefined,
+      badge: debt > 0 ? `دين: ${formatCurrency(debt, currency)}` : 'خالص',
+      badgeColor:
+        debt > 0
+          ? 'bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-400'
+          : 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400',
+    };
+  }, [merchantId, merchants, merchantBalances, currency]);
+
   const handleOpenForm = (existing?: Payment, preselectedMerchantId?: string) => {
     setFormError(null);
     setDiscount('');
+    setShowAllMerchants(false);
     if (existing) {
       setEditingPayment(existing);
       setMerchantId(existing.merchantId);
@@ -113,7 +160,7 @@ export const PaymentsView: React.FC<PaymentsViewProps> = ({
       setExpenseReason('');
     } else {
       setEditingPayment(null);
-      const chosenMerchant = preselectedMerchantId || (merchants[0]?.id || '');
+      const chosenMerchant = preselectedMerchantId || (sortedDebtorMerchants[0]?.id || '');
       setMerchantId(chosenMerchant);
       setAmount('');
       setPaymentDate(getTodayDateString());
@@ -131,6 +178,7 @@ export const PaymentsView: React.FC<PaymentsViewProps> = ({
     setIsFormOpen(false);
     setEditingPayment(null);
     setDiscount('');
+    setShowAllMerchants(false);
     setIsDirectExpense(false);
     setExpenseReason('');
     setFormError(null);
@@ -490,23 +538,52 @@ export const PaymentsView: React.FC<PaymentsViewProps> = ({
                 <SearchableSelect
                   label="التاجر المستلم منه الدفعة"
                   required
-                  options={merchants.map((m) => {
-                    const debt = merchantBalances[m.id]?.currentDebt || 0;
-                    return {
-                      id: m.id,
-                      label: m.name,
-                      subLabel: m.phone ? `هاتف: ${m.phone}` : undefined,
-                      badge: debt > 0 ? `دين: ${formatCurrency(debt, currency)}` : 'خالص',
-                      badgeColor: debt > 0 
-                        ? 'bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-400' 
-                        : 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400',
-                    };
-                  })}
+                  options={merchantSelectOptions}
+                  selectedOptionFallback={selectedMerchantFallback}
                   value={merchantId}
                   onChange={setMerchantId}
                   placeholder="ابحث عن تاجر بالاسم أو الهاتف من أول حرف..."
                   searchPlaceholder="اكتب أول حرف للبحث الفوري عن التاجر..."
                   accentColor="teal"
+                  emptyMessage={
+                    !showAllMerchants && sortedDebtorMerchants.length === 0
+                      ? 'لا يوجد تجار عليهم ديون حالياً'
+                      : 'لا توجد نتائج مطابقة'
+                  }
+                  emptyAction={
+                    !showAllMerchants ? (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setShowAllMerchants(true);
+                        }}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 border border-teal-200/80 dark:border-teal-800/70 text-[11px] font-bold hover:bg-teal-100 dark:hover:bg-teal-900/60 transition-colors cursor-pointer"
+                      >
+                        عرض جميع التجار ({merchants.length})
+                      </button>
+                    ) : undefined
+                  }
+                  dropdownHeader={
+                    <div className="flex items-center justify-between gap-2">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setShowAllMerchants((prev) => !prev);
+                        }}
+                        className={`w-full py-1.5 px-2.5 rounded-lg text-[11px] font-bold transition-colors text-center cursor-pointer border ${
+                          showAllMerchants
+                            ? 'bg-teal-500/15 text-teal-700 dark:text-teal-300 border-teal-500/40 hover:bg-teal-500/20'
+                            : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-200/70 dark:hover:bg-slate-700/70'
+                        }`}
+                      >
+                        {showAllMerchants
+                          ? `يتم عرض الكل (${merchants.length}) • إظهار المدينين فقط`
+                          : `المدينون فقط (${sortedDebtorMerchants.length}) • عرض الكل (للعربون)`}
+                      </button>
+                    </div>
+                  }
                 />
 
                 {merchantId && selectedMerchantDebt > 0 && (

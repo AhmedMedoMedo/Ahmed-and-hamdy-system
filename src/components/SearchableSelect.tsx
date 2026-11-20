@@ -22,6 +22,9 @@ interface SearchableSelectProps {
   addNewText?: string;
   accentColor?: 'emerald' | 'teal' | 'indigo' | 'rose';
   disabled?: boolean;
+  dropdownHeader?: React.ReactNode;
+  emptyAction?: React.ReactNode;
+  selectedOptionFallback?: SearchOption;
 }
 
 export const SearchableSelect: React.FC<SearchableSelectProps> = ({
@@ -37,6 +40,9 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
   addNewText = '+ إضافة جديد',
   accentColor = 'emerald',
   disabled = false,
+  dropdownHeader,
+  emptyAction,
+  selectedOptionFallback,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -45,8 +51,8 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
 
   // Selected Option
   const selectedOption = useMemo(() => {
-    return options.find(o => o.id === value);
-  }, [options, value]);
+    return options.find(o => o.id === value) || (value ? selectedOptionFallback : undefined);
+  }, [options, value, selectedOptionFallback]);
 
   // Filtered options from the very first letter
   const filteredOptions = useMemo(() => {
@@ -164,6 +170,13 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
               )}
             </div>
 
+            {/* Optional Custom Header inside Dropdown (e.g. Debtors-only toggle) */}
+            {dropdownHeader && (
+              <div className="mt-1.5">
+                {dropdownHeader}
+              </div>
+            )}
+
             {/* Quick Add New Trigger if supplied */}
             {onAddNew && (
               <div className="flex items-center justify-between mt-1.5 pt-1 border-t border-slate-200/60 dark:border-slate-700/60">
@@ -224,8 +237,9 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
                 );
               })
             ) : (
-              <div className="py-4 text-center text-xs text-slate-400">
+              <div className="py-4 px-3 text-center text-xs text-slate-400 space-y-2">
                 <p>{emptyMessage}</p>
+                {emptyAction}
                 {onAddNew && (
                   <button
                     type="button"
