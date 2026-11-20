@@ -8,7 +8,6 @@ import {
   Search, 
   Plus, 
   Phone, 
-  MapPin, 
   FileText, 
   HandCoins, 
   Edit3, 
@@ -16,7 +15,6 @@ import {
   Share2, 
   Printer, 
   X,
-  PlusCircle,
   Receipt,
   TrendingUp,
   Clock

@@ -8,14 +8,12 @@ import {
   MessageCircle, 
   FileText, 
   HandCoins, 
-  TrendingDown, 
   MapPin, 
   CheckCircle2, 
   ArrowUpDown,
   Send,
   X,
-  Copy,
-  Receipt
+  Copy
 } from 'lucide-react';
 
 interface MerchantDebtsViewProps {
@@ -26,8 +24,7 @@ interface MerchantDebtsViewProps {
 
 export const MerchantDebtsView: React.FC<MerchantDebtsViewProps> = ({
   onSelectMerchant,
-  onOpenNewPayment,
-  onOpenNewInvoice
+  onOpenNewPayment
 }) => {
   const { 
     merchants, 
@@ -81,11 +78,6 @@ export const MerchantDebtsView: React.FC<MerchantDebtsViewProps> = ({
         return a.merchant.name.localeCompare(b.merchant.name, 'ar');
       });
   }, [merchants, merchantBalances, searchTerm, sortBy]);
-
-  // Total debt of filtered merchants
-  const filteredTotalDebt = useMemo(() => {
-    return debtorMerchants.reduce((sum, item) => sum + item.debt, 0);
-  }, [debtorMerchants]);
 
   const handleOpenClaimModal = (m: { id: string; name: string; phone: string; debt: number }) => {
     setClaimMerchant(m);

@@ -1,5 +1,5 @@
 import React from 'react';
-import { AlertTriangle, Trash2, X } from 'lucide-react';
+import { Trash2 } from 'lucide-react';
 
 interface ConfirmModalProps {
   isOpen: boolean;
@@ -18,7 +18,6 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
   message,
   confirmText = 'نعم، حذف',
   cancelText = 'إلغاء',
-  isDestructive = true,
   onConfirm,
   onClose,
 }) => {

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ShieldCheck, Lock, Unlock, Eye, EyeOff, CheckCircle2, AlertCircle } from 'lucide-react';
+import { ShieldCheck, Lock, Eye, EyeOff, AlertCircle } from 'lucide-react';
 
 interface SecurityLockModalProps {
   isOpen: boolean;

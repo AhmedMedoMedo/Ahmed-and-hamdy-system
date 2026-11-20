@@ -16,7 +16,6 @@ import {
   Coins, 
   Database,
   CheckCircle2,
-  AlertTriangle,
   Sun,
   Moon,
   Building2,
@@ -34,7 +33,6 @@ interface SettingsModalProps {
 export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, setActiveTab: setActiveTabProp }) => {
   const { 
     currentUser, 
-    cloudConnected, 
     loginWithGoogle, 
     logoutUser, 
     currency, 
@@ -42,7 +40,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, setActive
     storeName,
     setStoreName,
     currentUserName,
-    updateCurrentUserName,
     updateDeviceName,
     exportDataJSON, 
     importDataJSON,

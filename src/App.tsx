@@ -37,7 +37,7 @@ const MainLayout: React.FC = () => {
   const { role } = useAuth();
 
   // Easter Egg: Secret 5-tap reveal for Owner tabs (Activity Log)
-  const [headerTapCount, setHeaderTapCount] = useState(0);
+  const [, setHeaderTapCount] = useState(0);
   const [showSecretTabs, setShowSecretTabs] = useState(false);
 
   const handleHeaderTitleClick = () => {

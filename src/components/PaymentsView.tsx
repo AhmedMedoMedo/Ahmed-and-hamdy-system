@@ -20,9 +20,7 @@ import {
   Edit3, 
   Trash2, 
   X, 
-  CreditCard,
   Banknote,
-  Smartphone,
   ArrowDownLeft,
   AlertCircle,
   Clock,
@@ -279,14 +277,6 @@ export const PaymentsView: React.FC<PaymentsViewProps> = ({
       })
       .sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt));
   }, [payments, selectedMonth, filterMonthMode, searchTerm]);
-
-  const getMethodIcon = (method: PaymentMethod) => {
-    switch (method) {
-      case 'كاش': return <Banknote className="w-3.5 h-3.5" />;
-      case 'فودافون كاش / إنستاباي': return <Smartphone className="w-3.5 h-3.5" />;
-      default: return <CreditCard className="w-3.5 h-3.5" />;
-    }
-  };
 
   return (
     <div className="space-y-3.5 pb-24">

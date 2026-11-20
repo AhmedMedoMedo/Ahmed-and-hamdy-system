@@ -16,9 +16,7 @@ import {
   Package, 
   UserCheck, 
   Calendar,
-  AlertTriangle,
   CheckCircle2,
-  Filter,
   Clock
 } from 'lucide-react';
 

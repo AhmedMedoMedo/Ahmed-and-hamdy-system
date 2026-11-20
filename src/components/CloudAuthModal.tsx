@@ -7,7 +7,6 @@ import {
   X, 
   Zap, 
   AlertTriangle, 
-  ExternalLink, 
   Copy, 
   Loader2,
   LogIn,

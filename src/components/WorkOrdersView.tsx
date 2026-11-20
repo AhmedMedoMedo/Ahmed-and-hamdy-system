@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
-import type { WorkOrder, OrderItem, OrderStatus, Product } from '../types';
+import type { WorkOrder, OrderItem, OrderStatus } from '../types';
 import { 
   formatCurrency, 
   formatDateArabic, 
@@ -24,10 +24,8 @@ import {
   PlusCircle, 
   Trash, 
   Minus, 
-  ArrowRight,
   PackageCheck,
   Check,
-  DollarSign,
   Receipt
 } from 'lucide-react';
 import { SearchableSelect } from './SearchableSelect';
@@ -40,9 +38,7 @@ interface WorkOrdersViewProps {
 }
 
 export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
-  onOpenOrderInvoice,
   onPrintInvoice,
-  onPrintOrder,
   onSelectMerchant,
 }) => {
   const { 
@@ -599,9 +595,6 @@ export const WorkOrdersView: React.FC<WorkOrdersViewProps> = ({
         {filteredOrders.map((order) => {
           const isDelivered = order.status === 'delivered';
           const isPartial = order.status === 'partially_delivered';
-          const isPending = order.status === 'pending';
-
-          const totalRemainingQty = order.items.reduce((s, it) => s + it.quantityRemaining, 0);
 
           return (
             <div

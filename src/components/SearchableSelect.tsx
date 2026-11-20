@@ -86,13 +86,6 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
     setQuery('');
   };
 
-  const ringColor = {
-    emerald: 'focus:border-emerald-500 focus:ring-emerald-500',
-    teal: 'focus:border-teal-500 focus:ring-teal-500',
-    indigo: 'focus:border-indigo-500 focus:ring-indigo-500',
-    rose: 'focus:border-rose-500 focus:ring-rose-500',
-  }[accentColor];
-
   const activeBg = {
     emerald: 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300',
     teal: 'bg-teal-50 dark:bg-teal-950/40 text-teal-800 dark:text-teal-300',

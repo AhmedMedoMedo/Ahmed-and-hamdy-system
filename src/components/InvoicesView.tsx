@@ -25,7 +25,6 @@ import {
   PlusCircle,
   Trash,
   Minus,
-  CheckCircle2,
   AlertCircle,
   Clock
 } from 'lucide-react';
@@ -418,7 +417,6 @@ export const InvoicesView: React.FC<InvoicesViewProps> = ({
       <div className="space-y-2.5">
         {filteredInvoices.map((inv) => {
           const isFullyPaid = (inv.remainingAmount || 0) <= 0;
-          const isUnpaidDebt = (inv.paidAmount || 0) <= 0;
           const isPartiallyPaid = (inv.paidAmount || 0) > 0 && (inv.remainingAmount || 0) > 0;
 
           // Compute merchant balance before and after this invoice

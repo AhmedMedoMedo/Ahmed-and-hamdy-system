@@ -12,11 +12,7 @@ import {
   Edit3, 
   Trash2, 
   X, 
-  Phone, 
-  Calendar,
-  Wallet,
   ShieldCheck,
-  AlertCircle,
   Clock
 } from 'lucide-react';
 

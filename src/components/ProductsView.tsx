@@ -9,10 +9,8 @@ import {
   Plus, 
   Edit3, 
   Trash2, 
-  DollarSign, 
   X,
   ShoppingCart,
-  Check,
   CircleDollarSign
 } from 'lucide-react';
 

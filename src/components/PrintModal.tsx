@@ -232,7 +232,6 @@ export const PrintModal: React.FC<PrintModalProps> = ({
   let invoicePrevDebt = 0;
   let invoiceNewTotalDebt = 0;
   let invoicePaymentStatusText = '';
-  let invoicePaymentBadgeClass = '';
 
   if (effectiveInvoice) {
     const mBal = merchantBalances[effectiveInvoice.merchantId];
@@ -242,13 +241,10 @@ export const PrintModal: React.FC<PrintModalProps> = ({
 
     if (effectiveInvoice.remainingAmount <= 0) {
       invoicePaymentStatusText = 'كاش (مسددة بالكامل فوري)';
-      invoicePaymentBadgeClass = 'text-emerald-700 bg-emerald-50 border-emerald-300';
     } else if (effectiveInvoice.paidAmount > 0) {
       invoicePaymentStatusText = `سداد جزئي (مدفوع ${formatCurrency(effectiveInvoice.paidAmount, currency)} والباقي دين)`;
-      invoicePaymentBadgeClass = 'text-amber-800 bg-amber-50 border-amber-300';
     } else {
       invoicePaymentStatusText = 'دين آجل (على الحساب بالكامل)';
-      invoicePaymentBadgeClass = 'text-rose-700 bg-rose-50 border-rose-300';
     }
   }
 
@@ -260,73 +256,6 @@ export const PrintModal: React.FC<PrintModalProps> = ({
     paymentNewDebt = mBal ? Math.max(0, mBal.currentDebt) : 0;
     paymentPrevDebt = paymentNewDebt + payment.amount;
   }
-
-  // Generate Egyptian text summary
-  const getEgyptianMessageText = () => {
-    if (effectiveInvoice) {
-      return `*${effectiveBrandName}*
-*بيان بيع بضاعة — فاتورة رقم: #${effectiveInvoice.invoiceNumber}*
-----------------------------------------
-👤 *التاجر/العميل:* ${effectiveInvoice.merchantName}
-📅 *تاريخ الفاتورة:* ${formatDateArabic(effectiveInvoice.date)}
-💳 *حالة الدفع:* *${invoicePaymentStatusText}*
-📦 *الأصناف المباعة:*
-${effectiveInvoice.items.map(it => `• ${it.productName} (${it.quantity} قطعة) × ${formatCurrency(it.unitPrice, currency)} = ${formatCurrency(it.total, currency)}`).join('\n')}
-----------------------------------------
-💰 *المجموع الفرعي:* ${formatCurrency(effectiveInvoice.subtotal, currency)}
-${effectiveInvoice.discount > 0 ? `🏷️ *الخصم الممنوح:* -${formatCurrency(effectiveInvoice.discount, currency)}\n` : ''}💵 *إجمالي قيمة الفاتورة:* ${formatCurrency(effectiveInvoice.total, currency)}
-${effectiveInvoice.paidAmount > 0 ? `✅ *المسدد كاش فوري:* ${formatCurrency(effectiveInvoice.paidAmount, currency)}\n` : ''}${effectiveInvoice.remainingAmount > 0 ? `⏳ *المتبقي دين من الفاتورة:* ${formatCurrency(effectiveInvoice.remainingAmount, currency)}\n` : ''}----------------------------------------
-📊 *كشف حساب التاجر (قبل وبعد الفاتورة):*
-• الحساب القديم قبل الفاتورة: ${formatCurrency(invoicePrevDebt, currency)}
-• قيمة الفاتورة الحالية: ${formatCurrency(effectiveInvoice.total, currency)}
-${effectiveInvoice.paidAmount > 0 ? `• المدفوع كاش: ${formatCurrency(effectiveInvoice.paidAmount, currency)}\n` : ''}• إجمالي الحساب المطلوب بعد الفاتورة: *${formatCurrency(invoiceNewTotalDebt, currency)}*
-${invoiceNewTotalDebt > 0 ? `👉 *المطلوب سداده بعد الفاتورة:* ${formatCurrency(invoiceNewTotalDebt, currency)}` : '🎉 *حسابك خالص ومسدد بالكامل بدون أي ديون*'}
-
-شكراً لتعاملكم الراقي معنا.. تسلم وربنا يباركلك في رزقك 🙏`;
-    } else if (payment) {
-      return `*${effectiveBrandName}*
-*سند استلام دفعة نقدية — إيصال رقم: #${payment.receiptNumber || 'بدون رقم'}*
-----------------------------------------
-👤 *استلمنا من التاجر:* ${payment.merchantName}
-💵 *مبلغ الدفعة المقبوض:* *${formatCurrency(payment.amount, currency)}*
-💳 *طريقة الدفع:* ${payment.paymentMethod}
-📅 *التاريخ:* ${formatDateArabic(payment.date)}
-${payment.notes ? `📝 *البيان:* ${payment.notes}\n` : ''}----------------------------------------
-📊 *تحديث حساب التاجر:*
-• الرصيد قبل استلام الدفعة: ${formatCurrency(paymentPrevDebt, currency)}
-• الرصيد الحالي بعد خصم الدفعة: *${formatCurrency(paymentNewDebt, currency)}*
-${paymentNewDebt > 0 ? `👉 *الباقي عليك للحساب:* ${formatCurrency(paymentNewDebt, currency)}` : '🎉 *حسابك خالص ومسدد بالكامل بدون أي ديون*'}
-
-تم قيد المبلغ في كشف حسابك.. تسلم وربنا يزيدك ويوسع رزقك 🙏`;
-    } else if (merchantStatement) {
-      const m = merchantStatement.merchant;
-      const b = merchantStatement.balances;
-      return `*${effectiveBrandName}*
-*كشف حساب تاجر معتمد — ${m.name}*
-----------------------------------------
-👤 *التاجر:* ${m.name}
-📱 *الهاتف:* ${m.phone || 'غير مسجل'}
-📅 *تاريخ التقرير:* ${formatDateArabic((merchantStatement.generatedAt || new Date().toISOString()).slice(0, 10))}
-----------------------------------------
-📊 *ملخص الحساب المالي:*
-• إجمالي المسحوبات (فواتير): ${formatCurrency(b.totalInvoicedAllTime, currency)} (${merchantStatement.invoices.length} فاتورة)
-• إجمالي المسدد (دفعات): ${formatCurrency(b.totalPaidAllTime, currency)} (${merchantStatement.payments.length} سند قبض)
-• *صافي المديونية الحالية:* *${formatCurrency(b.currentDebt, currency)}*
-----------------------------------------
-📦 *سجل فواتير البيع:*
-${merchantStatement.invoices.length === 0 ? '• لا توجد فواتير' : merchantStatement.invoices.slice(0, 10).map(inv => `• فاتورة #${inv.invoiceNumber} (${inv.date}): ${formatCurrency(inv.total, currency)}`).join('\n')}
-${merchantStatement.invoices.length > 10 ? `... وغيرها (${merchantStatement.invoices.length} فاتورة إجمالاً)` : ''}
-----------------------------------------
-💵 *سجل الدفعات المستلمة:*
-${merchantStatement.payments.length === 0 ? '• لا توجد دفعات' : merchantStatement.payments.slice(0, 10).map(p => `• دفعة #${p.receiptNumber || '0742'} (${p.date}): ${formatCurrency(p.amount, currency)} [${p.paymentMethod}]`).join('\n')}
-${merchantStatement.payments.length > 10 ? `... وغيرها (${merchantStatement.payments.length} دفعة إجمالاً)` : ''}
-----------------------------------------
-${b.currentDebt > 0 ? `👉 *المتبقي المطلوب سداده:* ${formatCurrency(b.currentDebt, currency)}` : '🎉 *الحساب مسدد وخالص بالكامل*'}
-
-شاكرين لسيادتكم دوام التعاون وسرعة السداد 🙏`;
-    }
-    return '';
-  };
 
   // Convert Egyptian phone number to standard international WhatsApp format
   const formatEgyptianPhoneForWhatsApp = (rawPhone: string) => {

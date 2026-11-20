@@ -5,12 +5,9 @@ import {
   signInWithGoogle, 
   signInWithGoogleRedirect,
   signInAnonymouslyUser,
-  checkRedirectResult,
   logOut, 
   onAuthStateChanged, 
   type User,
-  OperationType,
-  handleFirestoreError,
   testConnection
 } from '../firebase';
 import { 
@@ -39,11 +36,9 @@ import type {
   MerchantBalance,
   MonthSummary,
   Expense,
-  ExpenseCategory,
   TrashItem,
   TrashCollectionType,
-  SystemLog,
-  SystemSettings
+  SystemLog
 } from '../types';
 import { 
   getCurrentMonthKey, 
