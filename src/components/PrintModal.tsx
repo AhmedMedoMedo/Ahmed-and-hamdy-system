@@ -39,7 +39,7 @@ export const PrintModal: React.FC<PrintModalProps> = ({
   balanceAfter,
   onClose,
 }) => {
-  const { merchantBalances, storeName, currency, merchants, invoices, showToast } = useApp();
+  const { merchantBalances, storeName, currency, merchants, invoices, payments, showToast } = useApp();
   const { role, tenantData } = useAuth();
 
   const resolvedTenant = useMemo<TenantData | null>(() => {
@@ -232,6 +232,59 @@ export const PrintModal: React.FC<PrintModalProps> = ({
     window.print();
   };
 
+  const resolveChronologicalBalance = (
+    txType: 'invoice' | 'payment',
+    txId: string,
+    merchantId?: string,
+    merchantName?: string
+  ) => {
+    const normalizedTargetName = (merchantName || '').trim().toLowerCase();
+    const matchesMerchant = (itemMId?: string, itemMName?: string) => {
+      if (merchantId && itemMId) return itemMId === merchantId;
+      if (normalizedTargetName && itemMName) {
+        return itemMName.trim().toLowerCase() === normalizedTargetName;
+      }
+      return false;
+    };
+
+    const combined = [
+      ...invoices
+        .filter((inv) => matchesMerchant(inv.merchantId, inv.merchantName))
+        .map((inv) => ({
+          id: inv.id,
+          type: 'invoice' as const,
+          date: inv.date,
+          debit: inv.total,
+          credit: 0,
+          createdAt: inv.createdAt || inv.date,
+        })),
+      ...payments
+        .filter((pay) => matchesMerchant(pay.merchantId, pay.merchantName))
+        .map((pay) => ({
+          id: pay.id,
+          type: 'payment' as const,
+          date: pay.date,
+          debit: 0,
+          credit: pay.amount,
+          createdAt: pay.createdAt || pay.date,
+        })),
+    ].sort((a, b) => {
+      const timeDiff = new Date(a.date).getTime() - new Date(b.date).getTime();
+      if (timeDiff !== 0) return timeDiff;
+      return (a.createdAt || '').localeCompare(b.createdAt || '');
+    });
+
+    let running = 0;
+    for (const tx of combined) {
+      const before = running;
+      running += (tx.debit - tx.credit);
+      if (tx.type === txType && tx.id === txId) {
+        return { balanceBefore: before, balanceAfter: running };
+      }
+    }
+    return null;
+  };
+
   // Balance calculations matching Egyptian accounting practice
   let invoicePrevDebt = 0;
   let invoiceNewTotalDebt = 0;
@@ -242,10 +295,21 @@ export const PrintModal: React.FC<PrintModalProps> = ({
       invoicePrevDebt = balanceBefore;
       invoiceNewTotalDebt = balanceAfter;
     } else {
-      const mBal = merchantBalances[effectiveInvoice.merchantId];
-      const currentDebt = mBal ? Math.max(0, mBal.currentDebt) : effectiveInvoice.remainingAmount;
-      invoicePrevDebt = Math.max(0, currentDebt - effectiveInvoice.remainingAmount);
-      invoiceNewTotalDebt = invoicePrevDebt + effectiveInvoice.remainingAmount;
+      const chronological = resolveChronologicalBalance(
+        'invoice',
+        effectiveInvoice.id,
+        effectiveInvoice.merchantId,
+        effectiveInvoice.merchantName
+      );
+      if (chronological) {
+        invoicePrevDebt = chronological.balanceBefore;
+        invoiceNewTotalDebt = chronological.balanceAfter;
+      } else {
+        const mBal = merchantBalances[effectiveInvoice.merchantId];
+        const currentDebt = mBal ? Math.max(0, mBal.currentDebt) : effectiveInvoice.remainingAmount;
+        invoicePrevDebt = Math.max(0, currentDebt - effectiveInvoice.remainingAmount);
+        invoiceNewTotalDebt = invoicePrevDebt + effectiveInvoice.remainingAmount;
+      }
     }
 
     if (effectiveInvoice.remainingAmount <= 0) {
@@ -265,9 +329,20 @@ export const PrintModal: React.FC<PrintModalProps> = ({
       paymentPrevDebt = balanceBefore;
       paymentNewDebt = balanceAfter;
     } else {
-      const mBal = merchantBalances[payment.merchantId];
-      paymentNewDebt = mBal ? Math.max(0, mBal.currentDebt) : 0;
-      paymentPrevDebt = paymentNewDebt + payment.amount;
+      const chronological = resolveChronologicalBalance(
+        'payment',
+        payment.id,
+        payment.merchantId,
+        payment.merchantName
+      );
+      if (chronological) {
+        paymentPrevDebt = chronological.balanceBefore;
+        paymentNewDebt = chronological.balanceAfter;
+      } else {
+        const mBal = merchantBalances[payment.merchantId];
+        paymentNewDebt = mBal ? Math.max(0, mBal.currentDebt) : 0;
+        paymentPrevDebt = paymentNewDebt + payment.amount;
+      }
     }
   }
 

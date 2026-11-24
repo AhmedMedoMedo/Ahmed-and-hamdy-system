@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
-import type { Invoice, Payment, Expense, WorkOrder } from '../types';
+import type { Invoice, Payment, Expense, WorkOrder, PrintBalanceContext } from '../types';
 import { 
   formatCurrency, 
   formatDateArabic,
@@ -44,8 +44,8 @@ interface DashboardViewProps {
   onSelectMerchant: (merchantId: string) => void;
   onEditInvoice?: (invoice: Invoice) => void;
   onEditPayment?: (payment: Payment) => void;
-  onPrintInvoice?: (invoice: Invoice) => void;
-  onPrintPayment?: (payment: Payment) => void;
+  onPrintInvoice?: (invoice: Invoice, balanceContext?: PrintBalanceContext) => void;
+  onPrintPayment?: (payment: Payment, balanceContext?: PrintBalanceContext) => void;
   onPrintOrder?: (order: WorkOrder) => void;
   onPrintExpense?: (expense: Expense) => void;
 }
@@ -182,6 +182,64 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   } = useApp();
   const { role, tenantData } = useAuth();
   const canShowTrends = role === 'admin' || tenantData?.permissions?.showTrendLines === true;
+
+  // Compute exact chronological balanceBefore & balanceAfter matching Merchant Statement
+  const computeMerchantTxBalanceContext = (
+    txType: 'invoice' | 'payment',
+    txId: string,
+    merchantId?: string,
+    merchantName?: string
+  ): PrintBalanceContext | undefined => {
+    const normalizedTargetName = (merchantName || '').trim().toLowerCase();
+    const matchesMerchant = (itemMId?: string, itemMName?: string) => {
+      if (merchantId && itemMId) return itemMId === merchantId;
+      if (normalizedTargetName && itemMName) {
+        return itemMName.trim().toLowerCase() === normalizedTargetName;
+      }
+      return false;
+    };
+
+    const merchantInvs = invoices
+      .filter((inv) => matchesMerchant(inv.merchantId, inv.merchantName))
+      .map((inv) => ({
+        id: inv.id,
+        type: 'invoice' as const,
+        date: inv.date,
+        debit: inv.total,
+        credit: 0,
+        createdAt: inv.createdAt || inv.date,
+      }));
+
+    const merchantPays = payments
+      .filter((pay) => matchesMerchant(pay.merchantId, pay.merchantName))
+      .map((pay) => ({
+        id: pay.id,
+        type: 'payment' as const,
+        date: pay.date,
+        debit: 0,
+        credit: pay.amount,
+        createdAt: pay.createdAt || pay.date,
+      }));
+
+    const combined = [...merchantInvs, ...merchantPays].sort((a, b) => {
+      const timeDiff = new Date(a.date).getTime() - new Date(b.date).getTime();
+      if (timeDiff !== 0) return timeDiff;
+      return (a.createdAt || '').localeCompare(b.createdAt || '');
+    });
+
+    let runningBalance = 0;
+    for (const tx of combined) {
+      const balanceBefore = runningBalance;
+      runningBalance += (tx.debit - tx.credit);
+      if (tx.type === txType && tx.id === txId) {
+        return {
+          balanceBefore,
+          balanceAfter: runningBalance,
+        };
+      }
+    }
+    return undefined;
+  };
 
   // Period filter applied to BOTH top statistics cards AND recent operations
   const [periodFilter, setPeriodFilter] = useState<PeriodFilter>('month');
@@ -1184,13 +1242,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       onClick={(e) => {
                         e.stopPropagation();
                         if (isInv && invRaw && onPrintInvoice) {
-                          onPrintInvoice(invRaw);
+                          const ctx = computeMerchantTxBalanceContext('invoice', invRaw.id, invRaw.merchantId, invRaw.merchantName);
+                          onPrintInvoice(invRaw, ctx);
                         } else if (isPay && payRaw && onPrintPayment) {
-                          onPrintPayment(payRaw);
+                          const ctx = computeMerchantTxBalanceContext('payment', payRaw.id, payRaw.merchantId, payRaw.merchantName);
+                          onPrintPayment(payRaw, ctx);
                         } else if (isOrd && ordRaw) {
                           const linked = invoices.find(i => i.orderId === ordRaw.id || (i.notes && i.notes.includes(ordRaw.orderNumber)));
                           if (linked && onPrintInvoice) {
-                            onPrintInvoice(linked);
+                            const ctx = computeMerchantTxBalanceContext('invoice', linked.id, linked.merchantId, linked.merchantName);
+                            onPrintInvoice(linked, ctx);
                           } else if (onPrintOrder) {
                             onPrintOrder(ordRaw);
                           }
@@ -1557,14 +1618,19 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 type="button"
                 onClick={() => {
                   if (selectedOperation.type === 'invoice' && selectedOperation.rawInvoice && onPrintInvoice) {
-                    onPrintInvoice(selectedOperation.rawInvoice);
+                    const inv = selectedOperation.rawInvoice;
+                    const ctx = computeMerchantTxBalanceContext('invoice', inv.id, inv.merchantId, inv.merchantName);
+                    onPrintInvoice(inv, ctx);
                   } else if (selectedOperation.type === 'payment' && selectedOperation.rawPayment && onPrintPayment) {
-                    onPrintPayment(selectedOperation.rawPayment);
+                    const pay = selectedOperation.rawPayment;
+                    const ctx = computeMerchantTxBalanceContext('payment', pay.id, pay.merchantId, pay.merchantName);
+                    onPrintPayment(pay, ctx);
                   } else if (selectedOperation.type === 'order' && selectedOperation.rawOrder) {
                     const ord = selectedOperation.rawOrder;
                     const linked = invoices.find(i => i.orderId === ord.id || (i.notes && i.notes.includes(ord.orderNumber)));
                     if (linked && onPrintInvoice) {
-                      onPrintInvoice(linked);
+                      const ctx = computeMerchantTxBalanceContext('invoice', linked.id, linked.merchantId, linked.merchantName);
+                      onPrintInvoice(linked, ctx);
                     } else if (onPrintOrder) {
                       onPrintOrder(ord);
                     }

@@ -143,10 +143,22 @@ const MainLayout: React.FC = () => {
               onSelectMerchant={handleSelectMerchant}
               onEditInvoice={handleEditInvoice}
               onEditPayment={handleEditPayment}
-              onPrintInvoice={(inv) => setPrintableInvoice(inv)}
-              onPrintPayment={(pay) => setPrintablePayment(pay)}
-              onPrintOrder={(ord) => setPrintableOrder(ord)}
-              onPrintExpense={(exp) => setPrintableExpense(exp)}
+              onPrintInvoice={(inv, balanceCtx) => {
+                setPrintableBalanceContext(balanceCtx || null);
+                setPrintableInvoice(inv);
+              }}
+              onPrintPayment={(pay, balanceCtx) => {
+                setPrintableBalanceContext(balanceCtx || null);
+                setPrintablePayment(pay);
+              }}
+              onPrintOrder={(ord) => {
+                setPrintableBalanceContext(null);
+                setPrintableOrder(ord);
+              }}
+              onPrintExpense={(exp) => {
+                setPrintableBalanceContext(null);
+                setPrintableExpense(exp);
+              }}
             />
           )}
 
