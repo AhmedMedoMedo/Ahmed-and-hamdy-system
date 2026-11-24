@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
-import type { Merchant, Invoice, Payment, MerchantStatementPrintData } from '../types';
+import type { Merchant, Invoice, Payment, MerchantStatementPrintData, PrintBalanceContext } from '../types';
 import { formatCurrency, formatDateArabic, getTimeAgoArabic, getTodayDateString, getMonthKeyFromDate } from '../utils/formatters';
 import { ConfirmModal } from './ConfirmModal';
 import { 
@@ -27,8 +27,8 @@ interface MerchantsViewProps {
   onOpenNewPaymentWithMerchant?: (merchantId: string) => void;
   onEditInvoice?: (invoice: Invoice) => void;
   onEditPayment?: (payment: Payment) => void;
-  onPrintInvoice?: (invoice: Invoice) => void;
-  onPrintPayment?: (payment: Payment) => void;
+  onPrintInvoice?: (invoice: Invoice, balanceContext?: PrintBalanceContext) => void;
+  onPrintPayment?: (payment: Payment, balanceContext?: PrintBalanceContext) => void;
   onPrintMerchantStatement?: (statementData: MerchantStatementPrintData) => void;
 }
 
@@ -316,9 +316,11 @@ export const MerchantsView: React.FC<MerchantsViewProps> = ({
 
     let runningBalance = 0;
     const withRunningBalance = combined.map(tx => {
+      const balanceBefore = runningBalance;
       runningBalance += (tx.debit - tx.credit);
       return {
         ...tx,
+        balanceBefore,
         balanceAfter: runningBalance
       };
     });
@@ -329,6 +331,17 @@ export const MerchantsView: React.FC<MerchantsViewProps> = ({
       return (b.createdAt || '').localeCompare(a.createdAt || '');
     });
   }, [activeMerchantId, invoices, payments]);
+
+  const txBalanceLookup = useMemo(() => {
+    const map = new Map<string, PrintBalanceContext>();
+    activeMerchantTransactions.forEach((tx) => {
+      map.set(`${tx.type}:${tx.id}`, {
+        balanceBefore: tx.balanceBefore,
+        balanceAfter: tx.balanceAfter,
+      });
+    });
+    return map;
+  }, [activeMerchantTransactions]);
 
   // Print full statement handler
   const handlePrintFullStatement = () => {
@@ -828,12 +841,21 @@ export const MerchantsView: React.FC<MerchantsViewProps> = ({
                           </div>
                         )}
 
-                        {/* الصف الرابع (مفصول بخط علوي خفيف): الرصيد التراكمي يميناً، وأزرار الإجراءات يساراً */}
+                        {/* الصف الرابع (مفصول بخط علوي خفيف): الرصيد قبل وبعد العملية يميناً، وأزرار الإجراءات يساراً */}
                         <div className="pt-2 border-t border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between gap-2">
-                          <div className="text-[11px] flex items-center gap-1">
-                            <span className="text-slate-400 dark:text-slate-500 font-medium">الرصيد بعد العملية:</span>
-                            <span className="font-bold font-mono-num text-slate-800 dark:text-slate-200">
-                              {formatCurrency(tx.balanceAfter, currency)}
+                          <div className="text-xs flex flex-wrap items-center gap-x-2 gap-y-0.5 min-w-0">
+                            <span className="text-slate-500 dark:text-slate-400 font-medium">
+                              الرصيد قبل العملية:{' '}
+                              <span className="font-mono-num font-semibold">
+                                {formatCurrency(tx.balanceBefore, currency)}
+                              </span>
+                            </span>
+                            <span className="text-slate-300 dark:text-slate-600">|</span>
+                            <span className="text-slate-900 dark:text-white font-bold">
+                              الرصيد بعد العملية:{' '}
+                              <span className="font-mono-num font-black">
+                                {formatCurrency(tx.balanceAfter, currency)}
+                              </span>
                             </span>
                           </div>
 
@@ -865,10 +887,14 @@ export const MerchantsView: React.FC<MerchantsViewProps> = ({
 
                             <button
                               onClick={() => {
+                                const balanceContext: PrintBalanceContext = {
+                                  balanceBefore: tx.balanceBefore,
+                                  balanceAfter: tx.balanceAfter,
+                                };
                                 if (isInv && tx.rawInvoice && onPrintInvoice) {
-                                  onPrintInvoice(tx.rawInvoice);
+                                  onPrintInvoice(tx.rawInvoice, balanceContext);
                                 } else if (!isInv && tx.rawPayment && onPrintPayment) {
-                                  onPrintPayment(tx.rawPayment);
+                                  onPrintPayment(tx.rawPayment, balanceContext);
                                 }
                               }}
                               title={isInv ? 'طباعة هذه الفاتورة' : 'طباعة هذا السند'}
@@ -962,7 +988,7 @@ export const MerchantsView: React.FC<MerchantsViewProps> = ({
                             )}
 
                             <button
-                              onClick={() => onPrintInvoice && onPrintInvoice(inv)}
+                              onClick={() => onPrintInvoice && onPrintInvoice(inv, txBalanceLookup.get(`invoice:${inv.id}`))}
                               className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center gap-1 shadow-xs transition-colors"
                             >
                               <Printer className="w-3.5 h-3.5" />
@@ -1045,7 +1071,7 @@ export const MerchantsView: React.FC<MerchantsViewProps> = ({
                           )}
 
                           <button
-                            onClick={() => onPrintPayment && onPrintPayment(pay)}
+                            onClick={() => onPrintPayment && onPrintPayment(pay, txBalanceLookup.get(`payment:${pay.id}`))}
                             className="px-3 py-1.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs flex items-center gap-1 shadow-xs transition-colors"
                           >
                             <Printer className="w-3.5 h-3.5" />

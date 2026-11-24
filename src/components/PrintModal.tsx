@@ -23,6 +23,8 @@ interface PrintModalProps {
   order?: WorkOrder | null;
   expense?: Expense | null;
   merchantStatement?: MerchantStatementPrintData | null;
+  balanceBefore?: number;
+  balanceAfter?: number;
   currency?: string;
   onClose: () => void;
 }
@@ -33,6 +35,8 @@ export const PrintModal: React.FC<PrintModalProps> = ({
   order,
   expense,
   merchantStatement,
+  balanceBefore,
+  balanceAfter,
   onClose,
 }) => {
   const { merchantBalances, storeName, currency, merchants, invoices, showToast } = useApp();
@@ -234,10 +238,15 @@ export const PrintModal: React.FC<PrintModalProps> = ({
   let invoicePaymentStatusText = '';
 
   if (effectiveInvoice) {
-    const mBal = merchantBalances[effectiveInvoice.merchantId];
-    const currentDebt = mBal ? Math.max(0, mBal.currentDebt) : effectiveInvoice.remainingAmount;
-    invoicePrevDebt = Math.max(0, currentDebt - effectiveInvoice.remainingAmount);
-    invoiceNewTotalDebt = invoicePrevDebt + effectiveInvoice.remainingAmount;
+    if (typeof balanceBefore === 'number' && typeof balanceAfter === 'number') {
+      invoicePrevDebt = balanceBefore;
+      invoiceNewTotalDebt = balanceAfter;
+    } else {
+      const mBal = merchantBalances[effectiveInvoice.merchantId];
+      const currentDebt = mBal ? Math.max(0, mBal.currentDebt) : effectiveInvoice.remainingAmount;
+      invoicePrevDebt = Math.max(0, currentDebt - effectiveInvoice.remainingAmount);
+      invoiceNewTotalDebt = invoicePrevDebt + effectiveInvoice.remainingAmount;
+    }
 
     if (effectiveInvoice.remainingAmount <= 0) {
       invoicePaymentStatusText = 'كاش (مسددة بالكامل فوري)';
@@ -252,9 +261,14 @@ export const PrintModal: React.FC<PrintModalProps> = ({
   let paymentNewDebt = 0;
 
   if (payment) {
-    const mBal = merchantBalances[payment.merchantId];
-    paymentNewDebt = mBal ? Math.max(0, mBal.currentDebt) : 0;
-    paymentPrevDebt = paymentNewDebt + payment.amount;
+    if (typeof balanceBefore === 'number' && typeof balanceAfter === 'number') {
+      paymentPrevDebt = balanceBefore;
+      paymentNewDebt = balanceAfter;
+    } else {
+      const mBal = merchantBalances[payment.merchantId];
+      paymentNewDebt = mBal ? Math.max(0, mBal.currentDebt) : 0;
+      paymentPrevDebt = paymentNewDebt + payment.amount;
+    }
   }
 
   // Convert Egyptian phone number to standard international WhatsApp format
@@ -826,6 +840,10 @@ export const PrintModal: React.FC<PrintModalProps> = ({
                   {paymentNewDebt > 0 ? (
                     <span className="font-black text-rose-700 font-mono-num">
                       متبقي على التاجر {formatCurrency(paymentNewDebt, currency)}
+                    </span>
+                  ) : paymentNewDebt < 0 ? (
+                    <span className="font-black text-teal-700 font-mono-num">
+                      رصيد دائن للتاجر {formatCurrency(Math.abs(paymentNewDebt), currency)}
                     </span>
                   ) : (
                     <span className="font-black text-emerald-700">

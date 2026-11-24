@@ -19,7 +19,7 @@ import { ActivityLogView } from './components/ActivityLogView';
 import { PrintModal } from './components/PrintModal';
 import { SettingsModal } from './components/SettingsModal';
 import { SecurityLockModal } from './components/SecurityLockModal';
-import type { Invoice, Payment, Product, WorkOrder, Expense, MerchantStatementPrintData } from './types';
+import type { Invoice, Payment, Product, WorkOrder, Expense, MerchantStatementPrintData, PrintBalanceContext } from './types';
 import { CheckCircle2 } from 'lucide-react';
 
 const MainLayout: React.FC = () => {
@@ -59,6 +59,7 @@ const MainLayout: React.FC = () => {
   const [printableOrder, setPrintableOrder] = useState<WorkOrder | null>(null);
   const [printableExpense, setPrintableExpense] = useState<Expense | null>(null);
   const [printableMerchantStatement, setPrintableMerchantStatement] = useState<MerchantStatementPrintData | null>(null);
+  const [printableBalanceContext, setPrintableBalanceContext] = useState<PrintBalanceContext | null>(null);
 
   // Cross-view deep links
   const [selectedMerchantForView, setSelectedMerchantForView] = useState<string | null>(null);
@@ -181,9 +182,18 @@ const MainLayout: React.FC = () => {
               onOpenNewPaymentWithMerchant={(mId) => handleOpenNewPayment(mId)}
               onEditInvoice={handleEditInvoice}
               onEditPayment={handleEditPayment}
-              onPrintInvoice={(inv) => setPrintableInvoice(inv)}
-              onPrintPayment={(pay) => setPrintablePayment(pay)}
-              onPrintMerchantStatement={(stmt) => setPrintableMerchantStatement(stmt)}
+              onPrintInvoice={(inv, balanceCtx) => {
+                setPrintableBalanceContext(balanceCtx || null);
+                setPrintableInvoice(inv);
+              }}
+              onPrintPayment={(pay, balanceCtx) => {
+                setPrintableBalanceContext(balanceCtx || null);
+                setPrintablePayment(pay);
+              }}
+              onPrintMerchantStatement={(stmt) => {
+                setPrintableBalanceContext(null);
+                setPrintableMerchantStatement(stmt);
+              }}
             />
           )}
 
@@ -254,6 +264,8 @@ const MainLayout: React.FC = () => {
             order={printableOrder}
             expense={printableExpense}
             merchantStatement={printableMerchantStatement}
+            balanceBefore={printableBalanceContext?.balanceBefore}
+            balanceAfter={printableBalanceContext?.balanceAfter}
             currency={currency}
             onClose={() => {
               setPrintableInvoice(null);
@@ -261,6 +273,7 @@ const MainLayout: React.FC = () => {
               setPrintableOrder(null);
               setPrintableExpense(null);
               setPrintableMerchantStatement(null);
+              setPrintableBalanceContext(null);
             }}
           />
         )}

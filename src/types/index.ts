@@ -218,13 +218,21 @@ export interface MonthSummary {
   invoicesCount: number;
   paymentsCount: number;
   expensesCount: number;
-}export interface MerchantStatementTransaction {
+}
+
+export interface PrintBalanceContext {
+  balanceBefore: number;
+  balanceAfter: number;
+}
+
+export interface MerchantStatementTransaction {
   id: string;
   type: 'invoice' | 'payment';
   date: string;
   title: string;
   debit: number;
   credit: number;
+  balanceBefore?: number;
   balanceAfter: number;
   notes?: string;
   createdAt: string;
