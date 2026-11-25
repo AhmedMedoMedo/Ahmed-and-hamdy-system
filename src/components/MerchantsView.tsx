@@ -283,12 +283,12 @@ export const MerchantsView: React.FC<MerchantsViewProps> = ({
       .map(inv => ({
         id: inv.id,
         type: 'invoice' as const,
-        date: inv.date,
+        date: inv.date || '',
         title: `فاتورة #${inv.invoiceNumber}`,
-        debit: inv.total,
+        debit: Number(inv.total || 0),
         credit: 0,
         notes: inv.notes || '',
-        createdAt: inv.createdAt,
+        createdAt: inv.createdAt || inv.date || '',
         rawInvoice: inv,
         excludeFromStats: Boolean(inv.excludeFromStats),
       }));
@@ -298,18 +298,20 @@ export const MerchantsView: React.FC<MerchantsViewProps> = ({
       .map(pay => ({
         id: pay.id,
         type: 'payment' as const,
-        date: pay.date,
+        date: pay.date || '',
         title: `دفعة (${pay.paymentMethod})`,
         debit: 0,
-        credit: pay.amount,
+        credit: Number(pay.amount || 0),
         notes: pay.notes || '',
-        createdAt: pay.createdAt,
+        createdAt: pay.createdAt || pay.date || '',
         rawPayment: pay,
         excludeFromStats: Boolean(pay.excludeFromStats),
       }));
 
     const combined = [...merchantInvs, ...merchantPays].sort((a, b) => {
-      const timeDiff = new Date(a.date).getTime() - new Date(b.date).getTime();
+      const timeA = a.date ? new Date(a.date).getTime() : 0;
+      const timeB = b.date ? new Date(b.date).getTime() : 0;
+      const timeDiff = (Number.isNaN(timeA) ? 0 : timeA) - (Number.isNaN(timeB) ? 0 : timeB);
       if (timeDiff !== 0) return timeDiff;
       return (a.createdAt || '').localeCompare(b.createdAt || '');
     });
@@ -317,7 +319,7 @@ export const MerchantsView: React.FC<MerchantsViewProps> = ({
     let runningBalance = 0;
     const withRunningBalance = combined.map(tx => {
       const balanceBefore = runningBalance;
-      runningBalance += (tx.debit - tx.credit);
+      runningBalance += Number(tx.debit || 0) - Number(tx.credit || 0);
       return {
         ...tx,
         balanceBefore,
@@ -326,7 +328,9 @@ export const MerchantsView: React.FC<MerchantsViewProps> = ({
     });
 
     return withRunningBalance.sort((a, b) => {
-      const timeDiff = new Date(b.date).getTime() - new Date(a.date).getTime();
+      const timeA = a.date ? new Date(a.date).getTime() : 0;
+      const timeB = b.date ? new Date(b.date).getTime() : 0;
+      const timeDiff = (Number.isNaN(timeB) ? 0 : timeB) - (Number.isNaN(timeA) ? 0 : timeA);
       if (timeDiff !== 0) return timeDiff;
       return (b.createdAt || '').localeCompare(a.createdAt || '');
     });
@@ -336,8 +340,8 @@ export const MerchantsView: React.FC<MerchantsViewProps> = ({
     const map = new Map<string, PrintBalanceContext>();
     activeMerchantTransactions.forEach((tx) => {
       map.set(`${tx.type}:${tx.id}`, {
-        balanceBefore: tx.balanceBefore,
-        balanceAfter: tx.balanceAfter,
+        balanceBefore: Number(tx.balanceBefore ?? 0),
+        balanceAfter: Number(tx.balanceAfter ?? 0),
       });
     });
     return map;

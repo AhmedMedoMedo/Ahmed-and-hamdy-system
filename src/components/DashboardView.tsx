@@ -204,10 +204,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       .map((inv) => ({
         id: inv.id,
         type: 'invoice' as const,
-        date: inv.date,
-        debit: inv.total,
+        date: inv.date || '',
+        debit: Number(inv.total || 0),
         credit: 0,
-        createdAt: inv.createdAt || inv.date,
+        createdAt: inv.createdAt || inv.date || '',
       }));
 
     const merchantPays = payments
@@ -215,14 +215,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       .map((pay) => ({
         id: pay.id,
         type: 'payment' as const,
-        date: pay.date,
+        date: pay.date || '',
         debit: 0,
-        credit: pay.amount,
-        createdAt: pay.createdAt || pay.date,
+        credit: Number(pay.amount || 0),
+        createdAt: pay.createdAt || pay.date || '',
       }));
 
     const combined = [...merchantInvs, ...merchantPays].sort((a, b) => {
-      const timeDiff = new Date(a.date).getTime() - new Date(b.date).getTime();
+      const timeA = a.date ? new Date(a.date).getTime() : 0;
+      const timeB = b.date ? new Date(b.date).getTime() : 0;
+      const timeDiff = (Number.isNaN(timeA) ? 0 : timeA) - (Number.isNaN(timeB) ? 0 : timeB);
       if (timeDiff !== 0) return timeDiff;
       return (a.createdAt || '').localeCompare(b.createdAt || '');
     });
@@ -230,7 +232,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     let runningBalance = 0;
     for (const tx of combined) {
       const balanceBefore = runningBalance;
-      runningBalance += (tx.debit - tx.credit);
+      runningBalance += Number(tx.debit || 0) - Number(tx.credit || 0);
       if (tx.type === txType && tx.id === txId) {
         return {
           balanceBefore,

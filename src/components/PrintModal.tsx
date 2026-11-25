@@ -23,8 +23,8 @@ interface PrintModalProps {
   order?: WorkOrder | null;
   expense?: Expense | null;
   merchantStatement?: MerchantStatementPrintData | null;
-  balanceBefore?: number;
-  balanceAfter?: number;
+  balanceBefore?: number | undefined;
+  balanceAfter?: number | undefined;
   currency?: string;
   onClose: () => void;
 }
@@ -253,23 +253,25 @@ export const PrintModal: React.FC<PrintModalProps> = ({
         .map((inv) => ({
           id: inv.id,
           type: 'invoice' as const,
-          date: inv.date,
-          debit: inv.total,
+          date: inv.date || '',
+          debit: Number(inv.total || 0),
           credit: 0,
-          createdAt: inv.createdAt || inv.date,
+          createdAt: inv.createdAt || inv.date || '',
         })),
       ...payments
         .filter((pay) => matchesMerchant(pay.merchantId, pay.merchantName))
         .map((pay) => ({
           id: pay.id,
           type: 'payment' as const,
-          date: pay.date,
+          date: pay.date || '',
           debit: 0,
-          credit: pay.amount,
-          createdAt: pay.createdAt || pay.date,
+          credit: Number(pay.amount || 0),
+          createdAt: pay.createdAt || pay.date || '',
         })),
     ].sort((a, b) => {
-      const timeDiff = new Date(a.date).getTime() - new Date(b.date).getTime();
+      const timeA = a.date ? new Date(a.date).getTime() : 0;
+      const timeB = b.date ? new Date(b.date).getTime() : 0;
+      const timeDiff = (Number.isNaN(timeA) ? 0 : timeA) - (Number.isNaN(timeB) ? 0 : timeB);
       if (timeDiff !== 0) return timeDiff;
       return (a.createdAt || '').localeCompare(b.createdAt || '');
     });
@@ -277,7 +279,7 @@ export const PrintModal: React.FC<PrintModalProps> = ({
     let running = 0;
     for (const tx of combined) {
       const before = running;
-      running += (tx.debit - tx.credit);
+      running += Number(tx.debit || 0) - Number(tx.credit || 0);
       if (tx.type === txType && tx.id === txId) {
         return { balanceBefore: before, balanceAfter: running };
       }

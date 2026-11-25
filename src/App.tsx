@@ -169,8 +169,14 @@ const MainLayout: React.FC = () => {
           {activeTab === 'orders' && (
             <WorkOrdersView 
               onSelectMerchant={handleSelectMerchant}
-              onPrintInvoice={(inv) => setPrintableInvoice(inv)}
-              onPrintOrder={(ord) => setPrintableOrder(ord)}
+              onPrintInvoice={(inv) => {
+                setPrintableBalanceContext(null);
+                setPrintableInvoice(inv);
+              }}
+              onPrintOrder={(ord) => {
+                setPrintableBalanceContext(null);
+                setPrintableOrder(ord);
+              }}
             />
           )}
 
@@ -221,7 +227,10 @@ const MainLayout: React.FC = () => {
                 setInvoiceMerchantId(null);
                 setInvoicePreselectedProduct(null);
               }}
-              onPrintInvoice={(inv) => setPrintableInvoice(inv)}
+              onPrintInvoice={(inv) => {
+                setPrintableBalanceContext(null);
+                setPrintableInvoice(inv);
+              }}
               onSelectMerchant={handleSelectMerchant}
             />
           )}
@@ -236,7 +245,10 @@ const MainLayout: React.FC = () => {
                 setEditingPaymentForView(null);
                 setPaymentMerchantId(null);
               }}
-              onPrintPayment={(pay) => setPrintablePayment(pay)}
+              onPrintPayment={(pay) => {
+                setPrintableBalanceContext(null);
+                setPrintablePayment(pay);
+              }}
               onSelectMerchant={handleSelectMerchant}
             />
           )}
