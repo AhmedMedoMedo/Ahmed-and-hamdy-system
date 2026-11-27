@@ -1,7 +1,7 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import type { Merchant, Invoice, Payment, MerchantStatementPrintData, PrintBalanceContext } from '../types';
-import { formatCurrency, formatDateArabic, getTimeAgoArabic, getTodayDateString, getMonthKeyFromDate } from '../utils/formatters';
+import { formatCurrency, formatDateArabic, getTimeAgoArabic, getTodayDateString, getMonthKeyFromDate, formatMonthName } from '../utils/formatters';
 import { ConfirmModal } from './ConfirmModal';
 import { 
   Users, 
@@ -17,7 +17,9 @@ import {
   X,
   Receipt,
   TrendingUp,
-  Clock
+  Clock,
+  Trophy,
+  Calendar
 } from 'lucide-react';
 
 interface MerchantsViewProps {
@@ -48,6 +50,7 @@ export const MerchantsView: React.FC<MerchantsViewProps> = ({
     merchantBalances, 
     invoices, 
     payments, 
+    selectedMonth,
     currency, 
     saveMerchant, 
     saveInvoice,
@@ -58,7 +61,12 @@ export const MerchantsView: React.FC<MerchantsViewProps> = ({
   } = useApp();
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterType, setFilterType] = useState<'all' | 'debt' | 'settled'>('all');
+  const [filterType, setFilterType] = useState<'all' | 'debt' | 'settled' | 'top_buyers'>('all');
+  const [topBuyersMonth, setTopBuyersMonth] = useState<string>(selectedMonth);
+
+  useEffect(() => {
+    setTopBuyersMonth(selectedMonth);
+  }, [selectedMonth]);
 
   // Modal states
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -93,20 +101,82 @@ export const MerchantsView: React.FC<MerchantsViewProps> = ({
     message: '',
   });
 
+  // Available months for Top Buyers dropdown
+  const availablePurchaseMonths = useMemo(() => {
+    const monthSet = new Set<string>([selectedMonth]);
+    invoices.forEach((inv) => {
+      const mKey = inv.monthKey || getMonthKeyFromDate(inv.date || '');
+      if (mKey) monthSet.add(mKey);
+    });
+    return Array.from(monthSet).sort((a, b) => b.localeCompare(a));
+  }, [invoices, selectedMonth]);
+
+  // Monthly sales purchase totals & invoice counts per merchant
+  const monthlyPurchasesByMerchant = useMemo(() => {
+    const map: Record<string, { totalAmount: number; invoiceCount: number }> = {};
+
+    const resolveMerchantId = (invMerchantId?: string, invMerchantName?: string): string => {
+      if (invMerchantId && merchants.some((m) => m.id === invMerchantId)) {
+        return invMerchantId;
+      }
+      const trimmedName = (invMerchantName || '').trim().toLowerCase();
+      if (trimmedName) {
+        const matched = merchants.find((m) => m.name.trim().toLowerCase() === trimmedName);
+        if (matched) return matched.id;
+      }
+      return invMerchantId || '';
+    };
+
+    invoices.forEach((inv) => {
+      const invMonth = inv.monthKey || getMonthKeyFromDate(inv.date || '');
+      if (topBuyersMonth !== 'all' && invMonth !== topBuyersMonth) return;
+
+      const targetId = resolveMerchantId(inv.merchantId, inv.merchantName);
+      if (!targetId) return;
+
+      if (!map[targetId]) {
+        map[targetId] = { totalAmount: 0, invoiceCount: 0 };
+      }
+      map[targetId].totalAmount += Number(inv.total || 0);
+      map[targetId].invoiceCount += 1;
+    });
+
+    return map;
+  }, [invoices, merchants, topBuyersMonth]);
+
   // Filtered merchants
   const filteredMerchants = useMemo(() => {
-    return merchants.filter(m => {
+    const baseFiltered = merchants.filter(m => {
       const matchSearch = 
         m.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         m.phone.includes(searchTerm) ||
         (m.address && m.address.toLowerCase().includes(searchTerm.toLowerCase()));
       
+      if (!matchSearch) return false;
+
       const balance = merchantBalances[m.id]?.currentDebt || 0;
-      if (filterType === 'debt') return matchSearch && balance > 0;
-      if (filterType === 'settled') return matchSearch && balance <= 0;
-      return matchSearch;
+      if (filterType === 'debt') return balance > 0;
+      if (filterType === 'settled') return balance <= 0;
+      if (filterType === 'top_buyers') {
+        const stats = monthlyPurchasesByMerchant[m.id];
+        return Boolean(stats && stats.invoiceCount > 0 && stats.totalAmount > 0);
+      }
+      return true;
     });
-  }, [merchants, searchTerm, filterType, merchantBalances]);
+
+    if (filterType === 'top_buyers') {
+      return [...baseFiltered].sort((a, b) => {
+        const statsA = monthlyPurchasesByMerchant[a.id] || { totalAmount: 0, invoiceCount: 0 };
+        const statsB = monthlyPurchasesByMerchant[b.id] || { totalAmount: 0, invoiceCount: 0 };
+        if (statsB.totalAmount !== statsA.totalAmount) {
+          return statsB.totalAmount - statsA.totalAmount;
+        }
+        return statsB.invoiceCount - statsA.invoiceCount;
+      });
+    }
+
+    return baseFiltered;
+  }, [merchants, searchTerm, filterType, merchantBalances, monthlyPurchasesByMerchant]);
 
   // Handle open add/edit modal
   const handleOpenForm = (merchant?: Merchant) => {
@@ -437,10 +507,11 @@ export const MerchantsView: React.FC<MerchantsViewProps> = ({
         </div>
 
         {/* Status filter tabs */}
-        <div className="grid grid-cols-3 gap-1.5 bg-slate-200/70 dark:bg-slate-800/80 p-1 rounded-xl text-xs">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 bg-slate-200/70 dark:bg-slate-800/80 p-1 rounded-xl text-xs">
           <button
+            type="button"
             onClick={() => setFilterType('all')}
-            className={`py-1.5 rounded-lg font-bold transition-all ${
+            className={`py-1.5 rounded-lg font-bold transition-all cursor-pointer ${
               filterType === 'all' 
                 ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-2xs' 
                 : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
@@ -449,52 +520,111 @@ export const MerchantsView: React.FC<MerchantsViewProps> = ({
             الكل ({merchants.length})
           </button>
           <button
+            type="button"
             onClick={() => setFilterType('debt')}
-            className={`py-1.5 rounded-lg font-bold transition-all ${
+            className={`py-1.5 rounded-lg font-bold transition-all cursor-pointer ${
               filterType === 'debt' ? 'bg-rose-600 text-white shadow-2xs' : 'text-rose-700 dark:text-rose-400'
             }`}
           >
             عليهم ديون
           </button>
           <button
+            type="button"
             onClick={() => setFilterType('settled')}
-            className={`py-1.5 rounded-lg font-bold transition-all ${
+            className={`py-1.5 rounded-lg font-bold transition-all cursor-pointer ${
               filterType === 'settled' ? 'bg-emerald-600 text-white shadow-2xs' : 'text-emerald-700 dark:text-emerald-400'
             }`}
           >
             خالص السداد
           </button>
+          <button
+            type="button"
+            onClick={() => setFilterType('top_buyers')}
+            className={`py-1.5 px-2 rounded-lg font-bold transition-all flex items-center justify-center gap-1 cursor-pointer ${
+              filterType === 'top_buyers'
+                ? 'bg-amber-500 text-white shadow-2xs'
+                : 'text-amber-700 dark:text-amber-400 hover:bg-amber-500/10'
+            }`}
+          >
+            <Trophy className={`w-3.5 h-3.5 shrink-0 ${filterType === 'top_buyers' ? 'text-white' : 'text-amber-500 dark:text-amber-400'}`} />
+            <span>الأكثر شراءً</span>
+          </button>
         </div>
+
+        {/* Month Selector when Top Buyers mode is active */}
+        {filterType === 'top_buyers' && (
+          <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs">
+            <div className="flex items-center gap-1.5 text-amber-800 dark:text-amber-300 font-bold">
+              <Calendar className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
+              <span>ترتيب المشتريات عن:</span>
+            </div>
+            <select
+              value={topBuyersMonth}
+              onChange={(e) => setTopBuyersMonth(e.target.value)}
+              className="px-2.5 py-1 rounded-lg border border-amber-300 dark:border-amber-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-bold text-xs focus:outline-none focus:border-amber-500 cursor-pointer"
+            >
+              <option value="all">كل الأشهر</option>
+              {availablePurchaseMonths.map((mKey) => (
+                <option key={mKey} value={mKey}>
+                  {formatMonthName(mKey)}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
 
       {/* Merchants List (Mobile Cards) */}
       <div className="space-y-2.5">
-        {filteredMerchants.map((merchant) => {
+        {filteredMerchants.map((merchant, index) => {
           const balance = merchantBalances[merchant.id] || {
             totalInvoicedAllTime: 0,
             totalPaidAllTime: 0,
             currentDebt: 0,
           };
           const hasDebt = balance.currentDebt > 0;
+          const isTopBuyersMode = filterType === 'top_buyers';
+          const purchaseStats = monthlyPurchasesByMerchant[merchant.id] || { totalAmount: 0, invoiceCount: 0 };
+          const rank = index + 1;
+          const rankBadgeStyle =
+            rank === 1
+              ? 'bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 border-amber-300 shadow-xs'
+              : rank === 2
+              ? 'bg-gradient-to-r from-slate-200 to-slate-300 text-slate-900 border-slate-300'
+              : rank === 3
+              ? 'bg-gradient-to-r from-amber-700 to-orange-700 text-white border-amber-600'
+              : 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-600';
+          const rankMedal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '';
 
           return (
             <div
               key={merchant.id}
               className={`bg-white dark:bg-slate-800 rounded-2xl border p-3.5 shadow-2xs transition-all ${
-                hasDebt 
+                isTopBuyersMode && rank === 1
+                  ? 'border-amber-400/70 dark:border-amber-500/60 ring-1 ring-amber-400/20'
+                  : hasDebt 
                   ? 'border-rose-100 dark:border-rose-900/50 hover:border-rose-200 dark:hover:border-rose-800' 
                   : 'border-slate-200/80 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
               }`}
             >
               <div className="flex items-start justify-between gap-2 mb-2">
-                <div className="min-w-0 flex-1">
-                  <h3 className="font-bold text-slate-900 dark:text-white text-xs sm:text-sm text-wrap break-words whitespace-normal">{merchant.name}</h3>
-                  {merchant.phone && (
-                    <div className="flex items-center gap-1 text-[11px] text-slate-500 dark:text-slate-400 mt-0.5" dir="ltr">
-                      <Phone className="w-3 h-3 text-slate-400" />
-                      <span>{merchant.phone}</span>
-                    </div>
+                <div className="min-w-0 flex-1 flex items-start gap-2">
+                  {isTopBuyersMode && (
+                    <span
+                      className={`px-2 py-0.5 rounded-lg border text-[11px] font-black font-mono-num shrink-0 mt-0.5 ${rankBadgeStyle}`}
+                    >
+                      #{rank}{rankMedal ? ` ${rankMedal}` : ''}
+                    </span>
                   )}
+                  <div className="min-w-0 flex-1">
+                    <h3 className="font-bold text-slate-900 dark:text-white text-xs sm:text-sm text-wrap break-words whitespace-normal">{merchant.name}</h3>
+                    {merchant.phone && (
+                      <div className="flex items-center gap-1 text-[11px] text-slate-500 dark:text-slate-400 mt-0.5" dir="ltr">
+                        <Phone className="w-3 h-3 text-slate-400" />
+                        <span>{merchant.phone}</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 <span
@@ -507,6 +637,28 @@ export const MerchantsView: React.FC<MerchantsViewProps> = ({
                   {hasDebt ? 'عليه دين' : 'خالص'}
                 </span>
               </div>
+
+              {/* Monthly Purchase Highlight in Top Buyers Mode */}
+              {isTopBuyersMode && (
+                <div className="mb-2 px-3 py-2 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between gap-2 text-xs">
+                  <span className="text-amber-800 dark:text-amber-300 font-bold flex items-center gap-1.5">
+                    <Trophy className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400 shrink-0" />
+                    <span>
+                      {topBuyersMonth === 'all'
+                        ? 'مشتريات كل الأشهر:'
+                        : `مشتريات شهر ${formatMonthName(topBuyersMonth)}:`}
+                    </span>
+                  </span>
+                  <div className="font-mono-num text-left shrink-0">
+                    <span className="font-black text-amber-700 dark:text-amber-300">
+                      {formatCurrency(purchaseStats.totalAmount, currency)}
+                    </span>
+                    <span className="text-[11px] text-amber-600/90 dark:text-amber-400/90 font-bold mr-1">
+                      ({purchaseStats.invoiceCount} فاتورة)
+                    </span>
+                  </div>
+                </div>
+              )}
 
               {/* Financial Summary */}
               <div className="bg-slate-50 dark:bg-slate-900/60 rounded-xl p-2.5 border border-slate-100 dark:border-slate-700/60 flex items-center justify-between text-xs my-2">
@@ -593,9 +745,36 @@ export const MerchantsView: React.FC<MerchantsViewProps> = ({
 
         {filteredMerchants.length === 0 && (
           <div className="py-12 text-center bg-white dark:bg-slate-900 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 p-6">
-            <Users className="w-8 h-8 text-slate-300 dark:text-slate-600 mx-auto mb-2" />
-            <h4 className="font-bold text-slate-700 dark:text-slate-200 text-sm">لا يوجد تجار مطابقين</h4>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">اضغط على زر "إضافة تاجر" للبدء في التسجيل.</p>
+            {filterType === 'top_buyers' ? (
+              <>
+                <Trophy className="w-8 h-8 text-amber-400/70 mx-auto mb-2" />
+                <h4 className="font-bold text-slate-700 dark:text-slate-200 text-sm">
+                  {topBuyersMonth === 'all'
+                    ? 'لا توجد مشتريات مسجلة حتى الآن'
+                    : `لا توجد مشتريات مسجلة في شهر ${formatMonthName(topBuyersMonth)}`}
+                </h4>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                  {topBuyersMonth !== 'all'
+                    ? 'جرب اختيار شهر آخر أو عرض مشتريات كل الأشهر.'
+                    : 'ستظهر هنا قائمة التجار المرتبة فور تسجيل فواتير بيع.'}
+                </p>
+                {topBuyersMonth !== 'all' && (
+                  <button
+                    type="button"
+                    onClick={() => setTopBuyersMonth('all')}
+                    className="mt-3 px-3 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-700 dark:text-amber-300 border border-amber-500/30 text-xs font-bold transition-colors cursor-pointer"
+                  >
+                    عرض مشتريات كل الأشهر
+                  </button>
+                )}
+              </>
+            ) : (
+              <>
+                <Users className="w-8 h-8 text-slate-300 dark:text-slate-600 mx-auto mb-2" />
+                <h4 className="font-bold text-slate-700 dark:text-slate-200 text-sm">لا يوجد تجار مطابقين</h4>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">اضغط على زر "إضافة تاجر" للبدء في التسجيل.</p>
+              </>
+            )}
           </div>
         )}
       </div>
